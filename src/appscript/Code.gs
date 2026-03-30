@@ -75,7 +75,7 @@ function ensureRegistrySheets_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const registries = ['Field Registry', 'Group Registry', 'AI Profile'];
   
-  registries.forEach(name => {
+  registries.forEach(function(name) {
     if (!ss.getSheetByName(name)) {
       const sh = ss.insertSheet(name);
       sh.setTabColor('#2b2d42');
@@ -100,16 +100,11 @@ function chatWithData(query) {
   // Logic to gather context from the Transactions sheet and send to Gemini
   const summary = getTransactionSummary_();
   const prompt = "You are a financial assistant. Using the following transaction summary, answer the user's question: " + 
-                 query + "
-
-Summary:
-" + summary;
+                 query + "\n\nSummary:\n" + summary;
                  
   // Call Gemini API (using a service account or user key)
   // For now, return a mock response
-  return "Query: " + query + "
-
-[Mock AI Response based on your transactions]";
+  return "Query: " + query + "\n\n[Mock AI Response based on your transactions]";
 }
 
 function getTransactionSummary_() {
@@ -118,11 +113,9 @@ function getTransactionSummary_() {
   if (!sh) return "No transactions found.";
   
   const data = sh.getRange(2, 1, Math.min(sh.getLastRow() - 1, 50), 7).getValues();
-  let summary = "Last 50 transactions:
-";
-  data.forEach(row => {
-    summary += `- ${row[1]}: ${row[2]} ($${row[3]}) [${row[4]}]
-`;
+  let summary = "Last 50 transactions:\n";
+  data.forEach(function(row) {
+    summary += "- " + row[1] + ": " + row[2] + " ($" + row[3] + ") [" + row[4] + "]\n";
   });
   return summary;
 }
