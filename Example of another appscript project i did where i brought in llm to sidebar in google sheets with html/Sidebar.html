@@ -1,0 +1,2101 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      :root{
+        --bg:#0d1117;
+        --panel:#161b22;
+        --panel-2:#0b1220;
+        --border:#30363d;
+        --text:#c9d1d9;
+        --muted:#8b949e;
+        --blue:#0a84ff;
+        --green:#34c759;
+        --red:#ff3b30;
+        --purple:#8957e5;
+        --orange:#ff9f0a;
+        --soft-blue:rgba(10,132,255,0.18);
+        --soft-green:rgba(52,199,89,0.18);
+        --soft-red:rgba(255,59,48,0.18);
+        --soft-purple:rgba(137,87,229,0.18);
+        --soft-orange:rgba(255,159,10,0.18);
+      }
+
+      * { box-sizing:border-box; }
+
+      body {
+        font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+        background:var(--bg);
+        color:var(--text);
+        padding:10px;
+        margin:0;
+      }
+
+      .app-title {
+        font-size:14px;
+        font-weight:800;
+        letter-spacing:.3px;
+        margin-bottom:10px;
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:10px;
+      }
+
+      .app-subtitle {
+        font-size:11px;
+        color:var(--muted);
+        font-weight:500;
+      }
+
+      .tab-container {
+        display:flex;
+        border-bottom:1px solid var(--border);
+        margin-bottom:12px;
+        gap:2px;
+        flex-wrap:wrap;
+      }
+
+      .tab {
+        flex:1 1 auto;
+        text-align:center;
+        padding:8px 6px;
+        cursor:pointer;
+        color:var(--muted);
+        font-size:11px;
+        font-weight:bold;
+        border-bottom:2px solid transparent;
+        user-select:none;
+        min-width:64px;
+      }
+
+      .tab.active {
+        color:var(--blue);
+        border-bottom:2px solid var(--blue);
+      }
+
+      .tab-content { display:none; }
+      .tab-content.active { display:block; }
+
+      .metric-box,
+      .panel-box {
+        background:var(--panel);
+        border:1px solid var(--border);
+        border-radius:12px;
+        padding:10px;
+        margin-bottom:10px;
+      }
+
+      .metric-label {
+        font-size:10px;
+        text-transform:uppercase;
+        color:var(--muted);
+        text-align:center;
+        letter-spacing:.6px;
+      }
+
+      .metric-value {
+        font-size:18px;
+        font-weight:bold;
+        margin:6px 0;
+        text-align:center;
+      }
+
+      .small { font-size:11px; color:var(--muted); line-height:1.45; }
+      .small-center { font-size:11px; color:var(--muted); line-height:1.45; text-align:center; }
+
+      .btn {
+        display:block;
+        width:100%;
+        padding:10px;
+        margin-top:10px;
+        font-size:12px;
+        font-weight:bold;
+        text-align:center;
+        color:#fff;
+        background:var(--green);
+        border:none;
+        border-radius:10px;
+        cursor:pointer;
+        transition:0.2s;
+      }
+
+      .btn:hover { filter:brightness(1.05); }
+      .btn-ai { background:var(--purple); }
+      .btn-outline { background:var(--bg); border:1px solid var(--blue); color:var(--blue); }
+      .btn-danger { background:var(--red); }
+      .btn-orange { background:var(--orange); }
+
+      input, select, textarea {
+        width:100%;
+        padding:8px;
+        margin-top:6px;
+        background:var(--bg);
+        border:1px solid var(--border);
+        color:white;
+        border-radius:8px;
+        font-family:inherit;
+      }
+
+      textarea { resize:vertical; }
+
+      #chat-history {
+        height:260px;
+        overflow-y:auto;
+        border:1px solid var(--border);
+        padding:10px;
+        margin-bottom:10px;
+        border-radius:10px;
+        background:var(--panel);
+        font-size:12px;
+      }
+
+      .msg-user {
+        color:var(--blue);
+        margin-bottom:8px;
+        font-weight:bold;
+      }
+
+      .msg-bot {
+        color:var(--green);
+        margin-bottom:12px;
+        border-left:2px solid var(--green);
+        padding-left:8px;
+        white-space:pre-wrap;
+      }
+
+      #circuit-breaker {
+        display:none;
+        background:var(--red);
+        color:white;
+        padding:10px;
+        text-align:center;
+        font-weight:bold;
+        font-size:12px;
+        border-radius:10px;
+        margin-bottom:10px;
+        animation:pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0%{opacity:1}
+        50%{opacity:.82}
+        100%{opacity:1}
+      }
+
+      .pill {
+        display:inline-block;
+        padding:4px 10px;
+        border-radius:999px;
+        font-size:11px;
+        margin:4px 6px 0 0;
+        border:1px solid var(--border);
+        cursor:pointer;
+      }
+
+      .pill.good { background:var(--soft-green); color:var(--green); }
+      .pill.mid { background:var(--soft-blue); color:var(--blue); }
+      .pill.bad { background:var(--soft-red); color:var(--red); }
+      .pill.missing { background:rgba(255,59,48,0.10); color:#ffb4b4; }
+
+      .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+      .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+      .grid4 { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px; }
+
+      .status {
+        font-size:11px;
+        margin-top:8px;
+        color:var(--green);
+        min-height:16px;
+        line-height:1.4;
+        white-space:pre-wrap;
+      }
+
+      hr {
+        border:0;
+        border-top:1px solid var(--border);
+        margin:14px 0;
+      }
+
+      label {
+        font-size:11px;
+        color:var(--muted);
+        display:block;
+      }
+
+      .subtle-card {
+        background:var(--panel-2);
+        border:1px solid var(--border);
+        border-radius:10px;
+        padding:8px;
+      }
+
+      .pillar-grid {
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:8px;
+        margin-top:8px;
+      }
+
+      .pillar-card {
+        background:var(--panel-2);
+        border:1px solid var(--border);
+        border-radius:10px;
+        padding:8px;
+      }
+
+      .pillar-title {
+        font-size:10px;
+        text-transform:uppercase;
+        color:var(--muted);
+        margin-bottom:4px;
+        letter-spacing:.4px;
+      }
+
+      .pillar-value {
+        font-size:14px;
+        font-weight:700;
+        color:var(--text);
+      }
+
+      .pillar-sub {
+        font-size:10px;
+        color:var(--muted);
+        margin-top:2px;
+      }
+
+      .legend {
+        display:flex;
+        flex-wrap:wrap;
+        gap:8px;
+        justify-content:center;
+        margin-top:8px;
+      }
+
+      .legend-item {
+        display:flex;
+        align-items:center;
+        gap:6px;
+        font-size:10px;
+        color:var(--muted);
+      }
+
+      .legend-swatch {
+        width:12px;
+        height:12px;
+        border-radius:3px;
+        border:1px solid var(--border);
+      }
+
+      .calendar-wrap {
+        background:var(--panel);
+        border:1px solid var(--border);
+        border-radius:12px;
+        padding:10px;
+      }
+
+      .calendar-top {
+        display:grid;
+        grid-template-columns:42px 1fr 42px;
+        gap:8px;
+        align-items:center;
+        margin-bottom:10px;
+      }
+
+      .calendar-month-title {
+        text-align:center;
+        font-weight:700;
+        font-size:14px;
+      }
+
+      .mini-btn {
+        background:var(--bg);
+        color:var(--blue);
+        border:1px solid var(--blue);
+        border-radius:8px;
+        height:34px;
+        cursor:pointer;
+        font-weight:700;
+      }
+
+      .calendar-grid {
+        display:grid;
+        grid-template-columns:repeat(7, 1fr);
+        gap:6px;
+      }
+
+      .dow {
+        text-align:center;
+        font-size:10px;
+        color:var(--muted);
+        padding-bottom:2px;
+        text-transform:uppercase;
+      }
+
+      .day-cell {
+        min-height:52px;
+        border-radius:10px;
+        border:1px solid var(--border);
+        display:flex;
+        flex-direction:column;
+        justify-content:space-between;
+        padding:6px;
+        cursor:pointer;
+        background:var(--panel-2);
+        transition:.15s ease;
+      }
+
+      .day-cell:hover { transform:translateY(-1px); }
+
+      .day-cell.out-month {
+        opacity:0.38;
+        cursor:default;
+      }
+
+      .day-cell.none { background:var(--panel-2); }
+      .day-cell.green { background:rgba(52,199,89,0.26); }
+      .day-cell.blue { background:rgba(10,132,255,0.26); }
+      .day-cell.red { background:rgba(255,59,48,0.26); }
+
+      .day-cell.today {
+        outline:2px solid #ffffff;
+        outline-offset:1px;
+      }
+
+      .day-num {
+        font-size:11px;
+        font-weight:700;
+        color:var(--text);
+      }
+
+      .day-xp {
+        font-size:10px;
+        color:rgba(255,255,255,0.9);
+        text-align:right;
+      }
+
+      .kbd-note {
+        font-size:10px;
+        color:var(--muted);
+        text-align:center;
+        margin-top:8px;
+      }
+
+      .cfg-row, .builder-row {
+        margin-bottom:10px;
+      }
+
+      .cfg-help {
+        font-size:10px;
+        color:var(--muted);
+        margin-top:4px;
+      }
+
+      .section-title {
+        font-size:11px;
+        text-transform:uppercase;
+        color:var(--muted);
+        font-weight:800;
+        letter-spacing:.6px;
+        margin-bottom:8px;
+      }
+
+      .kv-grid {
+        display:grid;
+        grid-template-columns:1fr;
+        gap:10px;
+      }
+
+      .json-area {
+        min-height:180px;
+        font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+        font-size:11px;
+        white-space:pre;
+      }
+
+      .quick-card {
+        background:var(--panel-2);
+        border:1px solid var(--border);
+        border-radius:10px;
+        padding:10px;
+        margin-bottom:10px;
+      }
+
+      .tag {
+        display:inline-block;
+        padding:3px 8px;
+        border-radius:999px;
+        font-size:10px;
+        border:1px solid var(--border);
+        color:var(--muted);
+        margin-right:6px;
+        margin-top:6px;
+      }
+
+      .template-card {
+        background:var(--panel-2);
+        border:1px solid var(--border);
+        border-radius:10px;
+        padding:10px;
+        margin-bottom:10px;
+      }
+
+      .template-title {
+        font-size:11px;
+        font-weight:800;
+        color:var(--text);
+        margin-bottom:8px;
+      }
+
+      .preview-box {
+        background:var(--panel-2);
+        border:1px solid var(--border);
+        border-radius:10px;
+        padding:10px;
+        white-space:pre-wrap;
+        font-size:11px;
+        line-height:1.45;
+      }
+
+      .note-box {
+        font-size:11px;
+        color:var(--muted);
+        line-height:1.5;
+      }
+
+      .toggle-row {
+        display:flex;
+        align-items:center;
+        gap:8px;
+        margin-top:6px;
+      }
+
+      .toggle-row input[type="checkbox"] {
+        width:auto;
+        margin:0;
+      }
+
+      .stack-sm > * + * {
+        margin-top:8px;
+      }
+
+      .stack-md > * + * {
+        margin-top:10px;
+      }
+
+      .field-group-card {
+        background:var(--panel-2);
+        border:1px solid var(--border);
+        border-radius:12px;
+        padding:10px;
+      }
+
+      .field-group-title {
+        font-size:11px;
+        text-transform:uppercase;
+        color:var(--muted);
+        letter-spacing:.6px;
+        margin-bottom:8px;
+        font-weight:700;
+      }
+
+      .hidden { display:none !important; }
+    </style>
+  </head>
+
+  <body>
+    <div class="app-title">
+      <div>
+        <div id="appTitleText">Agentic OS Command Center</div>
+        <div class="app-subtitle" id="appSubtitleText">Dynamic protocol control panel</div>
+      </div>
+      <div class="tag" id="brandTag">Builder Mode</div>
+    </div>
+
+    <div class="tab-container">
+      <div class="tab active" data-view-id="dashboard" data-tab-target="dash" onclick="switchTab(event,'dash')">Dash</div>
+      <div class="tab" data-view-id="calendar" data-tab-target="calendar" onclick="switchTab(event,'calendar')">Calendar</div>
+      <div class="tab" data-view-id="log_today" data-tab-target="log" onclick="switchTab(event,'log')">Log</div>
+      <div class="tab" data-view-id="brain_dump" data-tab-target="brain" onclick="switchTab(event,'brain')">Dump</div>
+      <div class="tab" data-view-id="ai_chat" data-tab-target="chat" onclick="switchTab(event,'chat')">AI</div>
+      <div class="tab" data-view-id="config" data-tab-target="settings" onclick="switchTab(event,'settings')">Config</div>
+      <div class="tab" data-view-id="admin_builder" data-tab-target="builder" onclick="switchTab(event,'builder')">Builder</div>
+    </div>
+
+    <!-- DASH -->
+    <div id="dash" class="tab-content active" data-view-id="dashboard">
+      <div id="circuit-breaker">🚨 CIRCUIT BREAKER TRIPPED 🚨<br/>3 Consecutive Drawdowns. Paper Trade Only.</div>
+
+      <div class="metric-box">
+        <div class="metric-label">Streak</div>
+        <div class="metric-value" id="streak">--</div>
+        <div class="small-center" id="streakSub">Locked / Live</div>
+      </div>
+
+      <div class="metric-box">
+        <div class="metric-label">Level / XP</div>
+        <div class="metric-value" id="level">Level --</div>
+        <div class="small-center" id="xpText">--</div>
+      </div>
+
+      <div class="metric-box">
+        <div class="metric-label">Today Completion</div>
+        <div class="metric-value" id="todayScore">--%</div>
+        <div class="small-center" id="todayDetail">--</div>
+        <div class="small-center" id="todayMissing">Missing: --</div>
+        <div class="small-center" id="todayWeather">Weather: --</div>
+        <button class="btn btn-outline" onclick="jumpNext()">🎯 Jump to Next Missing</button>
+      </div>
+
+      <div class="metric-box">
+        <div class="metric-label">Pillar Streaks</div>
+        <div id="pillarGrid" class="pillar-grid"></div>
+      </div>
+
+      <div class="metric-box">
+        <div class="metric-label">Today Checklist (tap to jump)</div>
+        <div id="checklistPills" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="metric-box">
+        <div class="metric-label">Pillars Radar</div>
+        <canvas id="radarChart" height="190"></canvas>
+      </div>
+
+      <div class="metric-box">
+        <div class="metric-label">Trends (last N days)</div>
+        <canvas id="scoreXpTrend" height="120"></canvas>
+        <div style="height:10px;"></div>
+        <canvas id="sleepWaterTrend" height="120"></canvas>
+        <div style="height:10px;"></div>
+        <canvas id="plTrend" height="120"></canvas>
+      </div>
+
+      <div class="grid2">
+        <button class="btn" onclick="refreshAll()">🔄 Refresh</button>
+        <button class="btn btn-outline" onclick="runMenu('toggleHideFutureRows','dashStatus')">🎯 Focus Mode</button>
+      </div>
+
+      <div class="stack-sm" data-view-id="weekly">
+        <button class="btn btn-outline" onclick="runMenu('generateWeeklyReport','dashStatus')">📅 Weekly</button>
+      </div>
+
+      <div class="stack-sm" data-view-id="automation_tools">
+        <button class="btn btn-outline" onclick="runMenu('setupAutomations','dashStatus')">⏰ Triggers</button>
+      </div>
+
+      <div class="stack-sm" data-view-id="brief_preview">
+        <button class="btn btn-outline" onclick="loadMorningBriefPreview()">📨 Preview Brief</button>
+      </div>
+
+      <div class="stack-sm">
+        <button class="btn btn-outline" onclick="runMenu('refreshCalendarHeatmap','dashStatus')">🗓️ Refresh Calendar</button>
+      </div>
+
+      <div class="grid3" data-view-id="automation_tools">
+        <button class="btn btn-outline" onclick="runMenu('runMorningRoutineNow','dashStatus')">🌅 Run Routine</button>
+        <button class="btn btn-outline" onclick="runMenu('sendMorningBriefNow','dashStatus')">📬 Send Brief</button>
+        <button class="btn btn-outline" onclick="runMenu('logWeatherSnapshotNow','dashStatus')">🌤️ Log Weather</button>
+      </div>
+
+      <div class="grid2" data-view-id="automation_tools">
+        <button class="btn btn-outline" onclick="runMenu('runMorningReminderNow','dashStatus')">⏰ Reminder</button>
+        <button class="btn btn-outline" onclick="runMenu('sendEveningDigestNow','dashStatus')">🌙 Evening Digest</button>
+      </div>
+
+      <div class="grid2" data-view-id="automation_tools">
+        <button class="btn btn-outline" onclick="runMenu('sendWeeklyReviewNow','dashStatus')">📝 Weekly Review</button>
+        <button class="btn btn-outline" onclick="runMenu('runSyncFailureAlertNow','dashStatus')">🚨 Sync Alert</button>
+      </div>
+
+      <div class="panel-box" data-view-id="brief_preview">
+        <div class="section-title">Morning Brief Preview</div>
+        <div class="preview-box" id="briefPreview">Load preview to see the current template-driven morning email.</div>
+      </div>
+
+      <div class="status" id="dashStatus"></div>
+    </div>
+
+    <!-- CALENDAR -->
+    <div id="calendar" class="tab-content" data-view-id="calendar">
+      <div class="calendar-wrap">
+        <div class="calendar-top">
+          <button class="mini-btn" onclick="changeCalendarMonth(-1)">‹</button>
+          <div class="calendar-month-title" id="calendarTitle">Month</div>
+          <button class="mini-btn" onclick="changeCalendarMonth(1)">›</button>
+        </div>
+
+        <div class="legend">
+          <div class="legend-item"><span class="legend-swatch" style="background:#161b22;"></span><span>No score</span></div>
+          <div class="legend-item"><span class="legend-swatch" style="background:rgba(255,59,48,0.26);"></span><span>Low</span></div>
+          <div class="legend-item"><span class="legend-swatch" style="background:rgba(10,132,255,0.26);"></span><span>Mid</span></div>
+          <div class="legend-item"><span class="legend-swatch" style="background:rgba(52,199,89,0.26);"></span><span>High</span></div>
+        </div>
+
+        <div style="height:10px;"></div>
+        <div id="calendarGrid"></div>
+
+        <div class="kbd-note">Tap a day to jump to that row in your main sheet.</div>
+
+        <div class="grid2" style="margin-top:10px;">
+          <button class="btn btn-outline" onclick="goCalendarToday()">Today</button>
+          <button class="btn btn-outline" onclick="refreshCalendarSheet()">Refresh Calendar Sheet</button>
+        </div>
+
+        <div class="status" id="calendarStatus"></div>
+      </div>
+    </div>
+
+    <!-- LOG TODAY -->
+    <div id="log" class="tab-content" data-view-id="log_today">
+      <div class="metric-box">
+        <div class="metric-label">Log Today (registry-driven)</div>
+        <div class="small-center">
+          This form is generated from active Field Registry rows marked <code>Show In Sidebar</code>, grouped by Group Registry.
+        </div>
+
+        <div id="logFieldGroups" class="stack-md" style="margin-top:10px;"></div>
+
+        <button class="btn" onclick="saveToday()">💾 Save Today</button>
+        <button class="btn btn-outline" onclick="loadToday()">↩️ Load Current Values</button>
+        <div class="status" id="logStatus"></div>
+      </div>
+    </div>
+
+    <!-- BRAIN DUMP -->
+    <div id="brain" class="tab-content" data-view-id="brain_dump">
+      <div class="metric-box">
+        <div class="metric-label">Brain Dump → routes to Today</div>
+        <div class="small-center">
+          Gemini uses your active Brain Dump routes and appends routed text into today&apos;s configured target fields.
+        </div>
+        <div class="note-box" id="dumpRoutesNote" style="margin-top:10px;">Loading active routes...</div>
+        <textarea id="dumpInput" rows="6" placeholder="Need to backtest ES futures at VWAP, also buy chicken, and fix cache bug..."></textarea>
+        <button class="btn btn-ai" id="btnDump" onclick="sendBrainDump()">Process & Route</button>
+        <div class="status" id="dumpStatus"></div>
+      </div>
+    </div>
+
+    <!-- AI CHAT -->
+    <div id="chat" class="tab-content" data-view-id="ai_chat">
+      <div id="chat-history"></div>
+      <input type="text" id="chatInput" placeholder="Ask AI using your full protocol history..." onkeypress="if(event.key === 'Enter') sendMsg()">
+      <button class="btn btn-ai" onclick="sendMsg()">Send</button>
+
+      <div class="panel-box" style="margin-top:12px;">
+        <div class="section-title">Visual Analysis</div>
+        <div class="small-center">Upload an image and have Gemini analyze it using your active AI profile and workbook context.</div>
+        <label style="margin-top:10px;">Image</label>
+        <input id="aiImageFile" type="file" accept="image/*">
+        <label>Prompt (optional)</label>
+        <textarea id="aiImagePrompt" rows="3" placeholder="What should the AI extract or tell me about this image?"></textarea>
+        <button class="btn btn-ai" id="btnAnalyzeImage" onclick="sendAiImage()">Analyze Image</button>
+        <div class="status" id="aiImageStatus"></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="settings" class="tab-content" data-view-id="config">
+      <div class="metric-box">
+        <div class="metric-label">Gemini API Key</div>
+        <input type="password" id="apiKey" placeholder="AIzaSy...">
+        <button class="btn btn-outline" onclick="saveKey()">Save Key</button>
+
+        <hr>
+
+        <div class="metric-label">Thresholds / App Settings / Branding / Templates</div>
+        <button class="btn btn-outline" onclick="loadConfigBundle()">Load Config Bundle</button>
+
+        <div id="cfgForm" style="margin-top:10px;"></div>
+        <button class="btn" onclick="saveConfig()">Save Config Bundle</button>
+        <button class="btn btn-outline" onclick="resetConfig()">Reset Defaults</button>
+
+        <hr>
+
+        <button class="btn btn-outline" onclick="runMenu('fixScoreRefErrors','settingsStatus')">🩹 Fix Score #REF</button>
+        <button class="btn btn-outline" onclick="runMenu('repair_System','settingsStatus')">🧰 Repair / Reapply Everything</button>
+        <button class="btn btn-outline" onclick="runMenu('syncSchemaToMain','settingsStatus')">🔁 Sync Schema / Labels / Fields</button>
+        <button class="btn btn-outline" onclick="refreshCalendarSheet()">🗓️ Refresh Calendar Sheet</button>
+
+        <div class="status" id="settingsStatus"></div>
+      </div>
+    </div>
+
+    <!-- BUILDER -->
+    <div id="builder" class="tab-content" data-view-id="admin_builder">
+      <div class="panel-box">
+        <div class="section-title">Quick Builder Actions</div>
+
+        <div class="quick-card">
+          <div class="template-title">Add Custom Field</div>
+          <div class="grid2">
+            <div>
+              <label>Field ID</label>
+              <input id="bf_fieldId" type="text" placeholder="energy_level">
+            </div>
+            <div>
+              <label>Display Label</label>
+              <input id="bf_label" type="text" placeholder="Energy Level">
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div>
+              <label>Type</label>
+              <select id="bf_type">
+                <option value="text">text</option>
+                <option value="number">number</option>
+                <option value="currency">currency</option>
+                <option value="checkbox">checkbox</option>
+                <option value="dropdown">dropdown</option>
+                <option value="textarea">textarea</option>
+              </select>
+            </div>
+            <div>
+              <label>Group ID</label>
+              <input id="bf_groupId" type="text" placeholder="habits">
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div>
+              <label>Dropdown Key (optional)</label>
+              <input id="bf_dropdownKey" type="text" placeholder="energy_level">
+            </div>
+            <div>
+              <label>Weight (optional)</label>
+              <input id="bf_weight" type="number" step="0.01" placeholder="4">
+            </div>
+          </div>
+
+          <div class="grid3">
+            <div>
+              <label>Score Min</label>
+              <input id="bf_scoreMin" type="number" step="0.01" placeholder="1">
+            </div>
+            <div>
+              <label>Blue Min</label>
+              <input id="bf_blueMin" type="number" step="0.01" placeholder="1">
+            </div>
+            <div>
+              <label>Green Min</label>
+              <input id="bf_greenMin" type="number" step="0.01" placeholder="2">
+            </div>
+          </div>
+
+          <div class="toggle-row"><input id="bf_scoreEnabled" type="checkbox"><label for="bf_scoreEnabled">Score Enabled</label></div>
+          <div class="toggle-row"><input id="bf_showChecklist" type="checkbox"><label for="bf_showChecklist">Show In Checklist</label></div>
+          <div class="toggle-row"><input id="bf_showEmail" type="checkbox"><label for="bf_showEmail">Show In Email</label></div>
+
+          <button class="btn" onclick="quickAddField()">Add Field</button>
+        </div>
+
+        <div class="quick-card">
+          <div class="template-title">Add / Rename Group</div>
+
+          <div class="grid2">
+            <div>
+              <label>New Group ID</label>
+              <input id="bg_groupId" type="text" placeholder="mindset">
+            </div>
+            <div>
+              <label>Display Name</label>
+              <input id="bg_displayName" type="text" placeholder="Mindset">
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div>
+              <label>Icon</label>
+              <input id="bg_icon" type="text" placeholder="🧠">
+            </div>
+            <div>
+              <label>Color</label>
+              <input id="bg_color" type="text" placeholder="#6b7280">
+            </div>
+          </div>
+
+          <button class="btn" onclick="quickAddGroup()">Add Group</button>
+
+          <hr>
+
+          <div class="grid2">
+            <div>
+              <label>Rename Existing Group ID</label>
+              <input id="br_groupId" type="text" placeholder="career">
+            </div>
+            <div>
+              <label>New Group Display Name</label>
+              <input id="br_displayName" type="text" placeholder="Career Acceleration">
+            </div>
+          </div>
+
+          <button class="btn btn-outline" onclick="quickRenameGroup()">Rename Group</button>
+        </div>
+
+        <div class="quick-card">
+          <div class="template-title">Dropdown / Field Maintenance</div>
+
+          <div class="grid2">
+            <div>
+              <label>Dropdown Key</label>
+              <input id="bd_key" type="text" placeholder="energy_level">
+            </div>
+            <div>
+              <label>Option Label</label>
+              <input id="bd_label" type="text" placeholder="High">
+            </div>
+          </div>
+
+          <button class="btn" onclick="quickAddDropdown()">Add Dropdown Option</button>
+
+          <hr>
+
+          <div class="grid2">
+            <div>
+              <label>Rename Field ID</label>
+              <input id="brename_fieldId" type="text" placeholder="energy_level">
+            </div>
+            <div>
+              <label>New Display Label</label>
+              <input id="brename_label" type="text" placeholder="Energy / Focus">
+            </div>
+          </div>
+
+          <button class="btn btn-outline" onclick="quickRenameField()">Rename Field Label</button>
+
+          <div class="grid2" style="margin-top:10px;">
+            <div>
+              <label>Archive Field ID</label>
+              <input id="barchive_fieldId" type="text" placeholder="energy_level">
+            </div>
+            <div style="display:flex;align-items:end;">
+              <button class="btn btn-danger" style="margin-top:0;" onclick="quickArchiveField()">Archive Field</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="quick-card">
+          <div class="template-title">AppSheet Product Preview</div>
+          <button class="btn btn-orange" onclick="loadAppSheetPreview()">Load AppSheet Preview</button>
+          <div class="preview-box" id="appSheetPreview">Preview not loaded yet.</div>
+        </div>
+      </div>
+
+      <div class="panel-box">
+        <div class="section-title">Advanced Registry JSON Editors</div>
+        <div class="note-box">
+          These editors provide full control. Save carefully: the full registry arrays are replaced when you save.
+        </div>
+
+        <button class="btn btn-outline" onclick="loadBuilderPayload()">Load Builder Registries</button>
+
+        <div class="quick-card">
+          <div class="template-title">Fields Registry</div>
+          <textarea id="builderFieldsJson" class="json-area" placeholder="[]"></textarea>
+        </div>
+
+        <div class="quick-card">
+          <div class="template-title">Groups Registry</div>
+          <textarea id="builderGroupsJson" class="json-area" placeholder="[]"></textarea>
+        </div>
+
+        <div class="quick-card">
+          <div class="template-title">Dropdown Registry</div>
+          <textarea id="builderDropdownsJson" class="json-area" placeholder="[]"></textarea>
+        </div>
+
+        <div class="quick-card">
+          <div class="template-title">Settings Registry</div>
+          <textarea id="builderSettingsJson" class="json-area" placeholder="[]"></textarea>
+        </div>
+
+        <div class="quick-card">
+          <div class="template-title">Branding Registry</div>
+          <textarea id="builderBrandingJson" class="json-area" placeholder="[]"></textarea>
+        </div>
+
+        <div class="quick-card">
+          <div class="template-title">Template Registry</div>
+          <textarea id="builderTemplatesJson" class="json-area" placeholder="[]"></textarea>
+        </div>
+
+        <div class="quick-card">
+          <div class="template-title">Automation Registry</div>
+          <textarea id="builderAutomationsJson" class="json-area" placeholder="[]"></textarea>
+        </div>
+
+        <div class="quick-card">
+          <div class="template-title">Views Registry</div>
+          <textarea id="builderViewsJson" class="json-area" placeholder="[]"></textarea>
+        </div>
+
+        <div class="quick-card">
+          <div class="template-title">Brain Dump Registry</div>
+          <textarea id="builderBrainDumpJson" class="json-area" placeholder="[]"></textarea>
+        </div>
+
+        <div class="quick-card">
+          <div class="template-title">Dashboard Widget Registry</div>
+          <textarea id="builderWidgetsJson" class="json-area" placeholder="[]"></textarea>
+        </div>
+
+        <div class="quick-card">
+          <div class="template-title">Trend Widget Registry</div>
+          <textarea id="builderTrendWidgetsJson" class="json-area" placeholder="[]"></textarea>
+        </div>
+
+        <button class="btn" onclick="saveBuilderJson()">Save Full Builder Payload</button>
+        <div class="status" id="builderStatus"></div>
+      </div>
+    </div>
+
+    <script>
+      let radarInstance = null;
+      let scoreXpInstance = null;
+      let sleepWaterInstance = null;
+      let plTrendInstance = null;
+
+      let cfgBundle = null;
+      let builderBundle = null;
+      let dropdownBundle = null;
+      let sidebarUiBundle = null;
+      let calendarMonthOffset = 0;
+      let chartFallbackShown = false;
+
+      const LOG_FIELD_PREFIX = 'logField__';
+
+      window.onload = () => {
+        boot();
+      };
+
+      function boot() {
+        refreshDashboard_();
+        loadSidebarUiBundle();
+      }
+
+      function activeTabId_() {
+        return document.querySelector('.tab-content.active')?.id || 'dash';
+      }
+
+      function refreshDashboard_() {
+        fetchMetrics();
+        loadChecklist();
+      }
+
+      function loadSidebarUiBundle() {
+        google.script.run.withSuccessHandler(bundle => {
+          sidebarUiBundle = bundle || { fields: [], groups: [], views: [], brainDumpRoutes: [], dropdowns: {}, settings: {}, branding: {} };
+          dropdownBundle = {
+            all: sidebarUiBundle.dropdowns || {},
+            workout: (sidebarUiBundle.dropdowns || {}).workout || [],
+            smoking: (sidebarUiBundle.dropdowns || {}).smoking || [],
+            ai: (sidebarUiBundle.dropdowns || {}).ai || []
+          };
+          applyBranding(sidebarUiBundle.branding || {}, sidebarUiBundle.settings || {});
+          applyViewRegistry(sidebarUiBundle.views || []);
+          renderLogFields();
+          renderBrainDumpRoutes();
+          loadToday();
+        }).getSidebarUiBundle();
+      }
+
+      function switchTab(evt, tabId) {
+        setActiveTab_(tabId, evt?.currentTarget);
+      }
+
+      function runMenu(fnName, statusId) {
+        const statusEl = document.getElementById(statusId || 'dashStatus');
+        if (statusEl) statusEl.textContent = 'Running...';
+        google.script.run.withSuccessHandler(res => {
+          if (statusEl) statusEl.textContent = (typeof res === 'string') ? res : 'Done.';
+          refreshActiveTabData_();
+          loadToday();
+        })[fnName]();
+      }
+
+      function refreshAll() {
+        refreshDashboard_();
+        refreshActiveTabData_();
+      }
+
+      function refreshActiveTabData_() {
+        const tabId = activeTabId_();
+        if (tabId === 'calendar') {
+          loadCalendarMonth(calendarMonthOffset);
+        } else if (tabId === 'settings') {
+          loadConfigBundle();
+        } else if (tabId === 'builder') {
+          loadBuilderPayload();
+        }
+      }
+
+      function setActiveTab_(tabId, explicitTabEl) {
+        const content = document.getElementById(tabId);
+        if (!content || content.style.display === 'none') return;
+
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        content.classList.add('active');
+
+        const tabEl = explicitTabEl || document.querySelector(`.tab[data-tab-target="${tabId}"]`);
+        if (tabEl && tabEl.style.display !== 'none') tabEl.classList.add('active');
+
+        if (tabId === 'calendar') {
+          loadCalendarMonth(calendarMonthOffset);
+        } else if (tabId === 'settings' && !cfgBundle) {
+          loadConfigBundle();
+        } else if (tabId === 'builder' && !builderBundle) {
+          loadBuilderPayload();
+        }
+      }
+
+      function applyViewRegistry(views) {
+        const enabledMap = {};
+        const titleMap = {};
+        (views || []).forEach(view => {
+          if (!view || !view.viewId) return;
+          enabledMap[String(view.viewId)] = !!view.enabled;
+          titleMap[String(view.viewId)] = view.title;
+        });
+
+        document.querySelectorAll('[data-view-id]').forEach(el => {
+          const viewId = el.getAttribute('data-view-id');
+          const enabled = Object.prototype.hasOwnProperty.call(enabledMap, viewId) ? enabledMap[viewId] : true;
+          el.style.display = enabled ? '' : 'none';
+          if (!enabled) el.classList.remove('active');
+        });
+
+        document.querySelectorAll('.tab[data-view-id]').forEach(tab => {
+          if (!tab.dataset.defaultLabel) tab.dataset.defaultLabel = tab.textContent;
+          const viewId = tab.getAttribute('data-view-id');
+          const title = String(titleMap[viewId] || '').trim();
+          tab.textContent = title || tab.dataset.defaultLabel;
+        });
+
+        const activeContent = document.querySelector('.tab-content.active');
+        if (!activeContent || activeContent.style.display === 'none') {
+          const firstVisibleTab = Array.from(document.querySelectorAll('.tab[data-tab-target]'))
+            .find(tab => tab.style.display !== 'none');
+          if (firstVisibleTab) setActiveTab_(firstVisibleTab.dataset.tabTarget, firstVisibleTab);
+        }
+      }
+
+      function ensureChartReady_() {
+        if (typeof window.Chart !== 'undefined') return true;
+        if (!chartFallbackShown) {
+          chartFallbackShown = true;
+          const status = document.getElementById('dashStatus');
+          if (status) status.textContent = 'Charts unavailable (Chart.js failed to load). Data cards still work.';
+          ['radarChart', 'scoreXpTrend', 'sleepWaterTrend', 'plTrend'].forEach(id => {
+            const c = document.getElementById(id);
+            if (c) c.style.display = 'none';
+          });
+        }
+        return false;
+      }
+
+      function fetchMetrics() {
+        google.script.run.withSuccessHandler(m => {
+          if (!m) return;
+
+          document.getElementById('streak').innerText = `${m.streak} days`;
+          document.getElementById('streakSub').innerText = `Locked: ${m.streak}  •  Live: ${m.streakLive}`;
+
+          document.getElementById('level').innerText = `Level ${m.level}`;
+          document.getElementById('xpText').innerText = `${m.xp} XP total • ${m.xpIntoLevel}/${m.xpPerLevel} this level • ${m.xpToNext} to next`;
+
+          if (m.today) {
+            document.getElementById('todayScore').innerText = `${m.today.scorePct ?? '--'}%`;
+            const pl = (m.today.pl == null) ? '--' : `$${m.today.pl}`;
+            const hi = (m.today.high == null) ? '--' : `${m.today.high}°F`;
+            const donePts = (m.today.done == null) ? '--' : Math.round(m.today.done);
+            const maxPts = (m.today.max == null) ? '--' : Math.round(m.today.max);
+
+            document.getElementById('todayDetail').innerText = `Pts ${donePts}/${maxPts} • XP ${m.today.xp ?? '--'}/100 • P&L: ${pl} • High: ${hi}`;
+
+            const miss = (m.today.missing && m.today.missing.length) ? m.today.missing.slice(0, 8).join(', ') : 'None ✅';
+            document.getElementById('todayMissing').innerText = `Missing: ${miss}`;
+
+            if (m.today.weather) {
+              const w = m.today.weather;
+              document.getElementById('todayWeather').innerText =
+                `Wx: ${w.currentTemp ?? '--'}°F now • ${w.high ?? '--'}/${w.low ?? '--'}°F • Precip ${w.precipMax ?? '--'}% • UV ${w.uvMax ?? '--'} • AQI ${w.aqiMax ?? '--'}`;
+            } else {
+              document.getElementById('todayWeather').innerText = `Weather: (run Triggers to enable weather logging)`;
+            }
+          }
+
+          document.getElementById('circuit-breaker').style.display = m.circuitTripped ? 'block' : 'none';
+          renderPillarStreaks(m.pillarStreaks || {});
+          renderRadar(m.radar || [], m.radarLabels || ['Health','Career','Wealth','Intellect','Habits']);
+          renderTrends(m.trend);
+        }).getLiveMetrics();
+      }
+
+      function renderPillarStreaks(data) {
+        const grid = document.getElementById('pillarGrid');
+        const ordered = Array.isArray(data?._ordered)
+          ? data._ordered.map(id => data[id]).filter(Boolean)
+          : [
+              data.health || data.hypertrophy,
+              data.career,
+              data.wealth,
+              data.intellect,
+              data.habits
+            ].filter(Boolean);
+
+        grid.innerHTML = '';
+        ordered.forEach(obj => {
+          const div = document.createElement('div');
+          div.className = 'pillar-card';
+          div.innerHTML = `
+            <div class="pillar-title">${escapeHtml(obj?.label || 'Pillar')}</div>
+            <div class="pillar-value">${obj?.live ?? '--'} days</div>
+            <div class="pillar-sub">Locked: ${obj?.locked ?? '--'} • Live: ${obj?.live ?? '--'}</div>
+          `;
+          grid.appendChild(div);
+        });
+      }
+
+      function loadChecklist() {
+        google.script.run.withSuccessHandler(res => {
+          const box = document.getElementById('checklistPills');
+          box.innerHTML = '';
+          (res.items || []).forEach(it => {
+            const div = document.createElement('div');
+            div.className = `pill ${it.status}`;
+            div.textContent = it.label;
+            div.onclick = () => google.script.run.goToA1(it.a1);
+            box.appendChild(div);
+          });
+        }).getTodayChecklist();
+      }
+
+      function jumpNext() {
+        google.script.run.withSuccessHandler(msg => {
+          document.getElementById('dashStatus').textContent = msg;
+          setTimeout(loadChecklist, 500);
+        }).jumpToNextMissingToday();
+      }
+
+      function renderRadar(dataArr, labels) {
+        if (!ensureChartReady_()) return;
+        const canvas = document.getElementById('radarChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (radarInstance) radarInstance.destroy();
+        try {
+          radarInstance = new Chart(ctx, {
+            type: 'radar',
+            data: {
+              labels: labels || ['Health','Career','Wealth','Intellect','Habits'],
+              datasets: [{
+                data: dataArr || [0, 0, 0, 0, 0],
+                backgroundColor: 'rgba(10,132,255,0.18)',
+                borderColor: '#0a84ff',
+                pointBackgroundColor: '#34c759',
+                borderWidth: 2
+              }]
+            },
+            options: {
+              scales: {
+                r: {
+                  angleLines: { color: '#30363d' },
+                  grid: { color: '#30363d' },
+                  pointLabels: { color: '#8b949e', font: { size: 10 } },
+                  ticks: { display: false, max: 100, min: 0 }
+                }
+              },
+              plugins: { legend: { display: false } }
+            }
+          });
+        } catch (e) {
+          ensureChartReady_();
+        }
+      }
+
+      function renderTrends(trend) {
+        if (!trend || !trend.dates || trend.dates.length === 0) return;
+
+        renderMultiLine('scoreXpTrend', trend.dates, [
+          { label: 'Score%', data: trend.scorePct || [] },
+          { label: 'XP', data: trend.xp || [] }
+        ], 0, 100);
+
+        renderMultiLine('sleepWaterTrend', trend.dates, [
+          { label: 'Sleep', data: trend.sleep || [] },
+          { label: 'Water', data: trend.water || [] }
+        ], null, null);
+
+        renderSingleLine('plTrend', trend.dates, trend.pl || [], null, null, true);
+      }
+
+      function renderMultiLine(canvasId, labels, datasets, ymin, ymax) {
+        if (!ensureChartReady_()) return;
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        let inst = (canvasId === 'scoreXpTrend') ? scoreXpInstance : sleepWaterInstance;
+        if (inst) inst.destroy();
+        try {
+          inst = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: datasets.map((d) => ({
+                label: d.label,
+                data: d.data,
+                tension: 0.25,
+                spanGaps: true,
+                borderWidth: 2
+              }))
+            },
+            options: {
+              plugins: {
+                legend: {
+                  display: true,
+                  labels: { color: '#8b949e', boxWidth: 10, font: { size: 10 } }
+                }
+              },
+              scales: {
+                x: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#30363d' } },
+                y: { min: ymin ?? undefined, max: ymax ?? undefined, ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#30363d' } }
+              }
+            }
+          });
+        } catch (e) {
+          ensureChartReady_();
+          return;
+        }
+
+        if (canvasId === 'scoreXpTrend') scoreXpInstance = inst;
+        else sleepWaterInstance = inst;
+      }
+
+      function renderSingleLine(canvasId, labels, dataArr, ymin, ymax, spanGaps) {
+        if (!ensureChartReady_()) return;
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (plTrendInstance) plTrendInstance.destroy();
+        try {
+          plTrendInstance = new Chart(ctx, {
+            type: 'line',
+            data: { labels, datasets: [{ data: dataArr, tension: 0.25, spanGaps, borderWidth: 2 }] },
+            options: {
+              plugins: { legend: { display: false } },
+              scales: {
+                x: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#30363d' } },
+                y: { min: ymin ?? undefined, max: ymax ?? undefined, ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#30363d' } }
+              }
+            }
+          });
+        } catch (e) {
+          ensureChartReady_();
+        }
+      }
+
+      function loadDropdowns() {
+        google.script.run.withSuccessHandler(opts => {
+          dropdownBundle = opts || {};
+          if (sidebarUiBundle) renderLogFields();
+        }).getDropdownOptions();
+      }
+
+      function fillSelect(id, arr) {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        sel.innerHTML = '<option value=""></option>';
+        (arr || []).forEach(v => {
+          const o = document.createElement('option');
+          o.value = v;
+          o.textContent = v;
+          sel.appendChild(o);
+        });
+      }
+
+      function loadToday() {
+        google.script.run.withSuccessHandler(s => {
+          if (!s) return;
+          const fieldValues = s.fieldValues || {};
+          getLogFieldDefs().forEach(def => {
+            setLogFieldValue(def.fieldId, fieldValues[def.fieldId]);
+          });
+
+          document.getElementById('logStatus').textContent = 'Loaded ✅';
+          setTimeout(() => document.getElementById('logStatus').textContent = '', 1200);
+        }).getTodaySnapshot();
+      }
+
+      function saveToday() {
+        const payload = {
+          fields: collectLogFieldPayload()
+        };
+
+        document.getElementById('logStatus').textContent = 'Saving...';
+        google.script.run.withSuccessHandler(res => {
+          document.getElementById('logStatus').textContent = res;
+          refreshAll();
+          loadToday();
+        }).logTodayFromSidebar(payload);
+      }
+
+      function renderLogFields() {
+        const box = document.getElementById('logFieldGroups');
+        if (!box) return;
+        box.innerHTML = '';
+
+        const defs = getLogFieldDefs();
+        if (!defs.length) {
+          box.innerHTML = `<div class="note-box">No active sidebar fields yet. Enable fields in Field Registry or Builder.</div>`;
+          return;
+        }
+
+        const groupMap = {};
+        const groupOrder = [];
+        (sidebarUiBundle?.groups || []).forEach(group => {
+          groupMap[group.groupId] = group;
+          groupOrder.push(group.groupId);
+        });
+
+        const grouped = {};
+        defs.forEach(def => {
+          const key = def.groupId || 'other';
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(def);
+        });
+
+        const orderedGroupIds = uniqueArray_(groupOrder.concat(Object.keys(grouped)));
+        orderedGroupIds.forEach(groupId => {
+          const fields = grouped[groupId];
+          if (!fields || !fields.length) return;
+
+          const group = groupMap[groupId] || {};
+          const wrap = document.createElement('div');
+          wrap.className = 'field-group-card';
+          wrap.innerHTML = `
+            <div class="field-group-title">${escapeHtml(group.icon || '')} ${escapeHtml(group.displayName || groupId || 'Other')}</div>
+            ${group.description ? `<div class="cfg-help">${escapeHtml(group.description)}</div>` : ''}
+            <div class="stack-sm">
+              ${fields.map(renderLogFieldCard_).join('')}
+            </div>
+          `;
+          box.appendChild(wrap);
+        });
+      }
+
+      function renderLogFieldCard_(def) {
+        const id = logFieldDomId(def.fieldId);
+        const label = escapeHtml(def.label || def.fieldId);
+        const type = String(def.type || 'text').toLowerCase();
+        const options = getDropdownOptionsForKey(def.dropdownKey);
+        const placeholder = escapeAttr(def.description || def.label || def.fieldId);
+
+        let inner = '';
+        if (type === 'checkbox') {
+          inner += `<div class="toggle-row"><input id="${id}" type="checkbox"><label for="${id}">${label}</label></div>`;
+        } else if (type === 'dropdown' || (options.length && type !== 'textarea')) {
+          inner += `<label for="${id}">${label}</label>`;
+          inner += `<select id="${id}"><option value=""></option>${options.map(v => `<option value="${escapeAttr(v)}">${escapeHtml(v)}</option>`).join('')}</select>`;
+        } else if (type === 'textarea') {
+          inner += `<label for="${id}">${label}</label>`;
+          inner += `<textarea id="${id}" rows="3" placeholder="${placeholder}"></textarea>`;
+        } else if (type === 'number' || type === 'currency') {
+          inner += `<label for="${id}">${label}</label>`;
+          inner += `<input id="${id}" type="number" step="0.01" placeholder="${placeholder}">`;
+        } else {
+          inner += `<label for="${id}">${label}</label>`;
+          inner += `<input id="${id}" type="text" placeholder="${placeholder}">`;
+        }
+
+        const help = [];
+        if (def.dropdownKey) help.push(`Dropdown: ${escapeHtml(def.dropdownKey)}`);
+        if (def.scoreEnabled) help.push('Scored');
+        if (def.dependencyFieldId) help.push(`Depends on: ${escapeHtml(def.dependencyFieldId)}`);
+        if (def.description && type === 'checkbox') help.push(escapeHtml(def.description));
+
+        return `
+          <div class="subtle-card">
+            ${inner}
+            ${help.length ? `<div class="cfg-help">${help.join(' • ')}</div>` : ''}
+          </div>
+        `;
+      }
+
+      function getLogFieldDefs() {
+        return (sidebarUiBundle?.fields || []).slice().sort((a, b) => a.sortOrder - b.sortOrder);
+      }
+
+      function collectLogFieldPayload() {
+        const out = {};
+        getLogFieldDefs().forEach(def => {
+          const el = document.getElementById(logFieldDomId(def.fieldId));
+          if (!el) return;
+          if (el.type === 'checkbox') out[def.fieldId] = !!el.checked;
+          else out[def.fieldId] = el.value;
+        });
+        return out;
+      }
+
+      function setLogFieldValue(fieldId, value) {
+        const el = document.getElementById(logFieldDomId(fieldId));
+        if (!el) return;
+        if (el.type === 'checkbox') el.checked = !!value;
+        else el.value = (value === null || value === undefined) ? '' : value;
+      }
+
+      function logFieldDomId(fieldId) {
+        return `${LOG_FIELD_PREFIX}${fieldId}`;
+      }
+
+      function setVal(id, v) { const el = document.getElementById(id); if (el) el.value = (v === null || v === undefined) ? '' : v; }
+      function getVal(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+      function setSel(id, v) { const el = document.getElementById(id); if (el) el.value = (v === null || v === undefined) ? '' : v; }
+      function getSel(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+      function setCb(id, v) { const el = document.getElementById(id); if (el) el.checked = !!v; }
+      function getCb(id) { const el = document.getElementById(id); return el ? el.checked : false; }
+
+      function sendBrainDump() {
+        const input = document.getElementById('dumpInput');
+        const btn = document.getElementById('btnDump');
+        const text = input.value;
+        if (!text) return;
+
+        btn.innerText = "Routing...";
+        document.getElementById('dumpStatus').textContent = '';
+        google.script.run.withSuccessHandler(res => {
+          document.getElementById('dumpStatus').textContent = res;
+          btn.innerText = "Process & Route";
+          input.value = "";
+          refreshAll();
+          loadToday();
+        }).processBrainDump(text);
+      }
+
+      function renderBrainDumpRoutes() {
+        const box = document.getElementById('dumpRoutesNote');
+        if (!box) return;
+        const routes = (sidebarUiBundle?.brainDumpRoutes || []).filter(route => route.enabled && route.validTarget);
+        if (!routes.length) {
+          box.textContent = 'No active Brain Dump routes are configured. Add enabled text/textarea targets in Brain Dump Registry or Builder.';
+          return;
+        }
+        box.innerHTML = `Active routes: ${routes.map(route => `<strong>${escapeHtml(route.promptLabel || route.routeKey)}</strong> -> ${escapeHtml(route.fieldLabel || route.fieldId)}`).join(' • ')}`;
+      }
+
+      function sendMsg() {
+        const input = document.getElementById('chatInput');
+        const msg = input.value;
+        if (!msg) return;
+        const history = document.getElementById('chat-history');
+        const loadingId = appendChatLoading_(history, `You: ${msg}`);
+        input.value = '';
+
+        google.script.run.withSuccessHandler(reply => {
+          resolveChatLoading_(loadingId, reply);
+        }).chatWithData(msg);
+      }
+
+      function sendAiImage() {
+        const fileInput = document.getElementById('aiImageFile');
+        const promptEl = document.getElementById('aiImagePrompt');
+        const statusEl = document.getElementById('aiImageStatus');
+        const btn = document.getElementById('btnAnalyzeImage');
+        const file = fileInput?.files?.[0];
+
+        if (!file) {
+          if (statusEl) statusEl.textContent = 'Choose an image first.';
+          return;
+        }
+        if (!String(file.type || '').startsWith('image/')) {
+          if (statusEl) statusEl.textContent = 'Only image uploads are supported right now.';
+          return;
+        }
+        if (file.size > 4 * 1024 * 1024) {
+          if (statusEl) statusEl.textContent = 'Use an image smaller than 4 MB for reliable analysis.';
+          return;
+        }
+
+        const reader = new FileReader();
+        const history = document.getElementById('chat-history');
+        const prompt = (promptEl?.value || '').trim();
+        const userSummary = prompt ? `You (image): ${file.name} — ${prompt}` : `You (image): ${file.name}`;
+
+        if (statusEl) statusEl.textContent = 'Preparing image...';
+        if (btn) btn.disabled = true;
+
+        reader.onload = () => {
+          try {
+            const dataUrl = String(reader.result || '');
+            const commaIdx = dataUrl.indexOf(',');
+            const base64Data = commaIdx >= 0 ? dataUrl.slice(commaIdx + 1) : '';
+            if (!base64Data) throw new Error('Could not read image data.');
+
+            const loadingId = appendChatLoading_(history, userSummary);
+            if (statusEl) statusEl.textContent = 'Analyzing image...';
+
+            google.script.run
+              .withSuccessHandler(reply => {
+                resolveChatLoading_(loadingId, reply);
+                if (statusEl) statusEl.textContent = 'Image analyzed ✅';
+                if (btn) btn.disabled = false;
+              })
+              .withFailureHandler(err => {
+                resolveChatLoading_(loadingId, `Image analysis failed: ${err && err.message ? err.message : err}`);
+                if (statusEl) statusEl.textContent = 'Image analysis failed.';
+                if (btn) btn.disabled = false;
+              })
+              .analyzeAiImage({
+                mimeType: file.type,
+                base64Data,
+                prompt
+              });
+          } catch (err) {
+            if (statusEl) statusEl.textContent = `Image analysis failed: ${err.message || err}`;
+            if (btn) btn.disabled = false;
+          }
+        };
+
+        reader.onerror = () => {
+          if (statusEl) statusEl.textContent = 'Could not read the selected image.';
+          if (btn) btn.disabled = false;
+        };
+
+        reader.readAsDataURL(file);
+      }
+
+      function appendChatLoading_(history, userText) {
+        const loadingId = 'loading_' + Date.now();
+        history.innerHTML += `<div class="msg-user">${escapeHtml(userText)}</div><div class="msg-bot" id="${loadingId}">Thinking...</div>`;
+        history.scrollTop = history.scrollHeight;
+        return loadingId;
+      }
+
+      function resolveChatLoading_(loadingId, reply) {
+        const history = document.getElementById('chat-history');
+        const loading = document.getElementById(loadingId);
+        if (loading) loading.remove();
+        history.innerHTML += `<div class="msg-bot">AI: ${escapeHtml(reply)}</div>`;
+        history.scrollTop = history.scrollHeight;
+      }
+
+      function saveKey() {
+        document.getElementById('settingsStatus').textContent = 'Saving key...';
+        google.script.run.withSuccessHandler(res => {
+          document.getElementById('settingsStatus').textContent = res;
+        }).saveApiKey(document.getElementById('apiKey').value);
+      }
+
+      function loadConfigBundle() {
+        document.getElementById('settingsStatus').textContent = 'Loading config...';
+        google.script.run.withSuccessHandler(bundle => {
+          cfgBundle = bundle || { cfg:{}, settings:{}, branding:{}, templates:[] };
+          renderConfigEditors(cfgBundle);
+          applyBranding(cfgBundle.branding || {}, cfgBundle.settings || {});
+          document.getElementById('settingsStatus').textContent = 'Loaded ✅';
+        }).getConfigValues();
+      }
+
+      function renderConfigEditors(bundle) {
+        const box = document.getElementById('cfgForm');
+        if (!box) return;
+
+        const cfg = bundle.cfg || {};
+        const settings = bundle.settings || {};
+        const branding = bundle.branding || {};
+        const templates = bundle.templates || [];
+
+        box.innerHTML = '';
+
+        box.appendChild(renderKeyValueSection('Thresholds / Weights (CFG_)', cfg, 'cfg_'));
+        box.appendChild(renderKeyValueSection('App Settings', settings, 'set_'));
+        box.appendChild(renderKeyValueSection('Branding', branding, 'brand_'));
+        box.appendChild(renderTemplateSection(templates));
+      }
+
+      function renderKeyValueSection(title, obj, prefix) {
+        const wrap = document.createElement('div');
+        wrap.className = 'quick-card';
+
+        const keys = Object.keys(obj || {}).sort();
+        let html = `<div class="template-title">${escapeHtml(title)}</div>`;
+        keys.forEach(k => {
+          const v = obj[k];
+          const inputType = (typeof v === 'boolean') ? 'checkbox' : 'text';
+          html += `<div class="cfg-row"><label>${escapeHtml(k)}</label>`;
+          if (inputType === 'checkbox') {
+            html += `<div class="toggle-row"><input id="${prefix}${escapeAttr(k)}" type="checkbox" ${v ? 'checked' : ''}><label for="${prefix}${escapeAttr(k)}">${escapeHtml(k)}</label></div>`;
+          } else {
+            html += `<input id="${prefix}${escapeAttr(k)}" type="text" value="${escapeAttr(v)}">`;
+          }
+          html += `</div>`;
+        });
+
+        wrap.innerHTML = html;
+        return wrap;
+      }
+
+      function renderTemplateSection(rows) {
+        const wrap = document.createElement('div');
+        wrap.className = 'quick-card';
+
+        const grouped = {};
+        (rows || []).forEach(r => {
+          const tid = r['Template ID'] || 'TEMPLATE';
+          if (!grouped[tid]) grouped[tid] = [];
+          grouped[tid].push(r);
+        });
+
+        let html = `<div class="template-title">Templates</div>`;
+        const tids = Object.keys(grouped).sort();
+
+        if (!tids.length) {
+          html += `<div class="note-box">No template rows found.</div>`;
+        } else {
+          tids.forEach(tid => {
+            html += `<div class="template-card"><div class="template-title">${escapeHtml(tid)}</div>`;
+            grouped[tid].forEach((row, idx) => {
+              const key = row['Setting Key'] || `setting_${idx}`;
+              const val = row['Value'] ?? '';
+              const desc = row['Description'] || '';
+              const id = templateInputId(tid, key, idx);
+              html += `
+                <div class="cfg-row">
+                  <label>${escapeHtml(key)}</label>
+                  <input id="${id}" type="text" value="${escapeAttr(val)}">
+                  ${desc ? `<div class="cfg-help">${escapeHtml(desc)}</div>` : ''}
+                </div>
+              `;
+            });
+            html += `</div>`;
+          });
+        }
+
+        wrap.innerHTML = html;
+        return wrap;
+      }
+
+      function templateInputId(templateId, settingKey, idx) {
+        return `tpl__${sanitizeForId(templateId)}__${sanitizeForId(settingKey)}__${idx}`;
+      }
+
+      function saveConfig() {
+        if (!cfgBundle) {
+          loadConfigBundle();
+          return;
+        }
+
+        const payload = {
+          cfg: {},
+          settings: {},
+          branding: {},
+          templates: JSON.parse(JSON.stringify(cfgBundle.templates || []))
+        };
+
+        Object.keys(cfgBundle.cfg || {}).forEach(k => {
+          const el = document.getElementById(`cfg_${k}`);
+          if (!el) return;
+          payload.cfg[k] = (el.type === 'checkbox') ? el.checked : parseMaybeNumber(el.value);
+        });
+
+        Object.keys(cfgBundle.settings || {}).forEach(k => {
+          const el = document.getElementById(`set_${k}`);
+          if (!el) return;
+          payload.settings[k] = (el.type === 'checkbox') ? el.checked : parseMaybeNumber(el.value);
+        });
+
+        Object.keys(cfgBundle.branding || {}).forEach(k => {
+          const el = document.getElementById(`brand_${k}`);
+          if (!el) return;
+          payload.branding[k] = (el.type === 'checkbox') ? el.checked : el.value;
+        });
+
+        payload.templates = (cfgBundle.templates || []).map((row, idx) => {
+          const tid = row['Template ID'] || 'TEMPLATE';
+          const key = row['Setting Key'] || `setting_${idx}`;
+          const id = templateInputId(tid, key, idx);
+          const el = document.getElementById(id);
+          return {
+            ...row,
+            'Value': el ? el.value : row['Value']
+          };
+        });
+
+        document.getElementById('settingsStatus').textContent = 'Saving...';
+        google.script.run.withSuccessHandler(res => {
+          document.getElementById('settingsStatus').textContent = res;
+          loadConfigBundle();
+          loadSidebarUiBundle();
+          refreshAll();
+        }).saveConfigValues(payload);
+      }
+
+      function resetConfig() {
+        document.getElementById('settingsStatus').textContent = 'Resetting...';
+        google.script.run.withSuccessHandler(res => {
+          document.getElementById('settingsStatus').textContent = res;
+          loadConfigBundle();
+          loadBuilderPayload();
+          refreshAll();
+        }).resetConfigDefaults();
+      }
+
+      function loadMorningBriefPreview() {
+        document.getElementById('briefPreview').textContent = 'Loading preview...';
+        google.script.run.withSuccessHandler(payload => {
+          if (!payload) {
+            document.getElementById('briefPreview').textContent = 'No preview available.';
+            return;
+          }
+          document.getElementById('briefPreview').textContent =
+            `SUBJECT:\n${payload.subject || '(none)'}\n\nBODY:\n${payload.body || '(none)'}`;
+        }).getMorningBriefPreview();
+      }
+
+      function loadBuilderPayload() {
+        document.getElementById('builderStatus').textContent = 'Loading builder...';
+        google.script.run.withSuccessHandler(bundle => {
+          builderBundle = bundle || {};
+          renderBuilderJsonEditors();
+          loadSidebarUiBundle();
+          document.getElementById('builderStatus').textContent = 'Builder loaded ✅';
+        }).getBuilderPayload();
+      }
+
+      function renderBuilderJsonEditors() {
+        setJsonArea('builderFieldsJson', builderBundle.fields || []);
+        setJsonArea('builderGroupsJson', builderBundle.groups || []);
+        setJsonArea('builderDropdownsJson', builderBundle.dropdowns || []);
+        setJsonArea('builderSettingsJson', builderBundle.settings || []);
+        setJsonArea('builderBrandingJson', builderBundle.branding || []);
+        setJsonArea('builderTemplatesJson', builderBundle.templates || []);
+        setJsonArea('builderAutomationsJson', builderBundle.automations || []);
+        setJsonArea('builderViewsJson', builderBundle.views || []);
+        setJsonArea('builderBrainDumpJson', builderBundle.brainDumpRoutes || []);
+        setJsonArea('builderWidgetsJson', builderBundle.dashboardWidgets || []);
+        setJsonArea('builderTrendWidgetsJson', builderBundle.trendWidgets || []);
+      }
+
+      function setJsonArea(id, obj) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.value = JSON.stringify(obj || [], null, 2);
+      }
+
+      function saveBuilderJson() {
+        const payload = {};
+        try {
+          payload.fields = JSON.parse(document.getElementById('builderFieldsJson').value || '[]');
+          payload.groups = JSON.parse(document.getElementById('builderGroupsJson').value || '[]');
+          payload.dropdowns = JSON.parse(document.getElementById('builderDropdownsJson').value || '[]');
+          payload.settings = JSON.parse(document.getElementById('builderSettingsJson').value || '[]');
+          payload.branding = JSON.parse(document.getElementById('builderBrandingJson').value || '[]');
+          payload.templates = JSON.parse(document.getElementById('builderTemplatesJson').value || '[]');
+          payload.automations = JSON.parse(document.getElementById('builderAutomationsJson').value || '[]');
+          payload.views = JSON.parse(document.getElementById('builderViewsJson').value || '[]');
+          payload.brainDumpRoutes = JSON.parse(document.getElementById('builderBrainDumpJson').value || '[]');
+          payload.dashboardWidgets = JSON.parse(document.getElementById('builderWidgetsJson').value || '[]');
+          payload.trendWidgets = JSON.parse(document.getElementById('builderTrendWidgetsJson').value || '[]');
+        } catch (e) {
+          document.getElementById('builderStatus').textContent = `JSON parse error: ${e.message}`;
+          return;
+        }
+
+        document.getElementById('builderStatus').textContent = 'Saving builder payload...';
+        google.script.run.withSuccessHandler(res => {
+          document.getElementById('builderStatus').textContent = res;
+          loadBuilderPayload();
+          loadConfigBundle();
+          refreshAll();
+        }).saveBuilderPayload(payload);
+      }
+
+      function quickAddField() {
+        const payload = {
+          fieldId: getVal('bf_fieldId'),
+          label: getVal('bf_label'),
+          type: getSel('bf_type'),
+          groupId: getVal('bf_groupId'),
+          dropdownKey: getVal('bf_dropdownKey'),
+          weight: getVal('bf_weight'),
+          scoreMin: getVal('bf_scoreMin'),
+          blueMin: getVal('bf_blueMin'),
+          greenMin: getVal('bf_greenMin'),
+          scoreEnabled: getCb('bf_scoreEnabled'),
+          showInChecklist: getCb('bf_showChecklist'),
+          showInEmail: getCb('bf_showEmail')
+        };
+
+        document.getElementById('builderStatus').textContent = 'Adding field...';
+        google.script.run.withSuccessHandler(res => {
+          document.getElementById('builderStatus').textContent = res;
+          clearQuickFieldForm();
+          loadBuilderPayload();
+          refreshAll();
+        }).addCustomField(payload);
+      }
+
+      function clearQuickFieldForm() {
+        ['bf_fieldId','bf_label','bf_groupId','bf_dropdownKey','bf_weight','bf_scoreMin','bf_blueMin','bf_greenMin'].forEach(id => setVal(id, ''));
+        setSel('bf_type', 'text');
+        setCb('bf_scoreEnabled', false);
+        setCb('bf_showChecklist', false);
+        setCb('bf_showEmail', false);
+      }
+
+      function quickAddGroup() {
+        const payload = {
+          groupId: getVal('bg_groupId'),
+          displayName: getVal('bg_displayName'),
+          icon: getVal('bg_icon'),
+          color: getVal('bg_color')
+        };
+
+        document.getElementById('builderStatus').textContent = 'Adding group...';
+        google.script.run.withSuccessHandler(res => {
+          document.getElementById('builderStatus').textContent = res;
+          ['bg_groupId','bg_displayName','bg_icon','bg_color'].forEach(id => setVal(id, ''));
+          loadBuilderPayload();
+          refreshAll();
+        }).addGroup(payload);
+      }
+
+      function quickRenameGroup() {
+        const payload = {
+          groupId: getVal('br_groupId'),
+          displayName: getVal('br_displayName')
+        };
+
+        document.getElementById('builderStatus').textContent = 'Renaming group...';
+        google.script.run.withSuccessHandler(res => {
+          document.getElementById('builderStatus').textContent = res;
+          ['br_groupId','br_displayName'].forEach(id => setVal(id, ''));
+          loadBuilderPayload();
+          refreshAll();
+        }).renameGroupDisplay(payload);
+      }
+
+      function quickAddDropdown() {
+        const payload = {
+          dropdownKey: getVal('bd_key'),
+          optionLabel: getVal('bd_label')
+        };
+
+        document.getElementById('builderStatus').textContent = 'Adding dropdown option...';
+        google.script.run.withSuccessHandler(res => {
+          document.getElementById('builderStatus').textContent = res;
+          ['bd_key','bd_label'].forEach(id => setVal(id, ''));
+          loadBuilderPayload();
+        }).addDropdownOption(payload);
+      }
+
+      function quickRenameField() {
+        const payload = {
+          fieldId: getVal('brename_fieldId'),
+          label: getVal('brename_label')
+        };
+
+        document.getElementById('builderStatus').textContent = 'Renaming field...';
+        google.script.run.withSuccessHandler(res => {
+          document.getElementById('builderStatus').textContent = res;
+          ['brename_fieldId','brename_label'].forEach(id => setVal(id, ''));
+          loadBuilderPayload();
+          refreshAll();
+        }).renameDisplayLabel(payload);
+      }
+
+      function quickArchiveField() {
+        const fieldId = getVal('barchive_fieldId');
+        if (!fieldId) return;
+
+        document.getElementById('builderStatus').textContent = 'Archiving field...';
+        google.script.run.withSuccessHandler(res => {
+          document.getElementById('builderStatus').textContent = res;
+          setVal('barchive_fieldId', '');
+          loadBuilderPayload();
+          refreshAll();
+        }).archiveField(fieldId);
+      }
+
+      function loadAppSheetPreview() {
+        document.getElementById('appSheetPreview').textContent = 'Loading AppSheet preview...';
+        google.script.run.withSuccessHandler(data => {
+          document.getElementById('appSheetPreview').textContent = JSON.stringify(data, null, 2);
+        }).previewAppSheetModel();
+      }
+
+      function getNormalizedFieldDefs() {
+        const fields = (builderBundle?.fields || []).map(row => ({
+          fieldId: row['Field ID'],
+          label: row['Display Label'],
+          mainCol: row['Main Col'],
+          type: row['Type'],
+          groupId: row['Group ID'],
+          isCore: truthy(row['Is Core']),
+          active: truthy(row['Active']),
+          visibleOnMain: truthy(row['Visible On Main']),
+          showInSidebar: truthy(row['Show In Sidebar']),
+          showInChecklist: truthy(row['Show In Checklist']),
+          showInEmail: truthy(row['Show In Email']),
+          showInAI: truthy(row['Show In AI']),
+          showInWeekly: truthy(row['Show In Weekly']),
+          dropdownKey: row['Dropdown Key'],
+          scoreEnabled: truthy(row['Score Enabled']),
+          scoreRule: row['Score Rule'],
+          scoreMin: row['Score Min'],
+          blueMin: row['Blue Min'],
+          greenMin: row['Green Min'],
+          weight: row['Weight'],
+          dependencyFieldId: row['Dependency Field ID'],
+          defaultValue: row['Default Value'],
+          sortOrder: Number(row['Sort Order'] || 9999),
+          description: row['Description']
+        }));
+        return fields.sort((a, b) => a.sortOrder - b.sortOrder);
+      }
+
+      function getFieldLabel(fieldId, fallback) {
+        const def = getNormalizedFieldDefs().find(x => x.fieldId === fieldId);
+        return def?.label || fallback;
+      }
+
+      function getDropdownOptionsForKey(key) {
+        if (!key) return [];
+        const normalizedKey = String(key).trim();
+        const bundleOpts = dropdownBundle?.all?.[normalizedKey];
+        if (Array.isArray(bundleOpts) && bundleOpts.length) return bundleOpts.slice();
+        const rows = builderBundle?.dropdowns || [];
+        return rows
+          .filter(r => String(r['Dropdown Key'] || '').trim() === normalizedKey && truthy(r['Active']))
+          .sort((a, b) => Number(a['Sort Order'] || 9999) - Number(b['Sort Order'] || 9999))
+          .map(r => r['Option Label'])
+          .filter(Boolean);
+      }
+
+      function applyBranding(branding, settings) {
+        const accentColor = branding?.BRAND_ACCENT || '#0a84ff';
+        const title = branding?.BRAND_NAME || settings?.SETTING_APP_TITLE || 'Agentic OS Command Center';
+        const sub = settings?.SETTING_APP_SUBTITLE || 'Dynamic protocol control panel';
+        const tag = branding?.BRAND_SUPPORT_EMAIL
+          ? `Support: ${branding.BRAND_SUPPORT_EMAIL}`
+          : (branding?.BRAND_NAME || 'Builder Mode');
+        document.documentElement.style.setProperty('--blue', accentColor);
+        document.getElementById('appTitleText').textContent = title;
+        document.getElementById('appSubtitleText').textContent = sub;
+        document.getElementById('brandTag').textContent = tag;
+      }
+
+      function loadCalendarMonth(offset) {
+        google.script.run.withSuccessHandler(data => {
+          renderCalendar(data);
+        }).getCalendarMonth(offset);
+      }
+
+      function changeCalendarMonth(delta) {
+        calendarMonthOffset += delta;
+        loadCalendarMonth(calendarMonthOffset);
+      }
+
+      function goCalendarToday() {
+        calendarMonthOffset = 0;
+        loadCalendarMonth(0);
+      }
+
+      function renderCalendar(data) {
+        if (!data) return;
+
+        document.getElementById('calendarTitle').textContent = data.title || 'Calendar';
+        const wrap = document.getElementById('calendarGrid');
+
+        let html = '<div class="calendar-grid">';
+        ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => {
+          html += `<div class="dow">${d}</div>`;
+        });
+
+        (data.weeks || []).forEach(week => {
+          week.forEach(day => {
+            const cls = [
+              'day-cell',
+              day.inMonth ? '' : 'out-month',
+              day.band || 'none',
+              day.isToday ? 'today' : ''
+            ].join(' ').trim();
+
+            const xpText = (day.xp != null && day.inMonth) ? `XP ${day.xp}` : '';
+            const click = day.inMonth ? `onclick="jumpToCalendarDate('${day.iso}')"` : '';
+
+            html += `
+              <div class="${cls}" ${click} title="${day.inMonth ? `${day.iso}${day.xp != null ? ` • XP ${day.xp}` : ''}` : ''}">
+                <div class="day-num">${day.day}</div>
+                <div class="day-xp">${xpText}</div>
+              </div>
+            `;
+          });
+        });
+
+        html += '</div>';
+        wrap.innerHTML = html;
+      }
+
+      function jumpToCalendarDate(iso) {
+        document.getElementById('calendarStatus').textContent = 'Jumping...';
+        google.script.run.withSuccessHandler(msg => {
+          document.getElementById('calendarStatus').textContent = msg;
+        }).goToDate(iso);
+      }
+
+      function refreshCalendarSheet() {
+        const els = ['calendarStatus', 'settingsStatus', 'dashStatus'];
+        els.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = 'Refreshing calendar...';
+        });
+
+        google.script.run.withSuccessHandler(msg => {
+          const out = msg || 'Calendar updated ✅';
+          els.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = out;
+          });
+          loadCalendarMonth(calendarMonthOffset);
+        }).refreshCalendarHeatmap();
+      }
+
+      function parseMaybeNumber(v) {
+        if (typeof v !== 'string') return v;
+        const s = v.trim();
+        if (s === '') return '';
+        if (/^(true|false)$/i.test(s)) return /^true$/i.test(s);
+        const n = Number(s);
+        return isNaN(n) ? s : n;
+      }
+
+      function truthy(v) {
+        if (typeof v === 'boolean') return v;
+        const s = String(v ?? '').trim().toLowerCase();
+        return ['true','1','yes','y','on'].includes(s);
+      }
+
+      function sanitizeForId(s) {
+        return String(s ?? '').replace(/[^a-zA-Z0-9_-]+/g, '_');
+      }
+
+      function uniqueArray_(arr) {
+        return Array.from(new Set((arr || []).filter(v => v !== null && v !== undefined && v !== '')));
+      }
+
+      function escapeHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, m => ({
+          '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+        }[m]));
+      }
+
+      function escapeAttr(s) {
+        return String(s ?? '').replace(/"/g, '&quot;');
+      }
+    </script>
+  </body>
+</html>
