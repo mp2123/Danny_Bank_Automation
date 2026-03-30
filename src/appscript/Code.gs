@@ -79,11 +79,11 @@ function refreshVisuals() {
   anal.clear();
   
   // 1. Treemap Data (Fix: Rigid Hierarchy)
+  // Headers are NOT included in the chart range to avoid "Parent" label errors
   anal.getRange('A1:C1').setValues([['Label', 'Parent', 'Value']]);
   anal.getRange('A2:C2').setValues([['Total Spending', null, 0.01]]); // Absolute Root
   
   // Aggregate Categories under Root
-  // Query results will fill A3:C
   anal.getRange('A3').setFormula('=QUERY(Transactions!B:E, "select E, \'Total Spending\', sum(D) where D < 0 group by E label sum(D) \'\'", 0)');
   
   // 2. Account Distribution (Pie)
@@ -108,13 +108,13 @@ function refreshVisuals() {
   // Build Charts
   dash.getCharts().forEach(c => dash.removeChart(c));
   
-  // Range Adjustment: Check how many rows the Treemap query returned
-  Utilities.sleep(1000); // Wait for queries to settle
+  Utilities.sleep(1500); // Wait for queries
   const treemapRows = anal.getRange("A:A").getValues().filter(r => r[0] !== "").length;
   const accRows = anal.getRange("E:E").getValues().filter(r => r[0] !== "").length;
 
+  // Treemap Range: A2:C (Skip header to avoid "Parent" label issue)
   const treemap = dash.newChart().setChartType(Charts.ChartType.TREEMAP)
-    .addRange(anal.getRange("A1:C" + treemapRows))
+    .addRange(anal.getRange("A2:C" + treemapRows))
     .setPosition(6, 1, 5, 5).setOption('title', 'Category Clustering')
     .setOption('minColor', '#f44336').setOption('maxColor', '#4caf50').build();
     
@@ -126,7 +126,7 @@ function refreshVisuals() {
   const velocity = dash.newChart().setChartType(Charts.ChartType.AREA).addRange(anal.getRange("K1:L13")).setPosition(22, 7, 5, 5).setOption('title', 'Monthly Velocity').setOption('colors', ['#34c759']).build();
 
   [treemap, accChart, leakage, velocity].forEach(c => dash.insertChart(c));
-  SpreadsheetApp.getUi().alert('Visual Engine 5.1 Active!');
+  SpreadsheetApp.getUi().alert('Command Center v5.1 Active!');
 }
 
 /**
@@ -137,14 +137,14 @@ function chatWithData(query) {
   if (!apiKey) return "Error: Add Gemini API Key to Settings tab.";
   
   const summary = getTransactionSummary_();
-  const system = "You are Michael's Wealth Strategist. Dataset & verified stats provided. DATA:\n" + summary;
+  const system = "You are Michael's Senior Wealth Strategist. Dataset & verified stats provided. Answer precisely. DATA:\n" + summary;
   
   try {
     const reply = _callGemini(system, query, apiKey);
     saveChatHistory_(query, reply);
     return reply;
   } catch (e) {
-    return "AI Connection Error: " + e.toString();
+    return "AI Error: " + e.message;
   }
 }
 
@@ -178,8 +178,8 @@ function getTransactionSummary_() {
 }
 
 function _callGemini(sys, user, key) {
-  // Correct Model Order: gemini-2.5-flash (if exists/requested), gemini-2.0-flash, gemini-1.5-flash
-  const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+  // Correct Naming: gemini-2.5-flash (Preview), gemini-2.0-flash, gemini-1.5-flash-latest
+  const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-latest"];
   let lastErr = "";
   for (let i = 0; i < models.length; i++) {
     const url = "https://generativelanguage.googleapis.com/v1beta/models/" + models[i] + ":generateContent?key=" + key;
@@ -192,7 +192,7 @@ function _callGemini(sys, user, key) {
       if (json.error) lastErr = json.error.message;
     } catch (e) { lastErr = e.toString(); }
   }
-  throw new Error(lastErr || "Failed to contact Gemini.");
+  throw new Error(lastErr || "API Unavailable");
 }
 
 function summarizeInsight(text) {
@@ -218,11 +218,20 @@ function getChatHistory() {
   return JSON.parse(PropertiesService.getUserProperties().getProperty('chat_history') || "[]");
 }
 
-function getSetting_(k) {
+function getSetting_(key) {
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Settings');
-  const d = sh.getRange(2, 1, sh.getLastRow(), 2).getValues();
-  for (let i = 0; i < d.length; i++) { if (data[i][0] === k) return data[i][1]; }
+  const data = sh.getRange(2, 1, sh.getLastRow(), 2).getValues();
+  for (let i = 0; i < data.length; i++) { if (data[i][0] === key) return data[i][1]; }
   return null;
+}
+
+function detectSubscriptions_(trans, dash) {
+  const data = trans.getRange(2, 3, trans.getLastRow()-1, 2).getValues();
+  const counts = {};
+  data.forEach(function(row) { if (row[1] < 0) { const name = row[0].toLowerCase().split(' ')[0]; counts[name] = (counts[name] || 0) + 1; } });
+  let subEstimate = 0;
+  Object.keys(counts).forEach(function(name) { if (counts[name] >= 3) subEstimate += 15; });
+  dash.getRange('F4').setValue(subEstimate);
 }
 
 function ensureRegistrySheets_() {
