@@ -64,11 +64,11 @@ def main():
             start_date = last_sync_date - datetime.timedelta(days=1)
             logger.info(f"Incremental sync detected. Last transaction was {latest_date_str}. Starting from {start_date.isoformat()}")
         except ValueError:
-            start_date = today - datetime.timedelta(days=365)
-            logger.warning(f"Could not parse latest date '{latest_date_str}'. Defaulting to 1 year.")
+            start_date = today - datetime.timedelta(days=730)
+            logger.warning(f"Could not parse latest date '{latest_date_str}'. Defaulting to 2 years.")
     else:
-        start_date = today - datetime.timedelta(days=365)
-        logger.info("No previous transactions found. Performing 1-year history sync.")
+        start_date = today - datetime.timedelta(days=730)
+        logger.info("No previous transactions found. Performing deep 2-year history sync.")
         
     end_date = today
 

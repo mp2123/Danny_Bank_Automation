@@ -125,7 +125,6 @@ function onOpen() {
     .addItem('📊 Open Sidebar', 'showSidebar')
     .addSeparator()
     .addItem('📈 Refresh Charts/Visuals', 'refreshVisuals')
-    .addItem('🔄 Force Sync Info', 'runManualSync')
     .addItem('⚙️ Initial Setup', 'initialSetup')
     .addToUi();
 }
