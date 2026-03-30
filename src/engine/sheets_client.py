@@ -100,7 +100,6 @@ class SheetsClient:
             sheet = service.spreadsheets()
 
             # Assume IDs are in the first column (A)
-            # We fetch column A
             range_name = f"{self.sheet_name}!A:A"
             result = sheet.values().get(
                 spreadsheetId=self.spreadsheet_id,
@@ -111,7 +110,6 @@ class SheetsClient:
             if not values:
                 return set()
             
-            # Extract IDs from the column (skipping header if needed, but set handles it)
             return set(row[0] for row in values if row)
 
         except HttpError as err:
@@ -120,3 +118,34 @@ class SheetsClient:
         except Exception as e:
             logger.error(f"An unexpected error occurred reading IDs: {e}")
             return set()
+
+    def get_latest_transaction_date(self, creds):
+        """Reads the Date column (B) to find the most recent transaction date."""
+        try:
+            service = build('sheets', 'v4', credentials=creds)
+            sheet = service.spreadsheets()
+
+            # Assume dates are in the second column (B)
+            range_name = f"{self.sheet_name}!B:B"
+            result = sheet.values().get(
+                spreadsheetId=self.spreadsheet_id,
+                range=range_name
+            ).execute()
+
+            values = result.get('values', [])
+            if len(values) <= 1: # Only header exists or sheet is empty
+                return None
+            
+            # Skip the header (row 0), then filter and find the max
+            dates = [row[0] for row in values[1:] if row and len(row[0]) == 10]
+            if not dates:
+                return None
+            
+            return max(dates) # YYYY-MM-DD strings sort correctly
+
+        except HttpError as err:
+            logger.error(f"Google Sheets API Error: {err}")
+            return None
+        except Exception as e:
+            logger.error(f"An unexpected error occurred reading latest date: {e}")
+            return None

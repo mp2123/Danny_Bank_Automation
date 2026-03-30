@@ -50,10 +50,29 @@ def main():
         logger.error(f"Failed to authenticate with Google Sheets: {e}")
         return
 
-    # 4. Determine Date Range (Previous Month as a default)
-    # This can be adjusted to be "last 30 days" or similar
+    # 4. Determine Date Range (Incremental Sync)
+    # We look for the latest date in the sheet. If not found, default to 30 days ago.
+    logger.info("Determining sync date range...")
+    
+    # Helper to get latest date from existing_ids (which contains dates if we adjust it)
+    # Or we can add a specific method to sheets_client to get the max date.
+    latest_date_str = sheets_client.get_latest_transaction_date(google_creds)
+    
     today = datetime.date.today()
-    start_date = today - datetime.timedelta(days=30)
+    if latest_date_str:
+        try:
+            # Plaid expects YYYY-MM-DD
+            last_sync_date = datetime.datetime.strptime(latest_date_str, "%Y-%m-%d").date()
+            # Start 1 day before the last sync to catch any late-arriving transactions
+            start_date = last_sync_date - datetime.timedelta(days=1)
+            logger.info(f"Incremental sync detected. Last transaction was {latest_date_str}. Starting from {start_date.isoformat()}")
+        except ValueError:
+            start_date = today - datetime.timedelta(days=30)
+            logger.warning(f"Could not parse latest date '{latest_date_str}'. Defaulting to 30 days.")
+    else:
+        start_date = today - datetime.timedelta(days=30)
+        logger.info("No previous transactions found. Performing initial 30-day sync.")
+        
     end_date = today
 
     logger.info(f"Fetching transactions from {start_date.isoformat()} to {end_date.isoformat()}")
