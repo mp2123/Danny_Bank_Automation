@@ -1,6 +1,6 @@
 /**
  * Danny Bank Automation - Google Apps Script
- * MASTER INTELLIGENCE ENGINE (v5.0) - Hardened Analytics & Account Intelligence
+ * MASTER INTELLIGENCE ENGINE (v5.1) - Hardened Analytics & Corrected AI
  */
 
 function onOpen() {
@@ -33,14 +33,14 @@ function initialSetup() {
     sh.setFrozenRows(1);
   });
 
-  ss.getSheetByName('Analytics').hideSheet();
+  if (ss.getSheetByName('Analytics')) ss.getSheetByName('Analytics').hideSheet();
   if (!ss.getSheetByName('Dashboard')) ss.insertSheet('Dashboard');
   
   const settings = ss.getSheetByName('Settings');
   if (settings.getLastRow() < 2) settings.getRange('A2:B2').setValues([['GEMINI_API_KEY', '']]);
 
   setupDashboard_(ss.getSheetByName('Dashboard'));
-  SpreadsheetApp.getUi().alert('Intelligence Engine v5.0 Active!');
+  SpreadsheetApp.getUi().alert('Intelligence Engine v5.1 Ready!');
 }
 
 function setupDashboard_(dash) {
@@ -67,7 +67,7 @@ function setupDashboard_(dash) {
 }
 
 /**
- * Hardened Visual Engine v5.0
+ * Visual Engine v5.1 - Fixed Treemap and Account PIE
  */
 function refreshVisuals() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -78,12 +78,12 @@ function refreshVisuals() {
 
   anal.clear();
   
-  // 1. Treemap Data (Fix: Guaranteed Hierarchy)
-  // Column A: Label, Column B: Parent, Column C: Value
+  // 1. Treemap Data (Fix: Rigid Hierarchy)
   anal.getRange('A1:C1').setValues([['Label', 'Parent', 'Value']]);
-  anal.getRange('A2:C2').setValues([['Total Spending', null, 0.01]]); // Root node
+  anal.getRange('A2:C2').setValues([['Total Spending', null, 0.01]]); // Absolute Root
   
-  // Aggregate Categories as children of Root
+  // Aggregate Categories under Root
+  // Query results will fill A3:C
   anal.getRange('A3').setFormula('=QUERY(Transactions!B:E, "select E, \'Total Spending\', sum(D) where D < 0 group by E label sum(D) \'\'", 0)');
   
   // 2. Account Distribution (Pie)
@@ -94,7 +94,7 @@ function refreshVisuals() {
   anal.getRange('H1:I1').setValues([['Day', 'Total Spend']]);
   anal.getRange('H2').setFormula('=QUERY(ARRAYFORMULA({TEXT(Transactions!B2:B, "dddd"), Transactions!D2:D}), "select Col1, sum(Col2) where Col2 < 0 group by Col1 label sum(Col2) \'\'", 0)');
 
-  // 4. Monthly Spend Velocity (Area)
+  // 4. Monthly Velocity (Area)
   anal.getRange('K1:L1').setValues([['Month', 'Total Spend']]);
   anal.getRange('K2').setFormula('=QUERY(Transactions!B:D, "select month(B)+1, sum(D) where D < 0 group by month(B)+1 label sum(D) \'\'", 0)');
 
@@ -105,27 +105,39 @@ function refreshVisuals() {
   const sorted = Object.keys(merchantTotals).sort((a,b) => merchantTotals[b] - merchantTotals[a]);
   if (sorted.length > 0) dash.getRange('F4').setValue(sorted[0].slice(0,15));
 
-  // Build Grid
+  // Build Charts
   dash.getCharts().forEach(c => dash.removeChart(c));
   
-  const treemap = dash.newChart().setChartType(Charts.ChartType.TREEMAP).addRange(anal.getRange("A1:C25")).setPosition(6, 1, 5, 5).setOption('title', 'Category Clusters').setOption('minColor', '#f44336').setOption('maxColor', '#4caf50').build();
-  const accChart = dash.newChart().setChartType(Charts.ChartType.PIE).addRange(anal.getRange("E1:F10")).setPosition(6, 7, 5, 5).setOption('title', 'Spending by Account').setOption('is3D', true).build();
+  // Range Adjustment: Check how many rows the Treemap query returned
+  Utilities.sleep(1000); // Wait for queries to settle
+  const treemapRows = anal.getRange("A:A").getValues().filter(r => r[0] !== "").length;
+  const accRows = anal.getRange("E:E").getValues().filter(r => r[0] !== "").length;
+
+  const treemap = dash.newChart().setChartType(Charts.ChartType.TREEMAP)
+    .addRange(anal.getRange("A1:C" + treemapRows))
+    .setPosition(6, 1, 5, 5).setOption('title', 'Category Clustering')
+    .setOption('minColor', '#f44336').setOption('maxColor', '#4caf50').build();
+    
+  const accChart = dash.newChart().setChartType(Charts.ChartType.PIE)
+    .addRange(anal.getRange("E1:F" + accRows))
+    .setPosition(6, 7, 5, 5).setOption('title', 'Spending by Account').setOption('is3D', true).build();
+    
   const leakage = dash.newChart().setChartType(Charts.ChartType.COLUMN).addRange(anal.getRange("H1:I8")).setPosition(22, 1, 5, 5).setOption('title', 'Weekly Leakage Pattern').setOption('colors', ['#8957e5']).build();
   const velocity = dash.newChart().setChartType(Charts.ChartType.AREA).addRange(anal.getRange("K1:L13")).setPosition(22, 7, 5, 5).setOption('title', 'Monthly Velocity').setOption('colors', ['#34c759']).build();
 
   [treemap, accChart, leakage, velocity].forEach(c => dash.insertChart(c));
-  SpreadsheetApp.getUi().alert('Dashboard Hardened to v5.0!');
+  SpreadsheetApp.getUi().alert('Visual Engine 5.1 Active!');
 }
 
 /**
- * AI CORE: PERSISTENCE & TRANSPARENT ERRORS
+ * AI CORE: PERSISTENCE & CORRECTED MODELS
  */
 function chatWithData(query) {
   const apiKey = getSetting_('GEMINI_API_KEY');
   if (!apiKey) return "Error: Add Gemini API Key to Settings tab.";
   
   const summary = getTransactionSummary_();
-  const system = "You are a Wealth Strategist. Dataset & verified stats provided. DATA:\n" + summary;
+  const system = "You are Michael's Wealth Strategist. Dataset & verified stats provided. DATA:\n" + summary;
   
   try {
     const reply = _callGemini(system, query, apiKey);
@@ -160,13 +172,14 @@ function getTransactionSummary_() {
   let f = "=== VERIFIED FINANCIAL FINGERPRINT ===\n";
   f += "- PERIOD: " + days.toFixed(0) + " days (" + (days/30.44).toFixed(1) + " months)\n";
   f += "- TOTAL SPEND: $" + totalS.toFixed(0) + "\n";
-  f += "- VERIFIED MONTHLY AVG: $" + avgM.toFixed(0) + " (CRITICAL: Use this for monthly stats)\n";
+  f += "- VERIFIED MONTHLY AVG: $" + avgM.toFixed(0) + "\n";
   f += "- ACCOUNTS: " + JSON.stringify(accounts) + "\n";
   return f + "\nRAW DATA (Latest 150):\n" + data.slice(-150).map(r => r.join(' | ')).join('\n');
 }
 
 function _callGemini(sys, user, key) {
-  const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
+  // Correct Model Order: gemini-2.5-flash (if exists/requested), gemini-2.0-flash, gemini-1.5-flash
+  const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
   let lastErr = "";
   for (let i = 0; i < models.length; i++) {
     const url = "https://generativelanguage.googleapis.com/v1beta/models/" + models[i] + ":generateContent?key=" + key;
@@ -208,17 +221,8 @@ function getChatHistory() {
 function getSetting_(k) {
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Settings');
   const d = sh.getRange(2, 1, sh.getLastRow(), 2).getValues();
-  for (let i = 0; i < d.length; i++) { if (d[i][0] === k) return d[i][1]; }
+  for (let i = 0; i < d.length; i++) { if (data[i][0] === k) return data[i][1]; }
   return null;
-}
-
-function detectSubscriptions_(trans, dash) {
-  const data = trans.getRange(2, 3, trans.getLastRow()-1, 2).getValues();
-  const counts = {};
-  data.forEach(function(row) { if (row[1] < 0) { const name = row[0].toLowerCase().split(' ')[0]; counts[name] = (counts[name] || 0) + 1; } });
-  let subEstimate = 0;
-  Object.keys(counts).forEach(function(name) { if (counts[name] >= 3) subEstimate += 15; });
-  dash.getRange('F4').setValue(subEstimate);
 }
 
 function ensureRegistrySheets_() {
