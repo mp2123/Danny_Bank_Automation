@@ -69,7 +69,8 @@ class SheetsClient:
             service = build('sheets', 'v4', credentials=creds)
             sheet = service.spreadsheets()
 
-            range_to_append = f"{self.sheet_name}" 
+            # Wrap sheet name in single quotes to handle hyphens/spaces
+            range_to_append = f"'{self.sheet_name}'" 
 
             body = {
                 'values': values
@@ -100,7 +101,7 @@ class SheetsClient:
             sheet = service.spreadsheets()
 
             # Assume IDs are in the first column (A)
-            range_name = f"{self.sheet_name}!A:A"
+            range_name = f"'{self.sheet_name}'!A:A"
             result = sheet.values().get(
                 spreadsheetId=self.spreadsheet_id,
                 range=range_name
@@ -126,7 +127,7 @@ class SheetsClient:
             sheet = service.spreadsheets()
 
             # Assume dates are in the second column (B)
-            range_name = f"{self.sheet_name}!B:B"
+            range_name = f"'{self.sheet_name}'!B:B"
             result = sheet.values().get(
                 spreadsheetId=self.spreadsheet_id,
                 range=range_name
