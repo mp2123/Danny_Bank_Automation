@@ -151,34 +151,51 @@ function chatWithData(query) {
 }
 
 function _callGemini(systemPrompt, userText, apiKey) {
-  const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey;
-  
-  const payload = {
-    "contents": [
-      {
-        "role": "user",
-        "parts": [
-          { "text": systemPrompt },
-          { "text": "User Question: " + userText }
-        ]
+  // Try 2.5-flash first (experimental/requested), then fallback to 2.0-flash
+  const models = ["gemini-2.5-flash", "gemini-2.0-flash"];
+  let lastError = null;
+
+  for (let i = 0; i < models.length; i++) {
+    const url = "https://generativelanguage.googleapis.com/v1beta/models/" + models[i] + ":generateContent?key=" + apiKey;
+    
+    const payload = {
+      "contents": [
+        {
+          "role": "user",
+          "parts": [
+            { "text": systemPrompt },
+            { "text": "User Question: " + userText }
+          ]
+        }
+      ]
+    };
+
+    const options = {
+      "method": "post",
+      "contentType": "application/json",
+      "payload": JSON.stringify(payload),
+      "muteHttpExceptions": true
+    };
+
+    try {
+      const response = UrlFetchApp.fetch(url, options);
+      const json = JSON.parse(response.getContentText());
+      
+      // If successful, return the text
+      if (json.candidates && json.candidates[0]) {
+        return _extractGeminiText_(json);
       }
-    ]
-  };
-
-  const options = {
-    "method": "post",
-    "contentType": "application/json",
-    "payload": JSON.stringify(payload),
-    "muteHttpExceptions": true
-  };
-
-  try {
-    const response = UrlFetchApp.fetch(url, options);
-    const json = JSON.parse(response.getContentText());
-    return _extractGeminiText_(json);
-  } catch (e) {
-    return "Failed to connect to Gemini: " + e.toString();
+      
+      // If it's a model not found error or similar, continue to next model
+      lastError = json.error ? json.error.message : "Unknown error";
+      console.warn("Attempt with " + models[i] + " failed: " + lastError);
+    } catch (e) {
+      lastError = e.toString();
+      console.error("Fetch error with " + models[i] + ": " + lastError);
+    }
   }
+
+  return "Failed to connect to Gemini (tried 2.5 and 2.0): " + lastError;
 }
 
 function _extractGeminiText_(json) {

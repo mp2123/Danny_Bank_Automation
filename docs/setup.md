@@ -45,7 +45,26 @@ source venv/bin/activate
 python3 -m src.engine.main
 ```
 
-## 6. Automation & Scheduling
+## 6. Easy Sync Options (The "Easy Button")
+Since the sync runs locally for privacy, you can use these shortcuts to avoid typing in the terminal:
+
+### A. Mac Desktop Shortcut
+1. In your project folder, you will see a file named `run_sync.command`.
+2. **Drag and Drop** this file to your Mac Desktop or your Dock.
+3. **To Sync:** Just double-click it! A terminal will pop up, run the sync, and close.
+
+### B. iOS Shortcut (Sync from your iPhone)
+If you have "Remote Login" (SSH) enabled on your Mac:
+1. Open the **Shortcuts** app on your iPhone.
+2. Create a new shortcut and add the action **"Run Script Over SSH"**.
+3. Configure your Mac's IP address and login.
+4. Set the script to:
+   ```bash
+   cd ~/Desktop/DevBase/active_projects/Danny_Bank_Automation && ./venv/bin/python3 -m src.engine.main
+   ```
+5. You can now sync your bank data by just tapping a button on your iPhone or asking Siri!
+
+## 7. Automation & Scheduling
 To run the sync automatically every week (e.g., Sunday at 5pm):
 
 ### macOS (Cron)
