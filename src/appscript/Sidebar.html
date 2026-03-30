@@ -89,7 +89,7 @@
     <div class="app-title">🏦 Danny Bank Automation</div>
 
     <div id="chat-history">
-      <div class="msg-bot">AI: Hello! Ask me anything about your transaction data.</div>
+      <div class="msg-bot">AI: Hello! Once you add your Gemini API Key to the "Settings" tab, I can analyze your transactions. How can I help?</div>
     </div>
 
     <input type="text" id="chatInput" placeholder="How much did I spend at Amazon last month?" onkeypress="if(event.key === 'Enter') sendMsg()">
@@ -97,7 +97,8 @@
 
     <hr>
 
-    <button class="btn btn-outline" onclick="runSync()">Manual Sync Trigger</button>
+    <button class="btn" onclick="refreshVisuals()">📈 Refresh Dashboard Charts</button>
+    <button class="btn btn-outline" onclick="runSync()">🔄 Sync Info (Local)</button>
     <div class="status" id="statusText">Ready</div>
 
     <script>
@@ -117,11 +118,15 @@
         }).chatWithData(msg);
       }
 
-      function runSync() {
-        document.getElementById('statusText').textContent = 'Sync: Local command required...';
+      function refreshVisuals() {
+        document.getElementById('statusText').textContent = 'Updating charts...';
         google.script.run.withSuccessHandler(res => {
-          // res is just the alert call from Code.gs
-        }).runManualSync();
+          document.getElementById('statusText').textContent = 'Charts updated!';
+        }).refreshVisuals();
+      }
+
+      function runSync() {
+        google.script.run.runManualSync();
       }
     </script>
   </body>
