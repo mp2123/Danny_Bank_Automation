@@ -24,6 +24,7 @@ Targeting cross-platform (macOS/Windows) via a Python backend and a Google Sheet
 - Use a cross-platform Python script for the heavy lifting (Plaid fetching).
 - Leverage Google Apps Script for the user-facing sidebar and dashboard logic.
 - Implement an Agent Skill to guide LLM interactions with bank data.
+- **Data Strategy:** Use Plaid's "Limited Production" mode (200 free lifetime calls) for real-world testing and personal automation.
 
 ## Deployment Environment
 - Primary: macOS (darwin)
