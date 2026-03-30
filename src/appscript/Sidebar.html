@@ -52,6 +52,18 @@
       .btn:hover { filter: brightness(1.1); }
       .btn-ai { background: var(--purple); }
       .btn-outline { background: var(--bg); border: 1px solid var(--blue); color: var(--blue); }
+      .btn-action { 
+        display: inline-block;
+        width: auto;
+        padding: 4px 8px;
+        font-size: 10px;
+        margin-right: 5px;
+        margin-top: 5px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        color: var(--muted);
+      }
+      .btn-action:hover { border-color: var(--blue); color: var(--blue); }
 
       #chat-history {
         height: 350px;
@@ -157,12 +169,67 @@
         if (!msg) return;
         
         const history = document.getElementById('chat-history');
-        history.innerHTML += `<div class="msg-user">You: ${msg}</div>`;
+        const userDiv = document.createElement('div');
+        userDiv.className = 'msg-user';
+        userDiv.textContent = 'You: ' + msg;
+        history.appendChild(userDiv);
+        
+        const botDiv = document.createElement('div');
+        botDiv.className = 'msg-bot';
+        botDiv.textContent = 'AI: Thinking...';
+        history.appendChild(botDiv);
+        
         history.scrollTop = history.scrollHeight;
         input.value = '';
         
         google.script.run.withSuccessHandler(reply => {
-          history.innerHTML += `<div class="msg-bot">AI: ${reply}</div>`;
+          botDiv.textContent = 'AI: ' + reply;
+          
+          // Add Action Buttons
+          const actionArea = document.createElement('div');
+          
+          const copyBtn = document.createElement('button');
+          copyBtn.className = 'btn btn-action';
+          copyBtn.textContent = '📋 Copy';
+          copyBtn.onclick = () => {
+            const el = document.createElement('textarea');
+            el.value = reply;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            document.getElementById('statusText').textContent = 'Copied to clipboard!';
+          };
+          
+          const sumBtn = document.createElement('button');
+          sumBtn.className = 'btn btn-action';
+          sumBtn.textContent = '📝 Summarize';
+          sumBtn.onclick = () => {
+            document.getElementById('statusText').textContent = 'Summarizing...';
+            google.script.run.withSuccessHandler(summary => {
+              botDiv.textContent += '\n\nSUMMARY:\n' + summary;
+              document.getElementById('statusText').textContent = 'Summary added.';
+            }).summarizeInsight(reply);
+          };
+          
+          const logBtn = document.createElement('button');
+          logBtn.className = 'btn btn-action';
+          logBtn.textContent = '💾 Log to Sheet';
+          logBtn.onclick = () => {
+            document.getElementById('statusText').textContent = 'Summarizing & Logging...';
+            google.script.run.withSuccessHandler(summary => {
+              google.script.run.withSuccessHandler(res => {
+                botDiv.textContent += '\n\nSUMMARY:\n' + summary;
+                document.getElementById('statusText').textContent = res;
+              }).logInsightToSheet(reply, summary);
+            }).summarizeInsight(reply);
+          };
+          
+          actionArea.appendChild(copyBtn);
+          actionArea.appendChild(sumBtn);
+          actionArea.appendChild(logBtn);
+          botDiv.appendChild(actionArea);
+          
           history.scrollTop = history.scrollHeight;
         }).chatWithData(msg);
       }
