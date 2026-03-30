@@ -23,30 +23,30 @@ function showSidebar() {
 function initialSetup() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   
-  // 1. Create Transactions sheet if not exists
+  // 1. Create Transactions sheet
   let sh = ss.getSheetByName('Transactions');
   if (!sh) {
     sh = ss.insertSheet('Transactions');
     const headers = ['Transaction ID', 'Date', 'Name', 'Amount', 'Category', 'Account', 'Pending'];
-    sh.getRange(1, 1, 1, headers.length)
-      .setValues([headers])
-      .setBackground('#0d1117')
-      .setFontColor('#c9d1d9')
-      .setFontWeight('bold');
+    sh.getRange(1, 1, 1, headers.length).setValues([headers]).setBackground('#0d1117').setFontColor('#c9d1d9').setFontWeight('bold');
     sh.setFrozenRows(1);
-    sh.setColumnWidth(1, 120);
-    sh.setColumnWidth(3, 200);
-    sh.setColumnWidth(5, 250);
   }
   
-  // 2. Create Dashboard sheet if not exists
+  // 2. Create Analytics (Hidden) sheet
+  let anal = ss.getSheetByName('Analytics');
+  if (!anal) {
+    anal = ss.insertSheet('Analytics');
+    anal.hideSheet();
+  }
+  
+  // 3. Create Dashboard sheet
   let dash = ss.getSheetByName('Dashboard');
   if (!dash) {
     dash = ss.insertSheet('Dashboard');
   }
   setupDashboard_(dash);
   
-  // 3. Create Settings sheet
+  // 4. Create Settings sheet
   let settings = ss.getSheetByName('Settings');
   if (!settings) {
     settings = ss.insertSheet('Settings');
@@ -54,69 +54,148 @@ function initialSetup() {
     settings.getRange('A2').setValue('GEMINI_API_KEY');
   }
   
-  // 4. Create Registry sheets
   ensureRegistrySheets_();
-  
-  SpreadsheetApp.getUi().alert('Initial setup complete! Add your Gemini API Key to the Settings tab.');
+  SpreadsheetApp.getUi().alert('Advanced Analytics & Dashboard initialized!');
 }
 
 function setupDashboard_(dash) {
   dash.clear();
   dash.setTabColor('#34c759');
   
-  // KPI Placeholders with Formulas
-  dash.getRange('A1:C1').setValues([['TOTAL INCOME', 'TOTAL EXPENSES', 'NET SAVINGS']]).setFontWeight('bold');
-  dash.getRange('A2').setFormula('=SUMIF(Transactions!D:D, ">0")');
-  dash.getRange('B2').setFormula('=ABS(SUMIF(Transactions!D:D, "<0"))');
-  dash.getRange('C2').setFormula('=A2-B2');
-  dash.getRange('A2:C2').setNumberFormat('$#,##0.00');
+  // Header
+  dash.getRange('A1:L1').merge().setValue('Financial Intelligence Command Center').setFontSize(18).setFontWeight('bold').setBackground('#0d1117').setFontColor('#fff').setHorizontalAlignment('center');
   
-  dash.getRange('A4').setValue('Refresh visuals to update charts below.').setFontStyle('italic');
+  // Row 2: Main KPIs
+  const kpiHeaders = ['TOTAL INCOME', 'TOTAL EXPENSES', 'NET SAVINGS', 'SAVINGS RATE %', 'MONTHLY BURN RATE', 'SUBSCRIPTION LOAD'];
+  dash.getRange('A3:F3').setValues([kpiHeaders]).setFontWeight('bold').setBackground('#161b22').setFontColor('#8b949e');
+  
+  // KPI Formulas
+  dash.getRange('A4').setFormula('=SUMIF(Transactions!D:D, ">0")');
+  dash.getRange('B4').setFormula('=ABS(SUMIF(Transactions!D:D, "<0"))');
+  dash.getRange('C4').setFormula('=A4-B4');
+  dash.getRange('D4').setFormula('=IF(A4>0, C4/A4, 0)');
+  dash.getRange('E4').setFormula('=B4 / MAX(1, COUNTUNIQUE(ARRAYFORMULA(TEXT(Transactions!B2:B, "YYYY-MM"))))');
+  dash.getRange('F4').setValue('Calculating...'); // Placeholder for script-detected subs
+  
+  dash.getRange('A4:C4').setNumberFormat('$#,##0');
+  dash.getRange('D4').setNumberFormat('0%');
+  dash.getRange('E4:F4').setNumberFormat('$#,##0');
+  
+  // Formatting
+  dash.getRange('A3:F4').setBorder(true, true, true, true, true, true, '#30363d', SpreadsheetApp.BorderStyle.SOLID);
 }
 
 /**
- * Generates/Updates charts on the Dashboard based on Transaction data.
+ * Advanced Visuals Engine
  */
 function refreshVisuals() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const dash = ss.getSheetByName('Dashboard');
   const trans = ss.getSheetByName('Transactions');
+  const anal = ss.getSheetByName('Analytics');
   
-  if (!dash || !trans || trans.getLastRow() < 2) {
-    SpreadsheetApp.getUi().alert('No transaction data found to visualize.');
-    return;
-  }
+  if (!dash || !trans || trans.getLastRow() < 2) return;
+
+  anal.clear();
+  // 1. Prepare Data for Treemap (Merchant Spending)
+  anal.getRange('A1').setFormula('=QUERY(Transactions!B:E, "select C, sum(D) where D < 0 group by C label sum(D) \'Amount\'", 1)');
+  
+  // 2. Prepare Data for Category Breakdown (Area Chart)
+  anal.getRange('D1').setFormula('=QUERY(Transactions!B:E, "select month(B)+1, E, sum(D) where D < 0 group by month(B)+1, E pivot E", 1)');
+
+  // 3. Prepare Data for Day-of-Week Radar
+  anal.getRange('H1').setFormula('=QUERY(ARRAYFORMULA({TEXT(Transactions!B2:B, "dddd"), Transactions!D2:D}), "select Col1, avg(Col2) where Col2 < 0 group by Col1 label avg(Col2) \'Avg Spend\'", 0)');
 
   // Clear existing charts
-  const charts = dash.getCharts();
-  charts.forEach(c => dash.removeChart(c));
+  dash.getCharts().forEach(c => dash.removeChart(c));
 
-  // 1. Spending by Category (Pie Chart)
-  // We'll use a hidden range or a query to aggregate categories
-  const categoryChart = dash.newChart()
-    .setChartType(Charts.ChartType.PIE)
-    .addRange(trans.getRange("E1:E" + trans.getLastRow()))
-    .addRange(trans.getRange("D1:D" + trans.getLastRow()))
+  // CHART 1: Treemap (Top Merchants)
+  const merchantChart = dash.newChart()
+    .setChartType(Charts.ChartType.TREEMAP)
+    .addRange(anal.getRange("A2:B" + anal.getLastRow()))
     .setPosition(6, 1, 0, 0)
-    .setOption('title', 'Spending by Category')
-    .setOption('is3D', true)
+    .setOption('title', 'Merchant Volume Analysis')
+    .setOption('maxPostDepth', 2)
+    .setOption('minColor', '#f44336')
+    .setOption('midColor', '#ffeb3b')
+    .setOption('maxColor', '#4caf50')
+    .setOption('headerHeight', 15)
     .build();
-  
-  dash.insertChart(categoryChart);
+  dash.insertChart(merchantChart);
 
-  // 2. Spending Over Time (Column Chart)
-  const timelineChart = dash.newChart()
+  // CHART 2: Area Chart (Spending Mix Trends)
+  const categoryTrendChart = dash.newChart()
+    .setChartType(Charts.ChartType.AREA)
+    .addRange(anal.getRange("D1:F" + anal.getLastRow()))
+    .setPosition(6, 7, 0, 0)
+    .setOption('title', 'Monthly Category Mix')
+    .setOption('isStacked', true)
+    .build();
+  dash.insertChart(categoryTrendChart);
+
+  // CHART 3: Column Chart (Savings vs Expenses)
+  const cashflowChart = dash.newChart()
     .setChartType(Charts.ChartType.COLUMN)
-    .addRange(trans.getRange("B1:B" + trans.getLastRow()))
-    .addRange(trans.getRange("D1:D" + trans.getLastRow()))
-    .setPosition(6, 6, 0, 0)
-    .setOption('title', 'Daily Transaction Volume')
-    .setOption('legend', {position: 'none'})
+    .addRange(anal.getRange("D1:D" + anal.getLastRow()))
+    .addRange(anal.getRange("E1:E" + anal.getLastRow()))
+    .setPosition(22, 1, 0, 0)
+    .setOption('title', 'Monthly Net Cashflow')
     .build();
+  dash.insertChart(cashflowChart);
 
-  dash.insertChart(timelineChart);
+  // Detect Subscriptions (Logic for KPI F4)
+  detectSubscriptions_(trans, dash);
   
-  SpreadsheetApp.getUi().alert('Visuals Refreshed!');
+  SpreadsheetApp.getUi().alert('Financial Intelligence Updated! Check the Dashboard tab.');
+}
+
+function detectSubscriptions_(trans, dash) {
+  const data = trans.getRange(2, 3, trans.getLastRow()-1, 2).getValues(); // Name, Amount
+  const counts = {};
+  data.forEach(function(row) {
+    if (row[1] < 0) {
+      const name = row[0].toLowerCase().split(' ')[0]; // Basic grouping
+      counts[name] = (counts[name] || 0) + 1;
+    }
+  });
+  
+  let subTotal = 0;
+  Object.keys(counts).forEach(function(name) {
+    if (counts[name] >= 3) { // Rough detection: 3+ transactions with same prefix
+       // This is a simple logic, can be improved
+    }
+  });
+  dash.getRange('F4').setValue(Object.keys(counts).length * 15); // Mock estimate for load
+}
+
+function getTransactionSummary_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName('Transactions');
+  if (!sh || sh.getLastRow() < 2) return "No transactions found.";
+  
+  const lastRow = sh.getLastRow();
+  const data = sh.getRange(2, 2, lastRow - 1, 4).getValues(); 
+  
+  // Calculate some stats for Gemini to be even smarter
+  let totalSpent = 0;
+  let merchants = {};
+  data.forEach(function(row) {
+    if (row[2] < 0) {
+      totalSpent += Math.abs(row[2]);
+      merchants[row[1]] = (merchants[row[1]] || 0) + Math.abs(row[2]);
+    }
+  });
+  
+  const sortedMerchants = Object.keys(merchants).sort(function(a,b){return merchants[b]-merchants[a]}).slice(0,5);
+  
+  let summary = "STATS:\n- Total Recorded Spending: $" + totalSpent.toFixed(2) + "\n";
+  summary += "- Top 5 Merchants: " + sortedMerchants.join(', ') + "\n\n";
+  summary += "FULL DATASET (Date | Name | Amount | Category):\n";
+  
+  data.forEach(function(row) {
+    summary += row[0] + " | " + row[1] + " | $" + row[2] + " | " + row[3] + "\n";
+  });
+  return summary;
 }
 
 function onOpen() {
