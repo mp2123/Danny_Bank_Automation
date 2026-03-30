@@ -89,6 +89,24 @@
         margin-top: 10px;
       }
 
+      .prompt-pill {
+        display: inline-block;
+        padding: 6px 12px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        font-size: 11px;
+        color: var(--muted);
+        margin: 4px 4px 0 0;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+
+      .prompt-pill:hover {
+        border-color: var(--blue);
+        color: var(--blue);
+      }
+
       hr { border: 0; border-top: 1px solid var(--border); margin: 20px 0; }
     </style>
   </head>
@@ -100,7 +118,16 @@
       <div class="msg-bot">AI: Hello! Once you add your Gemini API Key to the "Settings" tab, I can analyze your transactions. How can I help?</div>
     </div>
 
-    <input type="text" id="chatInput" placeholder="How much did I spend at Amazon last month?" onkeypress="if(event.key === 'Enter') sendMsg()">
+    <div style="margin-bottom:15px;">
+      <div style="font-size:11px; color:var(--muted); margin-bottom:8px; font-weight:bold; text-transform:uppercase; letter-spacing:0.5px;">Insight Ideas</div>
+      <div class="prompt-pill" onclick="usePrompt('Analyze my weekend vs. weekday spending leaks.')">📊 Weekend Leaks</div>
+      <div class="prompt-pill" onclick="usePrompt('Identify recurring subscriptions and vampire costs.')">🧛 Vampire Subs</div>
+      <div class="prompt-pill" onclick="usePrompt('Summarize my top 3 categories and how to optimize them.')">📉 Optimize Top 3</div>
+      <div class="prompt-pill" onclick="usePrompt('Show me any unusual spending spikes.')">⚡ Spending Spikes</div>
+      <div class="prompt-pill" onclick="usePrompt('What is my current savings rate?')">💰 Savings Rate</div>
+    </div>
+
+    <input type="text" id="chatInput" placeholder="Ask anything about your data..." onkeypress="if(event.key === 'Enter') sendMsg()">
     <button class="btn btn-ai" onclick="sendMsg()">Send</button>
 
     <hr>
@@ -119,6 +146,11 @@
     <div class="status" id="statusText">Ready</div>
 
     <script>
+      function usePrompt(text) {
+        document.getElementById('chatInput').value = text;
+        sendMsg();
+      }
+
       function sendMsg() {
         const input = document.getElementById('chatInput');
         const msg = input.value.trim();
