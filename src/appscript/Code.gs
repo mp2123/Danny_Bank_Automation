@@ -1,103 +1,69 @@
 /**
  * Danny Bank Automation - Google Apps Script
- * Senior Financial Intelligence Engine
+ * MASTER INTELLIGENCE ENGINE (v4.0) - High Performance & Persistence
  */
 
 function onOpen() {
-  const ui = SpreadsheetApp.getUi();
-  ui.createMenu('🏦 Bank Automation')
-    .addItem('📊 Open Sidebar', 'showSidebar')
+  SpreadsheetApp.getUi().createMenu('🏦 Bank Automation')
+    .addItem('📊 Open Command Center', 'showSidebar')
     .addSeparator()
-    .addItem('📈 Refresh Charts/Visuals', 'refreshVisuals')
-    .addItem('⚙️ Initial Setup', 'initialSetup')
+    .addItem('📈 Refresh Dashboard & Visuals', 'refreshVisuals')
+    .addItem('⚙️ Initial Setup / Repair', 'initialSetup')
     .addToUi();
 }
 
 function showSidebar() {
-  const html = HtmlService.createHtmlOutputFromFile('Sidebar')
-    .setTitle('Bank Automation Sidebar')
-    .setWidth(350);
+  const html = HtmlService.createHtmlOutputFromFile('Sidebar').setTitle('Danny Bank Command Center').setWidth(380);
   SpreadsheetApp.getUi().showSidebar(html);
 }
 
-/**
- * Orchestrates the creation of all necessary sheets and basic formatting.
- */
 function initialSetup() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   
-  // 1. Create Transactions sheet
-  let sh = ss.getSheetByName('Transactions');
-  if (!sh) {
-    sh = ss.insertSheet('Transactions');
-    const headers = ['Transaction ID', 'Date', 'Name', 'Amount', 'Category', 'Account', 'Pending'];
-    sh.getRange(1, 1, 1, headers.length).setValues([headers]).setBackground('#0d1117').setFontColor('#c9d1d9').setFontWeight('bold');
-    sh.setFrozenRows(1);
-  }
-  
-  // 2. Create Analytics (Hidden) sheet
-  let anal = ss.getSheetByName('Analytics');
-  if (!anal) {
-    anal = ss.insertSheet('Analytics');
-    anal.hideSheet();
-  }
+  // 1. Core Sheets
+  const sheets = [
+    { name: 'Transactions', headers: ['Transaction ID', 'Date', 'Name', 'Amount', 'Category', 'Account', 'Pending'], color: '#0d1117' },
+    { name: 'AI Insights Log', headers: ['Date', 'Original Insight', 'Summary'], color: '#8957e5' },
+    { name: 'Settings', headers: ['Setting', 'Value'], color: '#30363d' }
+  ];
 
-  // 3. Create AI Insights Log sheet
-  let log = ss.getSheetByName('AI Insights Log');
-  if (!log) {
-    log = ss.insertSheet('AI Insights Log');
-    log.getRange('A1:C1').setValues([['Date', 'Original Insight', 'Summary']]).setFontWeight('bold').setBackground('#8957e5').setFontColor('#fff');
-    log.setColumnWidth(2, 400);
-    log.setColumnWidth(3, 300);
-  }
-  
-  // 4. Create Dashboard sheet
-  let dash = ss.getSheetByName('Dashboard');
-  if (!dash) {
-    dash = ss.insertSheet('Dashboard');
-  }
-  setupDashboard_(dash);
-  
-  // 5. Create Settings sheet
-  let settings = ss.getSheetByName('Settings');
-  if (!settings) {
-    settings = ss.insertSheet('Settings');
-    settings.getRange('A1:B1').setValues([['Setting', 'Value']]).setFontWeight('bold');
-    settings.getRange('A2').setValue('GEMINI_API_KEY');
-  }
-  
-  ensureRegistrySheets_();
-  SpreadsheetApp.getUi().alert('Intelligent Command Center initialized!');
-}
+  sheets.forEach(s => {
+    let sh = ss.getSheetByName(s.name);
+    if (!sh) {
+      sh = ss.insertSheet(s.name);
+      sh.getRange(1, 1, 1, s.headers.length).setValues([s.headers]).setBackground(s.color).setFontColor('#fff').setFontWeight('bold');
+      sh.setFrozenRows(1);
+    }
+  });
 
-function ensureRegistrySheets_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  ['Field Registry', 'Group Registry', 'AI Profile'].forEach(function(n) { if (!ss.getSheetByName(n)) ss.insertSheet(n).setTabColor('#2b2d42'); });
+  if (!ss.getSheetByName('Analytics')) ss.insertSheet('Analytics').hideSheet();
+  if (!ss.getSheetByName('Dashboard')) ss.insertSheet('Dashboard');
+  
+  const settings = ss.getSheetByName('Settings');
+  if (settings.getLastRow() < 2) settings.getRange('A2').setValue('GEMINI_API_KEY');
+
+  setupDashboard_(ss.getSheetByName('Dashboard'));
+  SpreadsheetApp.getUi().alert('Command Center v4.0 Active!');
 }
 
 function setupDashboard_(dash) {
   dash.clear();
   dash.setTabColor('#34c759');
-  
-  // Header
   dash.getRange('A1:L1').merge().setValue('Financial Intelligence Command Center').setFontSize(18).setFontWeight('bold').setBackground('#0d1117').setFontColor('#fff').setHorizontalAlignment('center');
   
-  // Row 2: Main KPIs
-  const kpiHeaders = ['TOTAL INCOME', 'TOTAL EXPENSES', 'NET SAVINGS', 'SAVINGS RATE %', 'MONTHLY BURN', 'SUBSCRIPTION LOAD'];
-  dash.getRange('A3:F3').setValues([kpiHeaders]).setFontWeight('bold').setBackground('#161b22').setFontColor('#8b949e');
+  const kpis = ['TOTAL INCOME', 'TOTAL EXPENSES', 'NET CASHFLOW', 'SAVINGS RATE %', 'MONTHLY BURN (AVG)', 'EST. SUBSCRIPTION LOAD'];
+  dash.getRange('A3:F3').setValues([kpis]).setFontWeight('bold').setBackground('#161b22').setFontColor('#8b949e');
   
-  // KPI Formulas
   dash.getRange('A4').setFormula('=SUMIF(Transactions!D:D, ">0")');
   dash.getRange('B4').setFormula('=ABS(SUMIF(Transactions!D:D, "<0"))');
   dash.getRange('C4').setFormula('=A4-B4');
   dash.getRange('D4').setFormula('=IF(A4>0, C4/A4, 0)');
   dash.getRange('E4').setFormula('=B4 / MAX(1, COUNTUNIQUE(ARRAYFORMULA(IF(LEN(Transactions!B2:B), TEXT(Transactions!B2:B, "YYYY-MM"), ""))))');
-  dash.getRange('F4').setValue('Calculating...');
+  dash.getRange('F4').setNumberFormat('$#,##0');
   
   dash.getRange('A4:C4').setNumberFormat('$#,##0');
-  dash.getRange('D4').setNumberFormat('0%');
-  dash.getRange('E4:F4').setNumberFormat('$#,##0');
-  
+  dash.getRange('D4').setNumberFormat('0.0%');
+  dash.getRange('E4').setNumberFormat('$#,##0');
   dash.getRange('A3:F4').setBorder(true, true, true, true, true, true, '#30363d', SpreadsheetApp.BorderStyle.SOLID);
 }
 
@@ -106,139 +72,132 @@ function refreshVisuals() {
   const dash = ss.getSheetByName('Dashboard');
   const trans = ss.getSheetByName('Transactions');
   const anal = ss.getSheetByName('Analytics');
-  
-  if (!dash || !trans || trans.getLastRow() < 2) {
-    SpreadsheetApp.getUi().alert('No data found.');
+  if (!trans || trans.getLastRow() < 2) {
+    SpreadsheetApp.getUi().alert('Sync transactions first!');
     return;
   }
 
   anal.clear();
-  // 1. Data for Treemap (Fixed: Item, Parent, Value)
+  // 1. Treemap Data (Fix: Hierarchy)
   anal.getRange('A1:C1').setValues([['Label', 'Parent', 'Value']]);
-  anal.getRange('A2:C2').setValues([['Total Spending', null, 0]]);
-  anal.getRange('A3').setFormula('=QUERY(Transactions!B:E, "select C, \'Total Spending\', sum(D) where D < 0 group by C label sum(D) \'\'", 0)');
+  anal.getRange('A2:C2').setValues([['Total Spend Cluster', null, 0]]);
+  anal.getRange('A3').setFormula('=QUERY(Transactions!B:E, "select C, \'Total Spend Cluster\', sum(D) where D < 0 group by C label sum(D) \'\'", 0)');
   
-  // 2. Data for Category Distribution (Pie)
-  anal.getRange('E1').setFormula('=QUERY(Transactions!E:E, "select E, count(E) where E <> \'\' group by E label count(E) \'Count\'", 1)');
+  // 2. Account Heat Data
+  anal.getRange('E1').setFormula('=QUERY(Transactions!D:F, "select F, sum(D) where D < 0 group by F label sum(D) \'Spend\'", 1)');
 
-  // 3. Data for Account Health (Bar)
-  anal.getRange('H1').setFormula('=QUERY(Transactions!D:F, "select F, sum(D) where D < 0 group by F label sum(D) \'Spending\'", 1)');
+  // 3. Weekday Leakage
+  anal.getRange('H1').setFormula('=QUERY(ARRAYFORMULA({TEXT(Transactions!B2:B, "dddd"), Transactions!D2:D}), "select Col1, sum(Col2) where Col2 < 0 group by Col1 label sum(Col2) \'Total\'", 0)');
 
-  // 4. Data for Weekly Spend Pattern
-  anal.getRange('K1').setFormula('=QUERY(ARRAYFORMULA({TEXT(Transactions!B2:B, "dddd"), Transactions!D2:D}), "select Col1, sum(Col2) where Col2 < 0 group by Col1 label sum(Col2) \'Total\'", 0)');
+  // 4. Monthly Velocity
+  anal.getRange('K1').setFormula('=QUERY(Transactions!B:D, "select month(B)+1, sum(D) where D < 0 group by month(B)+1 label sum(D) \'Spend\'", 1)');
 
   dash.getCharts().forEach(c => dash.removeChart(c));
 
-  // Treemap
-  const treemap = dash.newChart().setChartType(Charts.ChartType.TREEMAP)
-    .addRange(anal.getRange("A1:C" + anal.getLastRow()))
-    .setPosition(6, 1, 0, 0).setOption('title', 'Merchant Clustering')
-    .setOption('minColor', '#f44336').setOption('midColor', '#ffeb3b').setOption('maxColor', '#4caf50')
-    .build();
-  dash.insertChart(treemap);
+  // Build Grid
+  const treemap = dash.newChart().setChartType(Charts.ChartType.TREEMAP).addRange(anal.getRange("A1:C20")).setPosition(6, 1, 5, 5).setOption('title', 'Spend Clusters').setOption('minColor', '#f44336').setOption('maxColor', '#4caf50').build();
+  const accChart = dash.newChart().setChartType(Charts.ChartType.PIE).addRange(anal.getRange("E1:F10")).setPosition(6, 7, 5, 5).setOption('title', 'Spending by Account').setOption('is3D', true).build();
+  const leakage = dash.newChart().setChartType(Charts.ChartType.COLUMN).addRange(anal.getRange("H1:I7")).setPosition(22, 1, 5, 5).setOption('title', 'Weekly Leakage Pattern').setOption('colors', ['#8957e5']).build();
+  const velocity = dash.newChart().setChartType(Charts.ChartType.AREA).addRange(anal.getRange("K1:L13")).setPosition(22, 7, 5, 5).setOption('title', 'Monthly Velocity').setOption('colors', ['#34c759']).build();
 
-  // Category Pie
-  const pie = dash.newChart().setChartType(Charts.ChartType.PIE)
-    .addRange(anal.getRange("E1:F" + anal.getLastRow()))
-    .setPosition(6, 7, 0, 0).setOption('title', 'Category Focus').setOption('is3D', true)
-    .build();
-  dash.insertChart(pie);
-
-  // Account Distribution
-  const accChart = dash.newChart().setChartType(Charts.ChartType.BAR)
-    .addRange(anal.getRange("H1:I" + anal.getLastRow()))
-    .setPosition(22, 1, 0, 0).setOption('title', 'Spending by Account').setOption('colors', ['#0a84ff'])
-    .build();
-  dash.insertChart(accChart);
-
-  // Day of Week
-  const dayChart = dash.newChart().setChartType(Charts.ChartType.COLUMN)
-    .addRange(anal.getRange("K1:L7"))
-    .setPosition(22, 7, 0, 0).setOption('title', 'Weekly Leakage Pattern').setOption('colors', ['#8957e5'])
-    .build();
-  dash.insertChart(dayChart);
-
+  [treemap, accChart, leakage, velocity].forEach(c => dash.insertChart(c));
   detectSubscriptions_(trans, dash);
-  SpreadsheetApp.getUi().alert('Dashboard Intricacy Upgraded!');
+  SpreadsheetApp.getUi().alert('Dashboard v4.0 Active!');
 }
 
 /**
- * AI Insight Actions
+ * AI CORE: PERSISTENCE & ANALYTICS
  */
-function logInsightToSheet(original, summary) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sh = ss.getSheetByName('AI Insights Log');
-  if (!sh) return "Error: Log sheet not found.";
-  
-  sh.appendRow([new Date(), original, summary]);
-  return "Insight saved to 'AI Insights Log' tab! ✅";
-}
-
-function summarizeInsight(text) {
-  const apiKey = getSetting_('GEMINI_API_KEY');
-  const prompt = "Summarize the following financial insight into exactly two clear, actionable sentences:\n\n" + text;
-  return _callGemini("You are a master of brevity and financial strategy.", prompt, apiKey);
-}
-
 function chatWithData(query) {
   const apiKey = getSetting_('GEMINI_API_KEY');
-  if (!apiKey) return "Add Gemini API Key to Settings.";
-
+  if (!apiKey) return "Missing API Key in Settings.";
   const summary = getTransactionSummary_();
-  const systemPrompt = "You are a senior financial analyst and wealth coach. " +
-                       "Analyze the user's data. Be specific with names/amounts. " +
-                       "Identify patterns and offer optimization advice.\n\n" +
-                       "Dataset:\n" + summary;
-
-  return _callGemini(systemPrompt, query, apiKey);
-}
-
-function _callGemini(systemPrompt, userText, apiKey) {
-  const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
-  for (let i = 0; i < models.length; i++) {
-    const url = "https://generativelanguage.googleapis.com/v1beta/models/" + models[i] + ":generateContent?key=" + apiKey;
-    const payload = { "contents": [{ "role": "user", "parts": [{ "text": systemPrompt }, { "text": userText }] }] };
-    const options = { "method": "post", "contentType": "application/json", "payload": JSON.stringify(payload), "muteHttpExceptions": true };
-    try {
-      const response = UrlFetchApp.fetch(url, options);
-      const json = JSON.parse(response.getContentText());
-      if (json.candidates && json.candidates[0]) return _extractGeminiText_(json);
-    } catch (e) {}
-  }
-  return "Gemini failed to respond.";
-}
-
-function _extractGeminiText_(json) {
-  try { return json.candidates[0].content.parts[0].text; } catch (e) { return "Parsing error."; }
-}
-
-function getSetting_(key) {
-  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Settings');
-  if (!sh) return null;
-  const data = sh.getRange(2, 1, sh.getLastRow(), 2).getValues();
-  for (let i = 0; i < data.length; i++) { if (data[i][0] === key) return data[i][1]; }
-  return null;
+  const system = "You are Michael's Senior Financial Coach. Use the dataset and verified MONTHLY AVG provided. Focus on wealth strategy. DATA:\n" + summary;
+  const reply = _callGemini(system, query, apiKey);
+  saveChatHistory_(query, reply);
+  return reply;
 }
 
 function getTransactionSummary_() {
   const trans = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Transactions');
-  if (!trans || trans.getLastRow() < 2) return "No data.";
-  const data = trans.getRange(2, 2, trans.getLastRow() - 1, 5).getValues(); // Date, Name, Amount, Cat, Account
+  const data = trans.getRange(2, 2, trans.getLastRow()-1, 5).getValues();
   
-  let totalSpent = 0;
-  let accounts = {};
-  data.forEach(function(row) {
-    if (row[2] < 0) {
-      totalSpent += Math.abs(row[2]);
-      accounts[row[4]] = (accounts[row[4]] || 0) + Math.abs(row[2]);
-    }
+  let minDate = new Date(8640000000000000), maxDate = new Date(0), totalSpend = 0, totalIncome = 0;
+  let accounts = {}, categories = {};
+
+  data.forEach(function(r) {
+    if (!r[0]) return;
+    const d = new Date(r[0]), amt = r[2], cat = r[3], acc = r[4];
+    if (d < minDate) minDate = d; if (d > maxDate) maxDate = d;
+    if (amt < 0) {
+      totalSpend += Math.abs(amt);
+      const accShort = acc.toString().slice(-8);
+      accounts[accShort] = (accounts[accShort] || 0) + Math.abs(amt);
+      categories[cat] = (categories[cat] || 0) + Math.abs(amt);
+    } else { totalIncome += amt; }
   });
-  
-  let summary = "STATS:\n- Total Spend: $" + totalSpent.toFixed(0) + "\n";
-  summary += "- Spend by Account: " + JSON.stringify(accounts) + "\n\n";
-  summary += "DATA (Date | Name | Amount | Category | Account):\n";
-  data.slice(-150).forEach(function(r) { summary += r[0] + " | " + r[1] + " | $" + r[2] + " | " + r[3] + " | " + r[4] + "\n"; });
-  return summary;
+
+  const days = Math.max(1, (maxDate - minDate) / 86400000);
+  const monthCount = days / 30.44;
+  const avgMonthly = totalSpend / Math.max(1, monthCount);
+
+  let f = "=== VERIFIED FINANCIAL FINGERPRINT ===\n";
+  f += "- ANALYZED PERIOD: " + days.toFixed(0) + " days (" + monthCount.toFixed(1) + " months)\n";
+  f += "- TOTALS: Spend: $" + totalSpend.toFixed(0) + " | Income: $" + totalIncome.toFixed(0) + "\n";
+  f += "- REAL MONTHLY AVG SPEND: $" + avgMonthly.toFixed(0) + " (Gemini: USE THIS for average monthly advice)\n";
+  f += "- ACCOUNT MIX: " + JSON.stringify(accounts) + "\n";
+  return f + "\nRAW DATA (Latest 100):\n" + data.slice(-100).map(r => r.join(' | ')).join('\n');
+}
+
+function _callGemini(sys, user, key) {
+  const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
+  for (let i = 0; i < models.length; i++) {
+    const url = "https://generativelanguage.googleapis.com/v1beta/models/" + models[i] + ":generateContent?key=" + key;
+    const payload = { "contents": [{ "role": "user", "parts": [{ "text": sys }, { "text": user }] }] };
+    const options = { "method": "post", "contentType": "application/json", "payload": JSON.stringify(payload), "muteHttpExceptions": true };
+    try {
+      const res = UrlFetchApp.fetch(url, options);
+      const json = JSON.parse(res.getContentText());
+      if (json.candidates && json.candidates[0]) return json.candidates[0].content.parts[0].text;
+    } catch (e) {}
+  }
+  return "AI Error.";
+}
+
+function summarizeInsight(text) {
+  const key = getSetting_('GEMINI_API_KEY');
+  return _callGemini("Boil this down to 2 actionable sentences.", text, key);
+}
+
+function logInsightToSheet(orig, sum) {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('AI Insights Log');
+  sh.appendRow([new Date(), orig, sum]);
+  return "Logged! ✅";
+}
+
+function saveChatHistory_(u, b) {
+  const p = PropertiesService.getUserProperties();
+  let h = JSON.parse(p.getProperty('chat_history') || "[]");
+  h.push({ user: u, bot: b, time: new Date() });
+  if (h.length > 8) h.shift();
+  p.setProperty('chat_history', JSON.stringify(h));
+}
+
+function getChatHistory() {
+  return JSON.parse(PropertiesService.getUserProperties().getProperty('chat_history') || "[]");
+}
+
+function clearHistory() {
+  PropertiesService.getUserProperties().deleteProperty('chat_history');
+  return "Cleared.";
+}
+
+function getSetting_(k) {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Settings');
+  if (!sh) return null;
+  const d = sh.getRange(2, 1, sh.getLastRow(), 2).getValues();
+  for (let i = 0; i < d.length; i++) { if (d[i][0] === k) return d[i][1]; }
+  return null;
 }
 
 function detectSubscriptions_(trans, dash) {
@@ -250,6 +209,7 @@ function detectSubscriptions_(trans, dash) {
   dash.getRange('F4').setValue(subEstimate);
 }
 
-function runManualSync() {
-  SpreadsheetApp.getUi().alert('Local Sync: Run "./run_sync.command" on your Mac.');
+function ensureRegistrySheets_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  ['Field Registry', 'Group Registry', 'AI Profile'].forEach(function(n) { if (!ss.getSheetByName(n)) ss.insertSheet(n).setTabColor('#2b2d42'); });
 }

@@ -52,21 +52,24 @@
       .btn:hover { filter: brightness(1.1); }
       .btn-ai { background: var(--purple); }
       .btn-outline { background: var(--bg); border: 1px solid var(--blue); color: var(--blue); }
+      
       .btn-action { 
         display: inline-block;
         width: auto;
         padding: 4px 8px;
         font-size: 10px;
         margin-right: 5px;
-        margin-top: 5px;
+        margin-top: 8px;
         background: var(--panel);
         border: 1px solid var(--border);
         color: var(--muted);
+        border-radius: 4px;
+        cursor: pointer;
       }
       .btn-action:hover { border-color: var(--blue); color: var(--blue); }
 
       #chat-history {
-        height: 350px;
+        height: 380px;
         overflow-y: auto;
         border: 1px solid var(--border);
         padding: 12px;
@@ -77,8 +80,8 @@
         line-height: 1.5;
       }
 
-      .msg-user { color: var(--blue); margin-bottom: 10px; font-weight: bold; }
-      .msg-bot { color: var(--green); margin-bottom: 15px; border-left: 2px solid var(--green); padding-left: 10px; white-space: pre-wrap; }
+      .msg-user { color: var(--blue); margin-bottom: 10px; font-weight: bold; padding-bottom: 5px; border-bottom: 1px solid rgba(139, 148, 158, 0.1); }
+      .msg-bot { color: var(--green); margin-bottom: 20px; border-left: 2px solid var(--green); padding-left: 10px; white-space: pre-wrap; font-size: 12px; }
 
       input[type="text"] {
         width: 100%;
@@ -91,7 +94,7 @@
         font-size: 13px;
       }
 
-      .status { font-size: 12px; color: var(--muted); margin-top: 10px; }
+      .status { font-size: 11px; color: var(--muted); margin-top: 10px; min-height: 15px; }
 
       .sync-card {
         background: var(--panel);
@@ -124,121 +127,122 @@
   </head>
 
   <body>
-    <div class="app-title">🏦 Danny Bank Automation</div>
+    <div class="app-title">🏦 Danny Bank Intelligence</div>
 
-    <div id="chat-history">
-      <div class="msg-bot">AI: Hello! Once you add your Gemini API Key to the "Settings" tab, I can analyze your transactions. How can I help?</div>
-    </div>
+    <div id="chat-history"></div>
 
     <div style="margin-bottom:15px;">
-      <div style="font-size:11px; color:var(--muted); margin-bottom:8px; font-weight:bold; text-transform:uppercase; letter-spacing:0.5px;">Insight Ideas</div>
-      <div class="prompt-pill" onclick="usePrompt('Analyze my weekend vs. weekday spending leaks.')">📊 Weekend Leaks</div>
-      <div class="prompt-pill" onclick="usePrompt('Identify recurring subscriptions and vampire costs.')">🧛 Vampire Subs</div>
-      <div class="prompt-pill" onclick="usePrompt('Summarize my top 3 categories and how to optimize them.')">📉 Optimize Top 3</div>
-      <div class="prompt-pill" onclick="usePrompt('Show me any unusual spending spikes.')">⚡ Spending Spikes</div>
-      <div class="prompt-pill" onclick="usePrompt('What is my current savings rate?')">💰 Savings Rate</div>
+      <div style="font-size:10px; color:var(--muted); margin-bottom:8px; font-weight:bold; text-transform:uppercase; letter-spacing:0.5px;">Analytical Prompts</div>
+      <div class="prompt-pill" onclick="usePrompt('Analyze my weekend leaks.')">📊 Weekend</div>
+      <div class="prompt-pill" onclick="usePrompt('Identify vampire costs.')">🧛 Vampire</div>
+      <div class="prompt-pill" onclick="usePrompt('Optimize my Top 3 categories.')">📉 Optimize</div>
+      <div class="prompt-pill" onclick="usePrompt('What is my real savings rate?')">💰 Rate</div>
     </div>
 
-    <input type="text" id="chatInput" placeholder="Ask anything about your data..." onkeypress="if(event.key === 'Enter') sendMsg()">
+    <input type="text" id="chatInput" placeholder="Ask Gemini..." onkeypress="if(event.key === 'Enter') sendMsg()">
     <button class="btn btn-ai" onclick="sendMsg()">Send</button>
 
-    <hr>
-
     <div class="sync-card">
-      <div style="font-weight:bold; color:var(--blue); margin-bottom:5px;">🔒 Private Local Sync</div>
-      <div style="font-size:11px; line-height:1.4;">
-        Run the <code>run_sync.command</code> file in your project folder, or run:
-        <code style="display:block; background:#000; padding:5px; margin-top:5px; border-radius:4px;">python3 -m src.engine.main</code>
-        <br>
-        <i>This keeps your bank data 100% on your computer and off the public web.</i>
-      </div>
+      <div style="font-weight:bold; color:var(--blue); font-size:12px;">🔒 Private Local Sync</div>
+      <code style="display:block; background:#000; padding:5px; margin-top:5px; border-radius:4px; font-size:10px;">python3 -m src.engine.main</code>
     </div>
 
-    <button class="btn" style="margin-top:15px;" onclick="refreshVisuals()">📈 Refresh Dashboard Charts</button>
+    <button class="btn" style="margin-top:15px;" onclick="refreshVisuals()">📈 Refresh Visuals 2.0</button>
     <div class="status" id="statusText">Ready</div>
 
     <script>
+      window.onload = loadHistory;
+
+      function loadHistory() {
+        google.script.run.withSuccessHandler(history => {
+          const container = document.getElementById('chat-history');
+          if (history.length === 0) {
+            appendBotMessage("AI: Connected! Enter your key in 'Settings' to start analysis.");
+            return;
+          }
+          history.forEach(m => {
+            appendUserMessage(m.user);
+            appendBotMessage(m.bot);
+          });
+        }).getChatHistory();
+      }
+
       function usePrompt(text) {
         document.getElementById('chatInput').value = text;
         sendMsg();
       }
 
+      function appendUserMessage(msg) {
+        const div = document.createElement('div');
+        div.className = 'msg-user';
+        div.textContent = 'You: ' + msg;
+        document.getElementById('chat-history').appendChild(div);
+      }
+
+      function appendBotMessage(reply) {
+        const history = document.getElementById('chat-history');
+        const div = document.createElement('div');
+        div.className = 'msg-bot';
+        div.textContent = 'AI: ' + reply;
+        
+        // Action Buttons
+        const bar = document.createElement('div');
+        
+        const copyBtn = createActionBtn('📋 Copy', () => {
+          const el = document.createElement('textarea');
+          el.value = reply; document.body.appendChild(el); el.select();
+          document.execCommand('copy'); document.body.removeChild(el);
+          setStatus('Copied!');
+        });
+
+        const logBtn = createActionBtn('💾 Log to Sheet', () => {
+          setStatus('Summarizing & Logging...');
+          google.script.run.withSuccessHandler(sum => {
+            google.script.run.withSuccessHandler(res => {
+              div.textContent += '\n\nSUMMARY:\n' + sum;
+              setStatus(res);
+            }).logInsightToSheet(reply, sum);
+          }).summarizeInsight(reply);
+        });
+
+        bar.appendChild(copyBtn);
+        bar.appendChild(logBtn);
+        div.appendChild(bar);
+        history.appendChild(div);
+        history.scrollTop = history.scrollHeight;
+      }
+
+      function createActionBtn(text, fn) {
+        const b = document.createElement('button');
+        b.className = 'btn-action';
+        b.textContent = text;
+        b.onclick = fn;
+        return b;
+      }
+
+      function setStatus(txt) { document.getElementById('statusText').textContent = txt; }
+
       function sendMsg() {
         const input = document.getElementById('chatInput');
         const msg = input.value.trim();
         if (!msg) return;
-        
-        const history = document.getElementById('chat-history');
-        const userDiv = document.createElement('div');
-        userDiv.className = 'msg-user';
-        userDiv.textContent = 'You: ' + msg;
-        history.appendChild(userDiv);
-        
+        appendUserMessage(msg);
         const botDiv = document.createElement('div');
         botDiv.className = 'msg-bot';
         botDiv.textContent = 'AI: Thinking...';
-        history.appendChild(botDiv);
-        
-        history.scrollTop = history.scrollHeight;
+        document.getElementById('chat-history').appendChild(botDiv);
+        document.getElementById('chat-history').scrollTop = document.getElementById('chat-history').scrollHeight;
         input.value = '';
         
         google.script.run.withSuccessHandler(reply => {
-          botDiv.textContent = 'AI: ' + reply;
-          
-          // Add Action Buttons
-          const actionArea = document.createElement('div');
-          
-          const copyBtn = document.createElement('button');
-          copyBtn.className = 'btn btn-action';
-          copyBtn.textContent = '📋 Copy';
-          copyBtn.onclick = () => {
-            const el = document.createElement('textarea');
-            el.value = reply;
-            document.body.appendChild(el);
-            el.select();
-            document.execCommand('copy');
-            document.body.removeChild(el);
-            document.getElementById('statusText').textContent = 'Copied to clipboard!';
-          };
-          
-          const sumBtn = document.createElement('button');
-          sumBtn.className = 'btn btn-action';
-          sumBtn.textContent = '📝 Summarize';
-          sumBtn.onclick = () => {
-            document.getElementById('statusText').textContent = 'Summarizing...';
-            google.script.run.withSuccessHandler(summary => {
-              botDiv.textContent += '\n\nSUMMARY:\n' + summary;
-              document.getElementById('statusText').textContent = 'Summary added.';
-            }).summarizeInsight(reply);
-          };
-          
-          const logBtn = document.createElement('button');
-          logBtn.className = 'btn btn-action';
-          logBtn.textContent = '💾 Log to Sheet';
-          logBtn.onclick = () => {
-            document.getElementById('statusText').textContent = 'Summarizing & Logging...';
-            google.script.run.withSuccessHandler(summary => {
-              google.script.run.withSuccessHandler(res => {
-                botDiv.textContent += '\n\nSUMMARY:\n' + summary;
-                document.getElementById('statusText').textContent = res;
-              }).logInsightToSheet(reply, summary);
-            }).summarizeInsight(reply);
-          };
-          
-          actionArea.appendChild(copyBtn);
-          actionArea.appendChild(sumBtn);
-          actionArea.appendChild(logBtn);
-          botDiv.appendChild(actionArea);
-          
-          history.scrollTop = history.scrollHeight;
+          botDiv.remove(); // Remove thinking
+          appendBotMessage(reply);
         }).chatWithData(msg);
       }
 
       function refreshVisuals() {
-        document.getElementById('statusText').textContent = 'Updating charts...';
-        google.script.run.withSuccessHandler(res => {
-          document.getElementById('statusText').textContent = 'Charts updated!';
-        }).refreshVisuals();
+        setStatus('Updating Dashboard...');
+        google.script.run.withSuccessHandler(() => setStatus('Dashboard Ready!')).refreshVisuals();
       }
     </script>
   </body>
