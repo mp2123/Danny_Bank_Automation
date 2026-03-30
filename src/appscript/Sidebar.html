@@ -81,6 +81,14 @@
 
       .status { font-size: 12px; color: var(--muted); margin-top: 10px; }
 
+      .sync-card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+        margin-top: 10px;
+      }
+
       hr { border: 0; border-top: 1px solid var(--border); margin: 20px 0; }
     </style>
   </head>
@@ -97,8 +105,17 @@
 
     <hr>
 
-    <button class="btn" onclick="refreshVisuals()">📈 Refresh Dashboard Charts</button>
-    <button class="btn btn-outline" onclick="runSync()">🔄 Sync Info (Local)</button>
+    <div class="sync-card">
+      <div style="font-weight:bold; color:var(--blue); margin-bottom:5px;">🔒 Private Local Sync</div>
+      <div style="font-size:11px; line-height:1.4;">
+        To update your data, run this command in your Mac terminal:
+        <code style="display:block; background:#000; padding:5px; margin-top:5px; border-radius:4px;">python3 -m src.engine.main</code>
+        <br>
+        <i>This keeps your bank data 100% on your computer and off the public web.</i>
+      </div>
+    </div>
+
+    <button class="btn" style="margin-top:15px;" onclick="refreshVisuals()">📈 Refresh Dashboard Charts</button>
     <div class="status" id="statusText">Ready</div>
 
     <script>
@@ -123,10 +140,6 @@
         google.script.run.withSuccessHandler(res => {
           document.getElementById('statusText').textContent = 'Charts updated!';
         }).refreshVisuals();
-      }
-
-      function runSync() {
-        google.script.run.runManualSync();
       }
     </script>
   </body>

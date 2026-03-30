@@ -140,34 +140,56 @@ function chatWithData(query) {
   }
 
   const summary = getTransactionSummary_();
-  const prompt = "You are a senior financial analyst assistant. I will provide a summary of my recent bank transactions. " +
-                 "Answer my question accurately based ONLY on this data. Be concise and professional. " +
-                 "Privacy Note: Do not mention account IDs, just the merchant names and categories.\n\n" +
-                 "Data Summary:\n" + summary + "\n\nUser Question: " + query;
+  const systemPrompt = "You are a senior financial analyst and high-performance wealth coach. " +
+                       "Analyze the user's bank transaction data provided below. " +
+                       "Be specific, cite Merchant names and amounts, identify patterns (e.g. spending spikes, subscriptions), " +
+                       "and offer concrete advice for wealth optimization. " +
+                       "Privacy Note: Do not mention account IDs or full IDs.\n\n" +
+                       "Dataset:\n" + summary;
+
+  return _callGemini(systemPrompt, query, apiKey);
+}
+
+function _callGemini(systemPrompt, userText, apiKey) {
+  const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey;
+  
+  const payload = {
+    "contents": [
+      {
+        "role": "user",
+        "parts": [
+          { "text": systemPrompt },
+          { "text": "User Question: " + userText }
+        ]
+      }
+    ]
+  };
+
+  const options = {
+    "method": "post",
+    "contentType": "application/json",
+    "payload": JSON.stringify(payload),
+    "muteHttpExceptions": true
+  };
 
   try {
-    const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
-    const payload = {
-      "contents": [{ "parts": [{ "text": prompt }] }]
-    };
-    
-    const options = {
-      "method": "post",
-      "contentType": "application/json",
-      "payload": JSON.stringify(payload),
-      "muteHttpExceptions": true
-    };
-    
     const response = UrlFetchApp.fetch(url, options);
     const json = JSON.parse(response.getContentText());
-    
-    if (json.candidates && json.contents === undefined && json.error) {
-       return "Gemini Error: " + json.error.message;
-    }
-    
-    return json.candidates[0].content.parts[0].text;
+    return _extractGeminiText_(json);
   } catch (e) {
     return "Failed to connect to Gemini: " + e.toString();
+  }
+}
+
+function _extractGeminiText_(json) {
+  if (json && json.error) {
+    return "Gemini API Error: " + json.error.message;
+  }
+  try {
+    const parts = json.candidates[0].content.parts;
+    return parts.map(function(p) { return p.text; }).join('\n').trim();
+  } catch (e) {
+    return "Error parsing AI response: " + JSON.stringify(json);
   }
 }
 
@@ -187,9 +209,9 @@ function getTransactionSummary_() {
   const sh = ss.getSheetByName('Transactions');
   if (!sh || sh.getLastRow() < 2) return "No transactions found.";
   
-  // Get last 100 transactions for context
+  // Get all transactions for full context
   const lastRow = sh.getLastRow();
-  const startRow = Math.max(2, lastRow - 99);
+  const startRow = 2;
   const numRows = lastRow - startRow + 1;
   
   const data = sh.getRange(startRow, 2, numRows, 4).getValues(); // Date, Name, Amount, Category
