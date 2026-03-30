@@ -1,27 +1,36 @@
-# Danny Bank Automation (Plaid + Google Sheets)
+# Danny Bank Automation (Plaid + Google Sheets + Gemini AI)
 
-## Overview
-A secure, shareable, and automated personal finance tool that pulls transaction data from multiple institutions via Plaid, stores it in Google Sheets, and provides an AI-powered interface for querying and visualization.
+## 🚀 Overview
+A high-performance, secure, and automated financial intelligence engine. This tool synchronizes transaction data from multiple banking institutions (via Plaid) and manual CSV imports (Apple Card, US Bank) into a centralized Google Sheets "Command Center." It features advanced analytical visualizations and a dedicated AI Wealth Coach powered by Gemini 2.5 Flash.
 
-## Key Features
-- **Secure Local Sync:** Uses a cross-platform Python engine to fetch transactions from Plaid.
-- **Automated Syncing:** Scheduled monthly syncs via cron or Windows Task Scheduler.
-- **AI Insights:** A built-in Google Sheets Sidebar for querying your financial data using LLMs.
-- **Visual Insights:** Standardized transaction storage with deduplication.
+## ✨ Key Features
+- **Multi-Bank Synchronization:** Automated syncing for Bank of America, Wells Fargo, Amex, and more via Plaid Production (Limited).
+- **CSV Import Engine:** Dedicated parser for Apple Card and US Bank transaction exports.
+- **Deep Historical Context:** Supports 1-year to 2-year deep history syncing for long-term trend analysis.
+- **Financial Intelligence Dashboard:**
+  - **Merchant Treemap:** Visual heatmap of spending clusters.
+  - **Category Mix Trends:** Stacked area charts showing spending evolution.
+  - **Cashflow Velocity:** Income vs. Expense analysis.
+  - **Day-of-Week Leakage:** Identification of behavioral spending patterns.
+- **Gemini AI Wealth Coach:**
+  - **Financial Fingerprint:** The AI receives pre-analyzed summary stats (Top categories, outliers, weekend ratios) for sharper insights.
+  - **Privacy-First:** Personal credentials and account IDs never leave your local environment.
+- **One-Click Sync:** Includes a Mac `.command` shortcut for instant updates.
 
-## Getting Started
-1. Install Python 3.8+.
-2. Clone this repository.
-3. Run `python setup.py` to initialize.
-4. Follow the [Setup Guide](docs/setup.md) for Plaid and Google credentials.
-5. In your Google Sheet, open the **🏦 Bank Automation** menu to get started.
+## 📁 Repository Structure
+- `src/engine/`: Python-based sync and import core.
+- `src/appscript/`: Google Apps Script frontend (Sidebar + Analytics Engine).
+- `src/imports/`: Drop zone for bank CSV exports.
+- `research/`: Technical documentation and historical project examples.
+- `run_sync.command`: Mac desktop shortcut for manual syncing.
 
-## Project Structure
-- `src/engine/`: Python backend for Plaid and Sheets APIs.
-- `src/appscript/`: Google Apps Script source code.
-- `docs/`: Installation and configuration guides.
-- `GEMINI.md`: Project-specific AI context.
-- `sessions.md`: Session history and development decisions.
+## 🛠️ Installation & Setup
+Please refer to the [Setup Guide](research/docs/setup_guide.md) for detailed instructions on configuring Plaid, Google Cloud, and your local environment.
 
-## License
+## 🔒 Security & Privacy
+- **Local Execution:** All API interactions occur locally on your machine.
+- **Secret Management:** Sensitive keys are stored in a local `.env` file (excluded from Git).
+- **OAuth2:** Uses standard Google Desktop App authorization.
+
+## 📜 License
 MIT
