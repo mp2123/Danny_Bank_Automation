@@ -1,6 +1,6 @@
 /**
  * Danny Bank Automation - Google Apps Script
- * RECOVERY RELEASE (v5.3) - Shared Aggregation Engine, Deeper AI Context, Visual Redesign
+ * RECOVERY RELEASE (v5.4) - Grounded Evidence Responses and Readable Analytics
  */
 
 const GEMINI_SETTING_KEY = 'GEMINI_API_KEY';
@@ -18,6 +18,7 @@ const MAX_EVIDENCE_TRANSACTIONS = 14;
 const MAX_CONTEXT_TURNS = 4;
 const MAX_FULL_BREAKDOWN_ITEMS = 24;
 const MAX_GROUPED_CATEGORY_EXAMPLES = 4;
+const MAX_GROUNDED_TABLE_ROWS = 18;
 const FULL_LEDGER_TRANSACTION_THRESHOLD = 360;
 const MAX_LEDGER_CONTEXT_TRANSACTIONS = 360;
 const MAX_TOOL_TRANSACTION_RESULTS = 200;
@@ -27,14 +28,20 @@ const ANALYTICS_LAYOUT = {
   monthlySummary: { row: 1, col: 5 },
   weekdaySummary: { row: 1, col: 13 },
   weeklySummary: { row: 1, col: 17 },
+  weekdayChart: { row: 1, col: 22 },
+  monthlyCashflowChart: { row: 1, col: 26 },
   topCategories: { row: 20, col: 1 },
   topAccounts: { row: 20, col: 5 },
   topMerchants: { row: 20, col: 9 },
   weekendSummary: { row: 20, col: 13 },
+  topCategoriesChart: { row: 20, col: 17 },
+  topAccountsChart: { row: 20, col: 21 },
+  topMerchantsChart: { row: 20, col: 25 },
   monthlyCategoryMatrix: { row: 45, col: 1 },
   monthlyAccountMatrix: { row: 45, col: 8 },
   weekendMonthlyCompare: { row: 45, col: 15 },
   categoryDriftChart: { row: 45, col: 20 },
+  weekendMonthlyCompareChart: { row: 45, col: 24 },
   anomalies: { row: 80, col: 1 },
   recurring: { row: 80, col: 8 },
   categoryDrift: { row: 80, col: 14 }
@@ -89,7 +96,7 @@ function initialSetup() {
 
   setupDashboard_(ss.getSheetByName('Dashboard'));
   setupInsights_(ss.getSheetByName('Insights'));
-  SpreadsheetApp.getUi().alert('Intelligence Engine v5.3 Ready!');
+  SpreadsheetApp.getUi().alert('Intelligence Engine v5.4 Ready!');
 }
 
 function refreshVisuals() {
@@ -112,7 +119,7 @@ function refreshVisuals() {
   clearChatHistory_();
   SpreadsheetApp.flush();
 
-  SpreadsheetApp.getUi().alert('Command Center v5.3 Active!');
+  SpreadsheetApp.getUi().alert('Command Center v5.4 Active!');
   return 'Dashboard and insights refreshed.';
 }
 
@@ -132,7 +139,36 @@ function chatWithData(query) {
   const conversationQuery = buildConversationQuery_(conversationTurns, query);
   const filters = extractRetrievalFilters_(model, conversationQuery);
   const intent = parseAiIntent_(conversationQuery, filters);
+  const groundedPacket = intent.needsGroundedEvidence
+    ? buildGroundedEvidencePacket_(query, model, records, intent, filters)
+    : null;
   try {
+    if (groundedPacket) {
+      const groundedResult = runGroundedGeminiSynthesis_(query, model, apiKey, conversationTurns, intent, groundedPacket);
+      const finalBody = groundedPacket.verifiedText +
+        (groundedResult.text ? '\n\n## ' + groundedResult.sectionTitle + '\n' + groundedResult.text : '');
+      const detailParts = [
+        'Verified tools: ' + groundedPacket.toolsUsed.join(', ')
+      ];
+      if (groundedResult.modelsUsed.length) {
+        detailParts.push('Gemini models: ' + groundedResult.modelsUsed.join(' -> '));
+        detailParts.push('Gemini used for narrative only');
+      } else {
+        detailParts.push('Gemini not used');
+      }
+      const mode = groundedResult.modelsUsed.length
+        ? 'Gemini Synthesis with Verified Data'
+        : 'Verified Data Only';
+      const message = formatChatModeReply_(mode, detailParts.join(' | '), finalBody);
+      saveChatHistory_(query, message);
+      saveConversationTurn_(query, finalBody, {
+        mode: groundedResult.modelsUsed.length ? 'grounded-gemini' : 'grounded-verified',
+        modelsUsed: groundedResult.modelsUsed,
+        toolsUsed: groundedPacket.toolsUsed
+      });
+      return message;
+    }
+
     const result = runGeminiFinanceAssistant_(query, model, records, apiKey, conversationTurns, intent, filters, conversationQuery);
     const detailParts = ['Gemini models: ' + result.modelsUsed.join(' -> ')];
     detailParts.push(result.toolsUsed.length
@@ -147,6 +183,22 @@ function chatWithData(query) {
     });
     return message;
   } catch (e) {
+    if (groundedPacket) {
+      const fallbackBody = groundedPacket.verifiedText +
+        (groundedPacket.fallbackAdviceText ? '\n\n## ' + groundedPacket.fallbackSectionTitle + '\n' + groundedPacket.fallbackAdviceText : '');
+      const fallbackMessage = formatChatModeReply_(
+        'Verified Direct Fallback',
+        'Gemini unavailable or quota-limited, verified local output used',
+        fallbackBody
+      );
+      saveChatHistory_(query, fallbackMessage);
+      saveConversationTurn_(query, fallbackBody, {
+        mode: 'grounded-fallback',
+        toolsUsed: groundedPacket.toolsUsed
+      });
+      return fallbackMessage;
+    }
+
     const scopedRecords = hasActiveFilters_(filters) ? filterTransactionsByRetrieval_(records, filters) : [];
     const answerModel = scopedRecords.length ? buildAnalyticsModel_(scopedRecords) : model;
     const directReply = buildDirectAnswer_(answerModel, conversationQuery, intent, filters);
@@ -196,6 +248,445 @@ function getGeminiConfigStatus() {
 
 function formatChatModeReply_(mode, detail, body) {
   return 'Mode -> ' + mode + ' (' + detail + ')\n\n' + body;
+}
+
+function buildGroundedEvidencePacket_(query, model, records, intent, filters) {
+  const toolsUsed = [];
+  const normalizedQuery = normalizeQueryText_(query);
+  const monthArg = (filters.months && filters.months.length)
+    ? filters.months.join(' ')
+    : (intent.needsMonthly ? query : '');
+  const singleCategory = filters.categories && filters.categories.length === 1 ? filters.categories[0] : '';
+  const singleMerchant = filters.merchants && filters.merchants.length === 1 ? filters.merchants[0] : '';
+  const singleAccount = filters.accounts && filters.accounts.length === 1 ? filters.accounts[0] : '';
+
+  let monthBreakdown = null;
+  if (intent.needsMonthly || (filters.months && filters.months.length)) {
+    monthBreakdown = buildMonthBreakdownToolResult_(records, model, {
+      month: monthArg || query,
+      include_accounts: true,
+      include_categories: true,
+      include_examples: true
+    });
+    toolsUsed.push('get_month_breakdown');
+  }
+
+  let weekendAnalysis = null;
+  if (intent.needsWeekend) {
+    weekendAnalysis = buildWeekendAnalysisToolResult_(records, model, {
+      month: monthArg || query,
+      include_examples: true
+    });
+    toolsUsed.push('get_weekend_analysis');
+  }
+
+  let categoryBreakdowns = [];
+  if (intent.needsCategoryExamples && filters.categories && filters.categories.length && !monthBreakdown) {
+    categoryBreakdowns = filters.categories.slice(0, 4).map(function(categoryName) {
+      return {
+        category: categoryName,
+        result: buildCategoryBreakdownToolResult_(records, model, {
+          month: monthArg || '',
+          category: categoryName,
+          include_examples: true
+        })
+      };
+    });
+    if (categoryBreakdowns.length) {
+      toolsUsed.push('get_category_breakdown');
+    }
+  }
+
+  let accountBreakdowns = [];
+  if (filters.accounts && filters.accounts.length && !monthBreakdown) {
+    accountBreakdowns = filters.accounts.slice(0, 4).map(function(accountName) {
+      return {
+        account: accountName,
+        result: buildAccountBreakdownToolResult_(records, model, {
+          month: monthArg || '',
+          account: accountName,
+          include_examples: true
+        })
+      };
+    });
+    if (accountBreakdowns.length) {
+      toolsUsed.push('get_account_breakdown');
+    }
+  }
+
+  let transactionSearch = null;
+  if (intent.needsGroupedTransactions || intent.needsTabularOutput || (intent.needsCategoryExamples && !monthBreakdown)) {
+    transactionSearch = buildSearchTransactionsToolResult_(records, model, {
+      month: monthArg || '',
+      category: singleCategory,
+      merchant: singleMerchant,
+      account: singleAccount,
+      expenses_only: intent.needsSpendFocus,
+      limit: intent.needsTabularOutput ? MAX_GROUNDED_TABLE_ROWS : 10,
+      sort: intent.needsTabularOutput ? 'recent' : 'largest'
+    });
+    toolsUsed.push('search_transactions');
+  }
+
+  let overview = null;
+  if (intent.needsAdvice || (!monthBreakdown && !weekendAnalysis)) {
+    overview = buildOverviewToolResult_(model);
+    toolsUsed.push('get_overview');
+  }
+
+  const scopeRecords = hasActiveFilters_(filters) ? filterTransactionsByRetrieval_(records, filters) : records;
+  const scopeModel = scopeRecords.length ? buildAnalyticsModel_(scopeRecords) : model;
+  const packet = {
+    query: query,
+    intent: intent,
+    filters: filters,
+    historyModel: model,
+    scopeModel: scopeModel,
+    overview: overview,
+    monthBreakdown: monthBreakdown,
+    weekendAnalysis: weekendAnalysis,
+    categoryBreakdowns: categoryBreakdowns,
+    accountBreakdowns: accountBreakdowns,
+    transactionSearch: transactionSearch,
+    toolsUsed: toolsUsed.filter(uniqueValue_),
+    needsNarrative: intent.needsAdvice || /(what stands out|where can i|how should i|tell me how|summari[sz]e.*advice|help me|analy[sz]e|analysis|insight|interpret)/.test(normalizedQuery)
+  };
+  packet.verifiedText = renderGroundedVerifiedResponse_(packet);
+  packet.adviceContext = buildGroundedAdviceContext_(packet);
+  packet.fallbackSectionTitle = intent.needsAdvice ? 'AI Advice' : 'AI Interpretation';
+  packet.fallbackAdviceText = packet.needsNarrative ? renderGroundedFallbackAdvice_(packet) : '';
+  return packet;
+}
+
+function runGroundedGeminiSynthesis_(query, model, apiKey, conversationTurns, intent, packet) {
+  if (!packet.needsNarrative) {
+    return {
+      text: '',
+      modelsUsed: [],
+      sectionTitle: intent.needsAdvice ? 'AI Advice' : 'AI Interpretation'
+    };
+  }
+
+  const request = buildGeminiRequest_(
+    buildGroundedAdviceSystemPrompt_(intent),
+    buildGroundedAdvicePrompt_(query, conversationTurns, packet)
+  );
+  const tokenEstimate = _countGeminiTokens(request, apiKey);
+  const payload = _callGeminiPayload_(request, apiKey, tokenEstimate);
+  const candidate = payload.candidates && payload.candidates[0];
+  const parts = candidate && candidate.content && candidate.content.parts ? candidate.content.parts : [];
+  const text = parts.map(function(part) {
+    return part.text || '';
+  }).join('').trim();
+  if (!text) {
+    throw new Error('Gemini returned no grounded advice text.');
+  }
+
+  return {
+    text: text,
+    modelsUsed: [payload._modelUsed || GEMINI_MODEL_CHAIN[0]],
+    sectionTitle: intent.needsAdvice ? 'AI Advice' : 'AI Interpretation'
+  };
+}
+
+function buildGroundedAdviceSystemPrompt_(intent) {
+  const sectionTitle = intent.needsAdvice ? 'AI Advice' : 'AI Interpretation';
+  const lines = [
+    "You are Michael's Senior Wealth Strategist.",
+    'The Verified Data and Grouped Transactions sections are already rendered to the user from trusted local data.',
+    'Do not restate, reformat, or modify those factual sections.',
+    'Write only the narrative/advice body that should appear under a markdown heading named "' + sectionTitle + '".',
+    'Never invent transactions, IDs, categories, merchants, dates, or totals.',
+    'Base all recommendations strictly on the verified facts and history signals provided.',
+    'Do not output a preamble or repeat the user request.'
+  ];
+
+  if (intent.needsAdvice) {
+    lines.push('Use four sections named Quick Wins, Subscriptions, Behavior Patterns, and Watch List.');
+    lines.push('Keep each section compact and specific.');
+  } else {
+    lines.push('Return 2-4 compact bullets with the most important interpretation points.');
+  }
+
+  return lines.join('\n');
+}
+
+function buildGroundedAdvicePrompt_(query, conversationTurns, packet) {
+  const sectionTitle = packet.intent && packet.intent.needsAdvice ? 'AI Advice' : 'AI Interpretation';
+  const lines = [];
+  const recentTurns = (conversationTurns || []).slice(-2);
+  if (recentTurns.length) {
+    lines.push('RECENT CONVERSATION');
+    recentTurns.forEach(function(turn, index) {
+      lines.push('User ' + (index + 1) + ' -> ' + String(turn.user || ''));
+      lines.push('Assistant ' + (index + 1) + ' -> ' + truncateLabel_(String(turn.assistant || ''), 300));
+    });
+    lines.push('');
+  }
+
+  lines.push('CURRENT USER REQUEST');
+  lines.push(String(query || ''));
+  lines.push('');
+  lines.push('VERIFIED ADVICE CONTEXT');
+  lines.push(packet.adviceContext);
+  lines.push('');
+  lines.push('Write only the ' + sectionTitle + ' section body. Do not repeat the Verified Data or Grouped Transactions sections.');
+  return lines.join('\n');
+}
+
+function buildGroundedAdviceContext_(packet) {
+  const lines = [];
+  const scopeLabel = buildFilterLabel_(packet.filters);
+  lines.push('Scope -> ' + scopeLabel);
+
+  if (packet.monthBreakdown && packet.monthBreakdown.months.length) {
+    packet.monthBreakdown.months.forEach(function(monthInfo) {
+      lines.push(monthInfo.month_label + ' -> Spend ' + formatCurrency_(monthInfo.spend) + ' | Income ' + formatCurrency_(monthInfo.income) + ' | Net ' + formatCurrency_(monthInfo.net));
+      lines.push('Categories -> [' + formatNamedTotalList_(monthInfo.categories, MAX_FULL_BREAKDOWN_ITEMS) + ']');
+      lines.push('Accounts -> [' + formatNamedTotalList_(monthInfo.accounts, MAX_FULL_BREAKDOWN_ITEMS) + ']');
+    });
+  }
+
+  if (packet.weekendAnalysis) {
+    lines.push('Weekend Spend -> ' + formatCurrency_(packet.weekendAnalysis.weekend_spend));
+    lines.push('Weekday Spend -> ' + formatCurrency_(packet.weekendAnalysis.weekday_spend));
+    lines.push('Weekend Share -> ' + packet.weekendAnalysis.weekend_share.toFixed(2) + '%');
+    lines.push('Top Weekend Categories -> [' + formatNamedTotalList_(packet.weekendAnalysis.top_weekend_categories, 6) + ']');
+    lines.push('Top Weekend Merchants -> [' + formatNamedTotalList_(packet.weekendAnalysis.top_weekend_merchants, 6) + ']');
+  }
+
+  if (packet.categoryBreakdowns && packet.categoryBreakdowns.length) {
+    packet.categoryBreakdowns.forEach(function(entry) {
+      lines.push('Category Detail -> ' + entry.category + ' -> Total ' + formatCurrency_(entry.result.total_spend));
+      lines.push('Category Accounts -> [' + formatNamedTotalList_(entry.result.accounts, 8) + ']');
+    });
+  }
+
+  if (packet.accountBreakdowns && packet.accountBreakdowns.length) {
+    packet.accountBreakdowns.forEach(function(entry) {
+      lines.push('Account Detail -> ' + entry.account + ' -> Total ' + formatCurrency_(entry.result.total_spend));
+      lines.push('Account Categories -> [' + formatNamedTotalList_(entry.result.categories, 8) + ']');
+    });
+  }
+
+  if (packet.transactionSearch && packet.transactionSearch.transactions && packet.transactionSearch.transactions.length) {
+    lines.push('Scoped Transactions -> ' + packet.transactionSearch.transactions.length);
+    lines.push('Verified Transactions -> [' + packet.transactionSearch.transactions.slice(0, 8).map(function(item) {
+      return item.date + ' ' + item.name + ' ' + formatSerializedTransactionSpend_(item) + ' (' + item.category + ' / ' + item.id + ')';
+    }).join('; ') + ']');
+  }
+
+  if (packet.overview) {
+    lines.push('History Top Categories -> [' + formatNamedTotalList_(packet.overview.top_categories, 6) + ']');
+    lines.push('History Top Merchants -> [' + formatNamedTotalList_(packet.overview.top_merchants, 6) + ']');
+    lines.push('Recurring Merchants -> [' + formatMerchantContextList_(packet.overview.recurring_merchants, 6) + ']');
+    lines.push('Category Drift -> [' + formatDriftContextList_(packet.overview.category_drift, 6) + ']');
+  }
+
+  return lines.join('\n');
+}
+
+function renderGroundedVerifiedResponse_(packet) {
+  const verifiedLines = ['## Verified Data'];
+  const groupedLines = ['## Grouped Transactions'];
+  verifiedLines.push('Resolved Scope -> ' + buildFilterLabel_(packet.filters));
+  let wroteSection = false;
+  let wroteGroupedSection = false;
+
+  if (packet.monthBreakdown && packet.monthBreakdown.months.length) {
+    wroteSection = true;
+    packet.monthBreakdown.months.forEach(function(monthInfo) {
+      verifiedLines.push('');
+      verifiedLines.push('### ' + monthInfo.month_label + ' Expenses by Category');
+      verifiedLines.push(buildNamedTotalsMarkdownTable_('Category', monthInfo.categories));
+      verifiedLines.push('');
+      verifiedLines.push('### ' + monthInfo.month_label + ' Account Breakdown');
+      verifiedLines.push(buildNamedTotalsMarkdownTable_('Account', monthInfo.accounts));
+
+      if (monthInfo.example_transactions && monthInfo.example_transactions.length) {
+        verifiedLines.push('');
+        verifiedLines.push('### Example Transactions (' + monthInfo.month_label + ')');
+        verifiedLines.push(buildTransactionMarkdownTable_(monthInfo.example_transactions));
+      }
+
+      if (monthInfo.transactions_by_category && monthInfo.transactions_by_category.length) {
+        wroteGroupedSection = true;
+        groupedLines.push('');
+        groupedLines.push('### ' + monthInfo.month_label);
+        groupedLines.push(buildGroupedTransactionsMarkdown_(monthInfo.transactions_by_category));
+      }
+    });
+  }
+
+  if (packet.weekendAnalysis) {
+    wroteSection = true;
+    verifiedLines.push('');
+    verifiedLines.push('### Weekend vs Weekday Summary');
+    verifiedLines.push(buildNamedTotalsMarkdownTable_('Metric', [
+      { name: 'Weekend Spend', total: packet.weekendAnalysis.weekend_spend },
+      { name: 'Weekday Spend', total: packet.weekendAnalysis.weekday_spend },
+      { name: 'Weekend Share', total: packet.weekendAnalysis.weekend_share / 100 }
+    ], { percentRows: ['Weekend Share'] }));
+    verifiedLines.push('');
+    verifiedLines.push('### Top Weekend Categories');
+    verifiedLines.push(buildNamedTotalsMarkdownTable_('Category', packet.weekendAnalysis.top_weekend_categories));
+    verifiedLines.push('');
+    verifiedLines.push('### Top Weekend Merchants');
+    verifiedLines.push(buildNamedTotalsMarkdownTable_('Merchant', packet.weekendAnalysis.top_weekend_merchants));
+    if (packet.weekendAnalysis.example_transactions && packet.weekendAnalysis.example_transactions.length) {
+      verifiedLines.push('');
+      verifiedLines.push('### Example Weekend Transactions');
+      verifiedLines.push(buildTransactionMarkdownTable_(packet.weekendAnalysis.example_transactions));
+    }
+  }
+
+  if (packet.categoryBreakdowns && packet.categoryBreakdowns.length) {
+    wroteSection = true;
+    packet.categoryBreakdowns.forEach(function(entry) {
+      verifiedLines.push('');
+      verifiedLines.push('### Category Detail: ' + entry.category);
+      verifiedLines.push(buildNamedTotalsMarkdownTable_('Account', entry.result.accounts));
+      if (entry.result.example_transactions && entry.result.example_transactions.length) {
+        verifiedLines.push('');
+        verifiedLines.push(buildTransactionMarkdownTable_(entry.result.example_transactions));
+      }
+    });
+  }
+
+  if (packet.accountBreakdowns && packet.accountBreakdowns.length) {
+    wroteSection = true;
+    packet.accountBreakdowns.forEach(function(entry) {
+      verifiedLines.push('');
+      verifiedLines.push('### Account Detail: ' + entry.account);
+      verifiedLines.push(buildNamedTotalsMarkdownTable_('Category', entry.result.categories));
+      if (entry.result.example_transactions && entry.result.example_transactions.length) {
+        verifiedLines.push('');
+        verifiedLines.push(buildTransactionMarkdownTable_(entry.result.example_transactions));
+      }
+    });
+  }
+
+  if (packet.transactionSearch && packet.intent.needsTabularOutput) {
+    wroteSection = true;
+    verifiedLines.push('');
+    verifiedLines.push('### Verified Transactions Table');
+    verifiedLines.push(buildTransactionMarkdownTable_(packet.transactionSearch.table_rows || []));
+  }
+
+  if (!packet.monthBreakdown && packet.transactionSearch && packet.intent.needsGroupedTransactions && packet.transactionSearch.transactions_by_category && packet.transactionSearch.transactions_by_category.length) {
+    wroteGroupedSection = true;
+    groupedLines.push('');
+    groupedLines.push('### Current Scope');
+    groupedLines.push(buildGroupedTransactionsMarkdown_(packet.transactionSearch.transactions_by_category));
+  }
+
+  if (!wroteSection) {
+    verifiedLines.push('');
+    verifiedLines.push('No verified rows matched the current scope.');
+  }
+
+  const sections = [verifiedLines.join('\n')];
+  if (wroteGroupedSection) {
+    sections.push(groupedLines.join('\n'));
+  }
+  return sections.join('\n\n');
+}
+
+function renderGroundedFallbackAdvice_(packet) {
+  if (!packet.intent.needsAdvice) {
+    const observations = buildHeuristicObservations_(packet.scopeModel, packet.intent);
+    if (!observations.length) {
+      return '- No additional interpretation beyond the verified data.';
+    }
+    return observations.map(function(item) {
+      return '- ' + item;
+    }).join('\n');
+  }
+
+  const lines = ['Advice uses your broader spending history where relevant.'];
+  appendAdviceSections_(lines, packet.historyModel);
+  return lines.join('\n');
+}
+
+function buildNamedTotalsMarkdownTable_(label, items, options) {
+  options = options || {};
+  const percentRows = options.percentRows || [];
+  const rows = ['| ' + label + ' | Value |', '| :-- | --: |'];
+  const source = items && items.length ? items : [{ name: 'None', total: 0 }];
+  source.forEach(function(item) {
+    const isPercent = percentRows.indexOf(item.name) !== -1;
+    const formatted = isPercent
+      ? formatPercent_(Number(item.total || 0))
+      : formatCurrency_(Number(item.total || 0));
+    rows.push('| ' + item.name + ' | ' + formatted + ' |');
+  });
+  return rows.join('\n');
+}
+
+function buildTransactionMarkdownTable_(transactions) {
+  const rows = [
+    '| Date | Merchant | Spend | Category | Account | Transaction ID |',
+    '| :-- | :-- | --: | :-- | :-- | :-- |'
+  ];
+  const source = transactions && transactions.length ? transactions : [];
+  if (!source.length) {
+    rows.push('| N/A | No matching transactions | $0.00 | N/A | N/A | N/A |');
+    return rows.join('\n');
+  }
+  source.forEach(function(item) {
+    rows.push('| ' + item.date + ' | ' + item.name + ' | ' + formatSerializedTransactionSpend_(item) + ' | ' + item.category + ' | ' + item.account + ' | ' + item.id + ' |');
+  });
+  return rows.join('\n');
+}
+
+function buildGroupedTransactionsMarkdown_(groups) {
+  const lines = [];
+  const source = groups && groups.length ? groups : [];
+  if (!source.length) {
+    return '- No grouped transactions found.';
+  }
+  source.forEach(function(group) {
+    const transactions = (group.transactions || []).map(function(item) {
+      return item.name + ' ' + formatSerializedTransactionSpend_(item) + ' on ' + item.date + ' (' + item.account + ' / ' + item.id + ')';
+    }).join('; ');
+    lines.push('- ' + group.category + ' -> [' + transactions + ']');
+  });
+  return lines.join('\n');
+}
+
+function formatSerializedTransactionSpend_(item) {
+  const numeric = Number(item && item.spend != null ? item.spend : item.amount || 0);
+  return formatCurrency_(Math.abs(numeric));
+}
+
+function formatNamedTotalList_(items, limit) {
+  const source = (items || []).slice(0, limit || 6);
+  if (!source.length) {
+    return 'None';
+  }
+  return source.map(function(item) {
+    return item.name + ' ' + formatCurrency_(Number(item.total || 0));
+  }).join(', ');
+}
+
+function formatMerchantContextList_(items, limit) {
+  const source = (items || []).slice(0, limit || 6);
+  if (!source.length) {
+    return 'None';
+  }
+  return source.map(function(item) {
+    return item.name + ' ' + formatCurrency_(Number(item.total || 0)) + ' (' + (item.count || 0) + 'x)';
+  }).join(', ');
+}
+
+function formatDriftContextList_(items, limit) {
+  const source = (items || []).slice(0, limit || 6);
+  if (!source.length) {
+    return 'None';
+  }
+  return source.map(function(item) {
+    return item.name + ' ' + formatCurrency_(Number(item.delta || 0));
+  }).join(', ');
 }
 
 function runGeminiFinanceAssistant_(query, model, records, apiKey, conversationTurns, intent, filters, conversationQuery) {
@@ -367,6 +858,7 @@ function buildFinanceToolDeclarations_() {
           category: { type: 'STRING' },
           merchant: { type: 'STRING' },
           account: { type: 'STRING' },
+          expenses_only: { type: 'BOOLEAN' },
           limit: { type: 'NUMBER' },
           sort: { type: 'STRING' }
         }
@@ -530,33 +1022,43 @@ function renderDashboard_(sheet, model, sections) {
   clearCharts_(sheet);
   writeDashboardKpis_(sheet, model);
   const analytics = sheet.getParent().getSheetByName('Analytics');
+  const hasIncomeSeries = monthlyCashflowHasIncome_(model);
 
   const charts = [
     sheet.newChart()
       .setChartType(Charts.ChartType.BAR)
-      .addRange(getSectionRange_(analytics, sections.topCategories))
+      .addRange(getSectionRange_(analytics, sections.topCategoriesChart))
       .setNumHeaders(1)
       .setPosition(6, 1, 0, 0)
       .setOption('title', 'Top External Spend Categories')
       .setOption('legend', { position: 'none' })
       .setOption('hAxis', { title: 'Spend ($)' })
       .setOption('vAxis', { title: 'Category' })
+      .setOption('annotations', buildSimpleAnnotationOptions_())
       .setOption('colors', ['#2563eb'])
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.COMBO)
-      .addRange(getSectionRange_(analytics, sections.monthlySummary, 1, 4))
+      .addRange(getSectionRange_(analytics, sections.monthlyCashflowChart))
       .setNumHeaders(1)
       .setPosition(6, 8, 0, 0)
-      .setOption('title', 'Monthly External Cashflow (Income vs Spend vs Net)')
+      .setOption('title', hasIncomeSeries ? 'Monthly External Cashflow (Income vs Spend vs Net)' : 'Monthly External Spend vs Net Cashflow')
       .setOption('seriesType', 'bars')
       .setOption('hAxis', { title: 'Month', slantedText: true, slantedTextAngle: 35 })
-      .setOption('vAxis', { title: 'Amount ($)' })
-      .setOption('legend', { position: 'top', textStyle: { fontSize: 10 } })
-      .setOption('series', {
-        2: { type: 'line', color: '#111827', lineWidth: 3, pointSize: 6 }
+      .setOption('vAxes', hasIncomeSeries ? {
+        0: { title: 'Income / Spend ($)' },
+        1: { title: 'Net Cashflow ($)' }
+      } : {
+        0: { title: 'External Spend ($)' },
+        1: { title: 'Net Cashflow ($)' }
       })
-      .setOption('colors', ['#16a34a', '#dc2626', '#111827'])
+      .setOption('legend', { position: 'top', textStyle: { fontSize: 10 } })
+      .setOption('series', hasIncomeSeries ? {
+        2: { type: 'line', color: '#111827', lineWidth: 3, pointSize: 6, targetAxisIndex: 1 }
+      } : {
+        1: { type: 'line', color: '#111827', lineWidth: 3, pointSize: 6, targetAxisIndex: 1 }
+      })
+      .setOption('colors', hasIncomeSeries ? ['#16a34a', '#dc2626', '#111827'] : ['#2563eb', '#111827'])
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.LINE)
@@ -573,35 +1075,38 @@ function renderDashboard_(sheet, model, sections) {
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.COLUMN)
-      .addRange(getSectionRange_(analytics, sections.weekdaySummary))
+      .addRange(getSectionRange_(analytics, sections.weekdayChart))
       .setNumHeaders(1)
       .setPosition(22, 8, 0, 0)
       .setOption('title', 'Weekday External Spend Pattern')
       .setOption('legend', { position: 'none' })
       .setOption('hAxis', { title: 'Day of Week' })
       .setOption('vAxis', { title: 'Spend ($)' })
+      .setOption('annotations', buildSimpleAnnotationOptions_())
       .setOption('colors', ['#7c3aed'])
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.COLUMN)
-      .addRange(getSectionRange_(analytics, sections.weekendMonthlyCompare))
+      .addRange(getSectionRange_(analytics, sections.weekendMonthlyCompareChart))
       .setNumHeaders(1)
       .setPosition(38, 1, 0, 0)
       .setOption('title', 'Weekend vs Weekday External Spend by Month')
       .setOption('hAxis', { title: 'Month', slantedText: true, slantedTextAngle: 35 })
       .setOption('vAxis', { title: 'Spend ($)' })
       .setOption('legend', { position: 'top', textStyle: { fontSize: 10 } })
+      .setOption('annotations', buildSimpleAnnotationOptions_())
       .setOption('colors', ['#64748b', '#f97316'])
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.BAR)
-      .addRange(getSectionRange_(analytics, sections.topMerchants))
+      .addRange(getSectionRange_(analytics, sections.topMerchantsChart))
       .setNumHeaders(1)
       .setPosition(38, 8, 0, 0)
       .setOption('title', 'Top External Spend Merchants')
       .setOption('legend', { position: 'none' })
       .setOption('hAxis', { title: 'Spend ($)' })
       .setOption('vAxis', { title: 'Merchant' })
+      .setOption('annotations', buildSimpleAnnotationOptions_())
       .setOption('colors', ['#0ea5e9'])
       .build()
   ];
@@ -639,13 +1144,14 @@ function renderInsights_(sheet, model, sections) {
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.BAR)
-      .addRange(getSectionRange_(analytics, sections.topAccounts))
+      .addRange(getSectionRange_(analytics, sections.topAccountsChart))
       .setNumHeaders(1)
       .setPosition(22, 1, 0, 0)
       .setOption('title', 'External Spend by Account')
       .setOption('legend', { position: 'none' })
       .setOption('hAxis', { title: 'Spend ($)' })
       .setOption('vAxis', { title: 'Account' })
+      .setOption('annotations', buildSimpleAnnotationOptions_())
       .setOption('colors', ['#2563eb'])
       .build(),
     sheet.newChart()
@@ -923,13 +1429,19 @@ function buildAnalyticsSections_(model) {
     monthlySummary: createSection_(ANALYTICS_LAYOUT.monthlySummary.row, ANALYTICS_LAYOUT.monthlySummary.col, buildMonthlySummaryTable_(model)),
     weekdaySummary: createSection_(ANALYTICS_LAYOUT.weekdaySummary.row, ANALYTICS_LAYOUT.weekdaySummary.col, buildWeekdaySummaryTable_(model)),
     weeklySummary: createSection_(ANALYTICS_LAYOUT.weeklySummary.row, ANALYTICS_LAYOUT.weeklySummary.col, buildWeeklySummaryTable_(model)),
+    weekdayChart: createSection_(ANALYTICS_LAYOUT.weekdayChart.row, ANALYTICS_LAYOUT.weekdayChart.col, buildAnnotatedWeekdayTable_(model)),
+    monthlyCashflowChart: createSection_(ANALYTICS_LAYOUT.monthlyCashflowChart.row, ANALYTICS_LAYOUT.monthlyCashflowChart.col, buildMonthlyCashflowChartTable_(model)),
     topCategories: createSection_(ANALYTICS_LAYOUT.topCategories.row, ANALYTICS_LAYOUT.topCategories.col, buildTopListTable_('Category', model.categoryList)),
     topAccounts: createSection_(ANALYTICS_LAYOUT.topAccounts.row, ANALYTICS_LAYOUT.topAccounts.col, buildTopListTable_('Account', model.accountList)),
     topMerchants: createSection_(ANALYTICS_LAYOUT.topMerchants.row, ANALYTICS_LAYOUT.topMerchants.col, buildTopListTable_('Merchant', model.merchantList)),
     weekendSummary: createSection_(ANALYTICS_LAYOUT.weekendSummary.row, ANALYTICS_LAYOUT.weekendSummary.col, buildWeekendSummaryTable_(model)),
+    topCategoriesChart: createSection_(ANALYTICS_LAYOUT.topCategoriesChart.row, ANALYTICS_LAYOUT.topCategoriesChart.col, buildAnnotatedTopListTable_('Category', model.categoryList, 22)),
+    topAccountsChart: createSection_(ANALYTICS_LAYOUT.topAccountsChart.row, ANALYTICS_LAYOUT.topAccountsChart.col, buildAnnotatedTopListTable_('Account', model.accountList, 18)),
+    topMerchantsChart: createSection_(ANALYTICS_LAYOUT.topMerchantsChart.row, ANALYTICS_LAYOUT.topMerchantsChart.col, buildAnnotatedTopListTable_('Merchant', model.merchantList, 20)),
     monthlyCategoryMatrix: createSection_(ANALYTICS_LAYOUT.monthlyCategoryMatrix.row, ANALYTICS_LAYOUT.monthlyCategoryMatrix.col, buildMonthlyMatrixTable_(model, model.topCategoryNames, 'categories')),
     monthlyAccountMatrix: createSection_(ANALYTICS_LAYOUT.monthlyAccountMatrix.row, ANALYTICS_LAYOUT.monthlyAccountMatrix.col, buildMonthlyMatrixTable_(model, model.topAccountNames, 'accounts')),
     weekendMonthlyCompare: createSection_(ANALYTICS_LAYOUT.weekendMonthlyCompare.row, ANALYTICS_LAYOUT.weekendMonthlyCompare.col, buildWeekendMonthlyCompareTable_(model)),
+    weekendMonthlyCompareChart: createSection_(ANALYTICS_LAYOUT.weekendMonthlyCompareChart.row, ANALYTICS_LAYOUT.weekendMonthlyCompareChart.col, buildAnnotatedWeekendMonthlyCompareTable_(model)),
     categoryDriftChart: createSection_(ANALYTICS_LAYOUT.categoryDriftChart.row, ANALYTICS_LAYOUT.categoryDriftChart.col, buildCategoryDriftChartTable_(model)),
     anomalies: createSection_(ANALYTICS_LAYOUT.anomalies.row, ANALYTICS_LAYOUT.anomalies.col, buildAnomalyTable_(model)),
     recurring: createSection_(ANALYTICS_LAYOUT.recurring.row, ANALYTICS_LAYOUT.recurring.col, buildRecurringTable_(model)),
@@ -1124,6 +1636,100 @@ function buildTopListTable_(label, list) {
     table.push(['No data', 0]);
   }
   return table;
+}
+
+function buildAnnotatedTopListTable_(label, list, truncateLimit) {
+  const table = [[label, 'Spend', 'annotation']];
+  list.slice(0, 8).forEach(function(item) {
+    table.push([
+      truncateLabel_(item.name, truncateLimit || 22),
+      roundCurrency_(item.total),
+      formatCurrency_(item.total)
+    ]);
+  });
+  if (table.length === 1) {
+    table.push(['No data', 0, formatCurrency_(0)]);
+  }
+  return table;
+}
+
+function buildAnnotatedWeekdayTable_(model) {
+  const table = [['Day', 'Spend', 'annotation']];
+  WEEKDAY_ORDER.forEach(function(day) {
+    const spend = roundCurrency_(model.weekdays[day] || 0);
+    table.push([day, spend, formatCurrency_(spend)]);
+  });
+  return table;
+}
+
+function buildAnnotatedWeekendMonthlyCompareTable_(model) {
+  const table = [['Month', 'Weekday Spend', 'annotation', 'Weekend Spend', 'annotation']];
+  model.monthKeys.forEach(function(monthKey) {
+    const bucket = model.months[monthKey];
+    const weekdaySpend = roundCurrency_(bucket.weekdaySpend || 0);
+    const weekendSpend = roundCurrency_(bucket.weekendSpend || 0);
+    table.push([
+      formatMonthDisplayLabel_(monthKey),
+      weekdaySpend,
+      formatCurrency_(weekdaySpend),
+      weekendSpend,
+      formatCurrency_(weekendSpend)
+    ]);
+  });
+  if (table.length === 1) {
+    table.push(['No data', 0, formatCurrency_(0), 0, formatCurrency_(0)]);
+  }
+  return table;
+}
+
+function buildMonthlyCashflowChartTable_(model) {
+  const hasIncomeSeries = monthlyCashflowHasIncome_(model);
+  const table = hasIncomeSeries
+    ? [['Month', 'Income', 'Spend', 'Net']]
+    : [['Month', 'External Spend', 'Net Cashflow']];
+
+  model.monthKeys.forEach(function(monthKey) {
+    const bucket = model.months[monthKey];
+    const monthLabel = formatMonthDisplayLabel_(monthKey);
+    if (hasIncomeSeries) {
+      table.push([
+        monthLabel,
+        roundCurrency_(bucket.income),
+        roundCurrency_(bucket.spend),
+        roundCurrency_(bucket.net)
+      ]);
+      return;
+    }
+
+    table.push([
+      monthLabel,
+      roundCurrency_(bucket.spend),
+      roundCurrency_(bucket.net)
+    ]);
+  });
+
+  if (table.length === 1) {
+    table.push(hasIncomeSeries ? ['No data', 0, 0, 0] : ['No data', 0, 0]);
+  }
+  return table;
+}
+
+function monthlyCashflowHasIncome_(model) {
+  return model.monthKeys.some(function(monthKey) {
+    return roundCurrency_(model.months[monthKey].income || 0) !== 0;
+  });
+}
+
+function buildSimpleAnnotationOptions_() {
+  return {
+    alwaysOutside: true,
+    textStyle: {
+      fontSize: 10,
+      bold: true,
+      auraColor: 'none',
+      color: '#111827'
+    }
+  };
 }
 
 function buildAiContext_(model, records, query, intent, options) {
@@ -1652,6 +2258,9 @@ function buildRetrievalSummary_(records, filters) {
   if (filters.merchants.length) {
     lines.push('Merchants -> [' + filters.merchants.join(', ') + ']');
   }
+  if (filters.accounts && filters.accounts.length) {
+    lines.push('Accounts -> [' + filters.accounts.join(', ') + ']');
+  }
   lines.push('Matched Transactions -> ' + filtered.length);
   lines.push('Matched Spend -> ' + formatCurrency_(spend));
   lines.push('Matched Accounts -> [' + formatBucketSummary_(bucketMapToSortedList_(accountTotals), 5) + ']');
@@ -1680,7 +2289,8 @@ function extractRetrievalFilters_(model, query) {
   return {
     months: extractMentionedMonths_(model, normalized),
     categories: extractMentionedCategories_(model, normalized),
-    merchants: extractMentionedMerchants_(model, normalized)
+    merchants: extractMentionedMerchants_(model, normalized),
+    accounts: extractMentionedAccounts_(model, normalized)
   };
 }
 
@@ -1763,7 +2373,8 @@ function hasActiveFilters_(filters) {
   return Boolean(filters && (
     (filters.months && filters.months.length) ||
     (filters.categories && filters.categories.length) ||
-    (filters.merchants && filters.merchants.length)
+    (filters.merchants && filters.merchants.length) ||
+    (filters.accounts && filters.accounts.length)
   ));
 }
 
@@ -1777,6 +2388,9 @@ function buildFilterLabel_(filters) {
   }
   if (filters.merchants && filters.merchants.length) {
     parts.push('Merchants [' + filters.merchants.join(', ') + ']');
+  }
+  if (filters.accounts && filters.accounts.length) {
+    parts.push('Accounts [' + filters.accounts.join(', ') + ']');
   }
   return parts.length ? parts.join(' | ') : 'Entire dataset';
 }
@@ -1892,7 +2506,7 @@ function buildSearchTransactionsToolResult_(records, model, args) {
     category: args.category,
     merchant: args.merchant,
     account: args.account,
-    expensesOnly: false
+    expensesOnly: args.expenses_only === true
   });
   const sort = String(args.sort || 'largest').toLowerCase();
   const sorted = filtered.slice().sort(function(a, b) {
@@ -1901,9 +2515,19 @@ function buildSearchTransactionsToolResult_(records, model, args) {
     }
     return Math.abs(Number(b.amount || 0)) - Math.abs(Number(a.amount || 0));
   });
+  const limited = sorted.slice(0, normalizeLimit_(args.limit, 8));
   return {
     scope: buildToolScope_(filtered, model, args),
-    transactions: serializeTransactions_(sorted, normalizeLimit_(args.limit, 8))
+    matched_spend: roundCurrency_(limited.reduce(function(sum, record) {
+      return sum + (Number(record.amount || 0) < 0 ? Math.abs(Number(record.amount || 0)) : 0);
+    }, 0)),
+    matched_income: roundCurrency_(limited.reduce(function(sum, record) {
+      return sum + (Number(record.amount || 0) > 0 ? Number(record.amount || 0) : 0);
+    }, 0)),
+    transactions: serializeTransactionsInOrder_(limited, limited.length || normalizeLimit_(args.limit, 8)),
+    table_headers: ['Date', 'Merchant', 'Spend', 'Category', 'Account', 'Transaction ID'],
+    table_rows: serializeTransactionsInOrder_(limited, limited.length || normalizeLimit_(args.limit, 8)),
+    transactions_by_category: serializeTransactionsByCategory_(limited, MAX_GROUPED_CATEGORY_EXAMPLES)
   };
 }
 
@@ -1992,16 +2616,29 @@ function serializeTransactions_(records, limit) {
     })
     .slice(0, normalizeLimit_(limit, 6))
     .map(function(record) {
-      return {
-        id: record.id,
-        date: formatDateForPrompt_(record.date),
-        name: truncateLabel_(record.name, 40),
-        amount: roundCurrency_(record.amount),
-        spend: roundCurrency_(Math.abs(Number(record.amount || 0))),
-        category: formatDetailedCategoryLabel_(record.category),
-        account: formatAccountLabel_(record.account)
-      };
+      return serializeSingleTransaction_(record);
     });
+}
+
+function serializeTransactionsInOrder_(records, limit) {
+  return (records || [])
+    .filter(function(record) {
+      return record.date;
+    })
+    .slice(0, normalizeLimit_(limit, 6))
+    .map(serializeSingleTransaction_);
+}
+
+function serializeSingleTransaction_(record) {
+  return {
+    id: record.id,
+    date: formatDateForPrompt_(record.date),
+    name: truncateLabel_(record.name, 40),
+    amount: roundCurrency_(record.amount),
+    spend: roundCurrency_(Math.abs(Number(record.amount || 0))),
+    category: formatDetailedCategoryLabel_(record.category),
+    account: formatAccountLabel_(record.account)
+  };
 }
 
 function serializeTransactionsByCategory_(records, examplesPerCategory) {
@@ -2060,6 +2697,18 @@ function extractMentionedMerchants_(model, normalizedQuery) {
     .slice(0, 5);
 }
 
+function extractMentionedAccounts_(model, normalizedQuery) {
+  return model.accountList
+    .map(function(item) {
+      return item.name;
+    })
+    .filter(function(name) {
+      const normalizedName = normalizeQueryText_(name);
+      return normalizedName.length >= 4 && normalizedQuery.indexOf(normalizedName) !== -1;
+    })
+    .slice(0, 5);
+}
+
 function filterTransactionsByRetrieval_(records, filters) {
   return records.filter(function(record) {
     if (!record.date) {
@@ -2083,6 +2732,13 @@ function filterTransactionsByRetrieval_(records, filters) {
     if (filters.merchants.length) {
       const merchant = truncateLabel_(record.name, 36);
       if (filters.merchants.indexOf(merchant) === -1) {
+        return false;
+      }
+    }
+
+    if (filters.accounts && filters.accounts.length) {
+      const account = formatAccountLabel_(record.account);
+      if (filters.accounts.indexOf(account) === -1) {
         return false;
       }
     }
@@ -2188,18 +2844,34 @@ function parseAiIntent_(query, filters) {
   const needsWeekly = /(weekly|calendar week|week over week|week-by-week)/.test(normalized);
   const needsWeekend = /(weekend|weekday|leak|leaks|day of week)/.test(normalized);
   const needsAccount = /(account|accounts|card|cards|bank|banks)/.test(normalized);
+  const needsBreakdown = /(breakdown|broken down|split out|itemi[sz]e|by category|by account)/.test(normalized);
+  const needsTransactions = /(transaction|transactions|example transaction|example transactions|show the rows|show rows|sample rows|transaction ids?)/.test(normalized);
+  const needsGroupedTransactions = /(transaction|transactions|examples?|grouped|sample rows|merchant examples|transaction ids?|show the rows)/.test(normalized);
+  const needsTabularOutput = /(table|tabular|markdown table|grid)/.test(normalized);
   const needsCategoryExamples = /((category|categories).*(breakdown|detail|details|example|examples|merchant|transaction id|transaction ids|sample|show me|include))|((breakdown|detail|details|example|examples|merchant|transaction id|transaction ids|sample|show me|include).*(category|categories))/.test(normalized);
   const needsAnomalies = /(largest|anomal|odd|unusual|biggest|outlier)/.test(normalized);
   const needsAdvice = /(optimi[sz]e|recommend|advice|should|plan|improve|cut|reduce|save money|save more|how can i|what should i do|help me)/.test(normalized);
+  const needsSpendFocus = /(spend|spending|expense|expenses|budget|save|cut|reduce|leak|leaks)/.test(normalized) ||
+    needsMonthly ||
+    needsWeekend ||
+    needsCategoryExamples ||
+    needsBreakdown;
+  const needsGroundedEvidence = needsBreakdown || needsTransactions || needsGroupedTransactions || needsTabularOutput || needsCategoryExamples;
   return {
     needsMonthly: needsMonthly,
     needsWeekly: needsWeekly,
     needsWeekend: needsWeekend,
     needsAccount: needsAccount,
+    needsSpendFocus: needsSpendFocus,
+    needsBreakdown: needsBreakdown,
+    needsTransactions: needsTransactions,
+    needsGroupedTransactions: needsGroupedTransactions,
+    needsTabularOutput: needsTabularOutput,
     needsCategoryExamples: needsCategoryExamples,
     needsAnomalies: needsAnomalies,
     needsAdvice: needsAdvice,
-    needsStructuredReport: needsMonthly || needsWeekend || needsCategoryExamples || needsAnomalies
+    needsGroundedEvidence: needsGroundedEvidence,
+    needsStructuredReport: needsMonthly || needsWeekend || needsCategoryExamples || needsAnomalies || needsBreakdown || needsTabularOutput
   };
 }
 
