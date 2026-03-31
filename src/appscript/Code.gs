@@ -16,6 +16,8 @@ const MATRIX_TOP_ACCOUNT_COUNT = 5;
 const MAX_VISIBLE_TABLE_ROWS = 8;
 const MAX_EVIDENCE_TRANSACTIONS = 14;
 const MAX_CONTEXT_TURNS = 4;
+const MAX_FULL_BREAKDOWN_ITEMS = 24;
+const MAX_GROUPED_CATEGORY_EXAMPLES = 4;
 const FULL_LEDGER_TRANSACTION_THRESHOLD = 360;
 const MAX_LEDGER_CONTEXT_TRANSACTIONS = 360;
 const MAX_TOOL_TRANSACTION_RESULTS = 200;
@@ -32,6 +34,7 @@ const ANALYTICS_LAYOUT = {
   monthlyCategoryMatrix: { row: 45, col: 1 },
   monthlyAccountMatrix: { row: 45, col: 8 },
   weekendMonthlyCompare: { row: 45, col: 15 },
+  categoryDriftChart: { row: 45, col: 20 },
   anomalies: { row: 80, col: 1 },
   recurring: { row: 80, col: 8 },
   categoryDrift: { row: 80, col: 14 }
@@ -260,12 +263,17 @@ function buildFinanceAssistantSystemPrompt_() {
     'You have access to exact local finance tools, recent conversation context, verified analytics, and raw transaction evidence.',
     'Use prior turns to resolve follow-up questions such as "that month", "now", "those", or "break it down further".',
     'Use your own analysis and judgment. Do not simply restate tool JSON.',
-    'Call tools when you need exact scoped totals, drill-downs, tables, or more transaction rows.',
+    'Call tools when you need exact scoped totals, drill-downs, tables, grouped transactions, or more transaction rows.',
+    'For month, category, account, merchant, weekend, or table-style requests, prefer tools before answering.',
     'If the verified background context already answers the question, you may answer directly without tool calls.',
     'Do not invent totals, categories, accounts, merchants, dates, or transaction IDs.',
     'If the user asks for examples, include examples from the raw ledger or tool results.',
     'If a month is ambiguous, say which resolved month(s) were used.',
     'Tool output is the source of truth when exact values are requested.',
+    'When a month breakdown is requested, list every non-zero category and every active account in scope, not just the top few.',
+    'If the user asks for transactions by category, separate the full grouped breakdown from the example transaction list.',
+    'Normalize raw Plaid category names into cleaner user-facing labels when possible.',
+    'When advice is requested, use four sections named Quick Wins, Subscriptions, Behavior Patterns, and Watch List.',
     'When useful, provide a compact table in plain text markdown.',
     'Be concise but complete.'
   ].join('\n');
@@ -521,11 +529,13 @@ function renderDashboard_(sheet, model, sections) {
   setupDashboard_(sheet);
   clearCharts_(sheet);
   writeDashboardKpis_(sheet, model);
+  const analytics = sheet.getParent().getSheetByName('Analytics');
 
   const charts = [
     sheet.newChart()
       .setChartType(Charts.ChartType.BAR)
-      .addRange(getSectionRange_(sheet.getParent().getSheetByName('Analytics'), sections.topCategories))
+      .addRange(getSectionRange_(analytics, sections.topCategories))
+      .setNumHeaders(1)
       .setPosition(6, 1, 0, 0)
       .setOption('title', 'Top External Spend Categories')
       .setOption('legend', { position: 'none' })
@@ -535,33 +545,37 @@ function renderDashboard_(sheet, model, sections) {
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.COMBO)
-      .addRange(getSectionRange_(sheet.getParent().getSheetByName('Analytics'), sections.monthlySummary, 1, 4))
+      .addRange(getSectionRange_(analytics, sections.monthlySummary, 1, 4))
+      .setNumHeaders(1)
       .setPosition(6, 8, 0, 0)
       .setOption('title', 'Monthly External Cashflow (Income vs Spend vs Net)')
       .setOption('seriesType', 'bars')
-      .setOption('hAxis', { title: 'Month' })
+      .setOption('hAxis', { title: 'Month', slantedText: true, slantedTextAngle: 35 })
       .setOption('vAxis', { title: 'Amount ($)' })
-      .setOption('legend', { position: 'right', textStyle: { fontSize: 10 } })
-      .setOption('chartArea', { left: 60, top: 50, width: '58%', height: '65%' })
+      .setOption('legend', { position: 'top', textStyle: { fontSize: 10 } })
+      .setOption('chartArea', { left: 70, top: 65, width: '76%', height: '58%' })
       .setOption('series', {
-        2: { type: 'line', color: '#111827' }
+        2: { type: 'line', color: '#111827', lineWidth: 3, pointSize: 6 }
       })
       .setOption('colors', ['#16a34a', '#dc2626', '#111827'])
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.LINE)
-      .addRange(getSectionRange_(sheet.getParent().getSheetByName('Analytics'), sections.weeklySummary, 1, 2))
+      .addRange(getSectionRange_(analytics, sections.weeklySummary, 1, 2))
+      .setNumHeaders(1)
       .setPosition(22, 1, 0, 0)
       .setOption('title', 'Weekly External Spend by Calendar Week')
       .setOption('curveType', 'function')
       .setOption('legend', { position: 'none' })
       .setOption('hAxis', { title: 'Week Starting' })
       .setOption('vAxis', { title: 'Spend ($)' })
+      .setOption('pointSize', 5)
       .setOption('colors', ['#0f766e'])
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.COLUMN)
-      .addRange(getSectionRange_(sheet.getParent().getSheetByName('Analytics'), sections.weekdaySummary))
+      .addRange(getSectionRange_(analytics, sections.weekdaySummary))
+      .setNumHeaders(1)
       .setPosition(22, 8, 0, 0)
       .setOption('title', 'Weekday External Spend Pattern')
       .setOption('legend', { position: 'none' })
@@ -571,18 +585,20 @@ function renderDashboard_(sheet, model, sections) {
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.COLUMN)
-      .addRange(getSectionRange_(sheet.getParent().getSheetByName('Analytics'), sections.weekendMonthlyCompare))
+      .addRange(getSectionRange_(analytics, sections.weekendMonthlyCompare))
+      .setNumHeaders(1)
       .setPosition(38, 1, 0, 0)
       .setOption('title', 'Weekend vs Weekday External Spend by Month')
-      .setOption('hAxis', { title: 'Month' })
+      .setOption('hAxis', { title: 'Month', slantedText: true, slantedTextAngle: 35 })
       .setOption('vAxis', { title: 'Spend ($)' })
-      .setOption('legend', { position: 'right', textStyle: { fontSize: 10 } })
-      .setOption('chartArea', { left: 60, top: 50, width: '58%', height: '65%' })
+      .setOption('legend', { position: 'top', textStyle: { fontSize: 10 } })
+      .setOption('chartArea', { left: 70, top: 65, width: '76%', height: '58%' })
       .setOption('colors', ['#64748b', '#f97316'])
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.BAR)
-      .addRange(getSectionRange_(sheet.getParent().getSheetByName('Analytics'), sections.topMerchants))
+      .addRange(getSectionRange_(analytics, sections.topMerchants))
+      .setNumHeaders(1)
       .setPosition(38, 8, 0, 0)
       .setOption('title', 'Top External Spend Merchants')
       .setOption('legend', { position: 'none' })
@@ -604,28 +620,31 @@ function renderInsights_(sheet, model, sections) {
     sheet.newChart()
       .setChartType(Charts.ChartType.COLUMN)
       .addRange(getSectionRange_(analytics, sections.monthlyCategoryMatrix))
+      .setNumHeaders(1)
       .setPosition(4, 1, 0, 0)
       .setOption('title', 'Monthly External Spend by Category')
       .setOption('isStacked', true)
-      .setOption('hAxis', { title: 'Month' })
+      .setOption('hAxis', { title: 'Month', slantedText: true, slantedTextAngle: 35 })
       .setOption('vAxis', { title: 'Spend ($)' })
-      .setOption('legend', { position: 'right', textStyle: { fontSize: 10 } })
-      .setOption('chartArea', { left: 60, top: 50, width: '52%', height: '65%' })
+      .setOption('legend', { position: 'top', textStyle: { fontSize: 10 } })
+      .setOption('chartArea', { left: 70, top: 70, width: '76%', height: '56%' })
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.COLUMN)
       .addRange(getSectionRange_(analytics, sections.monthlyAccountMatrix))
+      .setNumHeaders(1)
       .setPosition(4, 9, 0, 0)
       .setOption('title', 'Monthly External Spend by Account')
       .setOption('isStacked', true)
-      .setOption('hAxis', { title: 'Month' })
+      .setOption('hAxis', { title: 'Month', slantedText: true, slantedTextAngle: 35 })
       .setOption('vAxis', { title: 'Spend ($)' })
-      .setOption('legend', { position: 'right', textStyle: { fontSize: 10 } })
-      .setOption('chartArea', { left: 60, top: 50, width: '52%', height: '65%' })
+      .setOption('legend', { position: 'top', textStyle: { fontSize: 10 } })
+      .setOption('chartArea', { left: 70, top: 70, width: '76%', height: '56%' })
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.BAR)
       .addRange(getSectionRange_(analytics, sections.topAccounts))
+      .setNumHeaders(1)
       .setPosition(22, 1, 0, 0)
       .setOption('title', 'External Spend by Account')
       .setOption('legend', { position: 'none' })
@@ -634,22 +653,26 @@ function renderInsights_(sheet, model, sections) {
       .setOption('colors', ['#2563eb'])
       .build(),
     sheet.newChart()
-      .setChartType(Charts.ChartType.COLUMN)
-      .addRange(getSectionRange_(analytics, sections.categoryDrift))
+      .setChartType(Charts.ChartType.BAR)
+      .addRange(getSectionRange_(analytics, sections.categoryDriftChart))
+      .setNumHeaders(1)
       .setPosition(22, 9, 0, 0)
       .setOption('title', 'Category Drift (Latest vs Prior Month)')
-      .setOption('hAxis', { title: 'Category' })
-      .setOption('vAxis', { title: 'Delta vs Prior Month ($)' })
-      .setOption('legend', { position: 'top', textStyle: { fontSize: 10 } })
-      .setOption('chartArea', { left: 60, top: 70, width: '72%', height: '58%' })
+      .setOption('hAxis', { title: 'Delta vs Prior Month ($)' })
+      .setOption('vAxis', { title: 'Category' })
+      .setOption('legend', { position: 'none' })
+      .setOption('chartArea', { left: 80, top: 55, width: '74%', height: '62%' })
       .setOption('colors', ['#dc2626'])
       .build()
   ];
 
   insertCharts_(sheet, charts);
-  writeTable_(sheet, 38, 1, sections.anomalies.values.slice(0, MAX_VISIBLE_TABLE_ROWS + 1), '#f59e0b');
-  writeTable_(sheet, 38, 8, sections.recurring.values.slice(0, MAX_VISIBLE_TABLE_ROWS + 1), '#8b5cf6');
-  writeTable_(sheet, 38, 14, sections.categoryDrift.values.slice(0, MAX_VISIBLE_TABLE_ROWS + 1), '#ef4444');
+  writeVisibleSectionHeader_(sheet, 43, 1, 'Largest Transactions To Review', 6, '#f59e0b');
+  writeVisibleSectionHeader_(sheet, 43, 8, 'Recurring Merchants', 5, '#8b5cf6');
+  writeVisibleSectionHeader_(sheet, 43, 14, 'Category Drift Table', 4, '#ef4444');
+  writeTable_(sheet, 44, 1, sections.anomalies.values.slice(0, MAX_VISIBLE_TABLE_ROWS + 1), '#f59e0b');
+  writeTable_(sheet, 44, 8, sections.recurring.values.slice(0, MAX_VISIBLE_TABLE_ROWS + 1), '#8b5cf6');
+  writeTable_(sheet, 44, 14, sections.categoryDrift.values.slice(0, MAX_VISIBLE_TABLE_ROWS + 1), '#ef4444');
 }
 
 function writeDashboardKpis_(sheet, model) {
@@ -912,6 +935,7 @@ function buildAnalyticsSections_(model) {
     monthlyCategoryMatrix: createSection_(ANALYTICS_LAYOUT.monthlyCategoryMatrix.row, ANALYTICS_LAYOUT.monthlyCategoryMatrix.col, buildMonthlyMatrixTable_(model, model.topCategoryNames, 'categories')),
     monthlyAccountMatrix: createSection_(ANALYTICS_LAYOUT.monthlyAccountMatrix.row, ANALYTICS_LAYOUT.monthlyAccountMatrix.col, buildMonthlyMatrixTable_(model, model.topAccountNames, 'accounts')),
     weekendMonthlyCompare: createSection_(ANALYTICS_LAYOUT.weekendMonthlyCompare.row, ANALYTICS_LAYOUT.weekendMonthlyCompare.col, buildWeekendMonthlyCompareTable_(model)),
+    categoryDriftChart: createSection_(ANALYTICS_LAYOUT.categoryDriftChart.row, ANALYTICS_LAYOUT.categoryDriftChart.col, buildCategoryDriftChartTable_(model)),
     anomalies: createSection_(ANALYTICS_LAYOUT.anomalies.row, ANALYTICS_LAYOUT.anomalies.col, buildAnomalyTable_(model)),
     recurring: createSection_(ANALYTICS_LAYOUT.recurring.row, ANALYTICS_LAYOUT.recurring.col, buildRecurringTable_(model)),
     categoryDrift: createSection_(ANALYTICS_LAYOUT.categoryDrift.row, ANALYTICS_LAYOUT.categoryDrift.col, buildCategoryDriftTable_(model))
@@ -954,7 +978,7 @@ function buildMonthlySummaryTable_(model) {
   model.monthKeys.forEach(function(monthKey) {
     const bucket = model.months[monthKey];
     table.push([
-      monthKey,
+      formatMonthDisplayLabel_(monthKey),
       roundCurrency_(bucket.income),
       roundCurrency_(bucket.spend),
       roundCurrency_(bucket.net),
@@ -1013,7 +1037,7 @@ function buildMonthlyMatrixTable_(model, names, bucketKey) {
   const table = [header];
   model.monthKeys.forEach(function(monthKey) {
     const bucket = model.months[monthKey];
-    const row = [monthKey];
+    const row = [formatMonthDisplayLabel_(monthKey)];
     safeNames.forEach(function(name) {
       row.push(roundCurrency_((bucket[bucketKey] && bucket[bucketKey][name]) || 0));
     });
@@ -1030,7 +1054,7 @@ function buildWeekendMonthlyCompareTable_(model) {
   model.monthKeys.forEach(function(monthKey) {
     const bucket = model.months[monthKey];
     table.push([
-      monthKey,
+      formatMonthDisplayLabel_(monthKey),
       roundCurrency_(bucket.weekdaySpend || 0),
       roundCurrency_(bucket.weekendSpend || 0)
     ]);
@@ -1081,6 +1105,17 @@ function buildCategoryDriftTable_(model) {
   });
   if (table.length === 1) {
     table.push(['No drift data', 0, 0, 0]);
+  }
+  return table;
+}
+
+function buildCategoryDriftChartTable_(model) {
+  const table = [['Category', 'Delta']];
+  model.categoryDrift.forEach(function(item) {
+    table.push([item.name, roundCurrency_(item.delta)]);
+  });
+  if (table.length === 1) {
+    table.push(['No drift data', 0]);
   }
   return table;
 }
@@ -1141,14 +1176,14 @@ function buildAiContext_(model, records, query, intent, options) {
     lines.push('=== MONTHLY ACCOUNT BREAKDOWN ===');
     model.monthKeys.forEach(function(monthKey) {
       const bucket = model.months[monthKey];
-      lines.push(monthKey + ' -> [' + formatBucketSummary_(bucket.accountList, 4) + ']');
+      lines.push(monthKey + ' -> [' + formatBucketSummary_(bucket.accountList, Math.max(bucket.accountList.length, MAX_TOP_ITEMS)) + ']');
     });
 
     lines.push('');
     lines.push('=== MONTHLY CATEGORY BREAKDOWN ===');
     model.monthKeys.forEach(function(monthKey) {
       const bucket = model.months[monthKey];
-      lines.push(monthKey + ' -> [' + formatBucketSummary_(bucket.categoryList, 5) + ']');
+      lines.push(monthKey + ' -> [' + formatBucketSummary_(bucket.categoryList, Math.max(bucket.categoryList.length, MAX_TOP_ITEMS)) + ']');
     });
 
     lines.push('');
@@ -1156,6 +1191,12 @@ function buildAiContext_(model, records, query, intent, options) {
     model.monthKeys.forEach(function(monthKey) {
       const bucket = model.months[monthKey];
       lines.push(monthKey + ' -> [' + buildExampleList_(bucket.examples, MAX_CATEGORY_EXAMPLES) + ']');
+    });
+
+    lines.push('');
+    lines.push('=== SCOPED MONTH DETAIL ===');
+    buildScopedMonthDetailLines_(records, model, filters.months.length ? filters.months : model.monthKeys).forEach(function(line) {
+      lines.push(line);
     });
   }
 
@@ -1299,6 +1340,8 @@ function buildGeminiBackgroundContext_(model, records, conversationQuery, intent
   lines.push(buildAiContext_(model, records, conversationQuery, intent, {
     evidenceLimit: Math.max(MAX_EVIDENCE_TRANSACTIONS * 2, 24)
   }));
+  lines.push('');
+  lines.push(buildResponseContract_(intent));
 
   const rawLedger = buildRawLedgerContext_(records, filters);
   if (rawLedger.length) {
@@ -1349,7 +1392,12 @@ function buildResponseContract_(intent) {
   lines.push('If a requested field is not included in the verified blocks, say that it is not included instead of guessing.');
 
   if (intent.needsMonthly) {
-    lines.push('For monthly questions, respond as: Month -> Total -> Accounts[...] -> Categories[...] -> Examples[...]');
+    lines.push('For monthly questions, include every non-zero category in scope.');
+    lines.push('For monthly questions, respond with this exact shape:');
+    lines.push('1. A markdown table of categories and spend for each resolved month.');
+    lines.push('2. A full account breakdown for each resolved month.');
+    lines.push('3. A section named "Grouped Transactions By Category" with category -> sample transactions.');
+    lines.push('4. If advice was requested, sections named Quick Wins, Subscriptions, Behavior Patterns, and Watch List.');
   }
   if (intent.needsWeekend) {
     lines.push('For weekend questions, respond as: Weekend total -> Weekend share -> Categories[...] -> Merchants[...] -> Examples[...]');
@@ -1379,6 +1427,10 @@ function buildDirectAnswer_(model, query, intent, filters) {
     lines.push('Here is your verified monthly spend breakdown:');
     model.monthKeys.forEach(function(monthKey) {
       const bucket = model.months[monthKey];
+      const monthRecords = filterRecordsByToolArgs_(getTransactionRecords_(), model, {
+        month: monthKey,
+        expensesOnly: true
+      });
       lines.push('');
       lines.push(monthKey);
       lines.push('Spend -> ' + formatCurrency_(bucket.spend));
@@ -1386,8 +1438,12 @@ function buildDirectAnswer_(model, query, intent, filters) {
       lines.push('Net -> ' + formatCurrency_(bucket.net));
       lines.push('Excluded Internal Outflow -> ' + formatCurrency_(bucket.excludedOutflow || 0));
       lines.push('Excluded Internal Inflow -> ' + formatCurrency_(bucket.excludedInflow || 0));
-      lines.push('Accounts -> [' + formatBucketSummary_(bucket.accountList, MAX_TOP_ITEMS) + ']');
-      lines.push('Categories -> [' + formatBucketSummary_(bucket.categoryList, MAX_TOP_ITEMS) + ']');
+      lines.push('Accounts -> [' + formatBucketSummary_(bucket.accountList, Math.max(bucket.accountList.length, MAX_TOP_ITEMS)) + ']');
+      lines.push('Categories -> [' + formatBucketSummary_(bucket.categoryList, Math.max(bucket.categoryList.length, MAX_TOP_ITEMS)) + ']');
+      lines.push('Grouped Transactions By Category ->');
+      buildGroupedCategoryExampleLines_(monthRecords).forEach(function(line) {
+        lines.push(line);
+      });
       lines.push('Examples -> [' + buildExampleList_(bucket.examples, MAX_CATEGORY_EXAMPLES) + ']');
     });
   }
@@ -1433,14 +1489,7 @@ function buildDirectAnswer_(model, query, intent, filters) {
   }
 
   if (intent.needsAdvice) {
-    const observations = buildHeuristicObservations_(model, intent);
-    if (observations.length) {
-      lines.push('');
-      lines.push('Quick take:');
-      observations.forEach(function(observation) {
-        lines.push('- ' + observation);
-      });
-    }
+    appendAdviceSections_(lines, model);
   }
 
   return lines.join('\n');
@@ -1526,8 +1575,8 @@ function buildLatestMonthSnapshot_(model) {
     'Income -> ' + formatCurrency_(bucket.income),
     'Excluded Internal Outflow -> ' + formatCurrency_(bucket.excludedOutflow || 0),
     'Excluded Internal Inflow -> ' + formatCurrency_(bucket.excludedInflow || 0),
-    'Accounts -> [' + formatBucketSummary_(bucket.accountList, 5) + ']',
-    'Categories -> [' + formatBucketSummary_(bucket.categoryList, 6) + ']',
+    'Accounts -> [' + formatBucketSummary_(bucket.accountList, Math.max(bucket.accountList.length, 6)) + ']',
+    'Categories -> [' + formatBucketSummary_(bucket.categoryList, Math.max(bucket.categoryList.length, 8)) + ']',
     'Merchants -> [' + formatBucketSummary_(bucket.merchantList, 6) + ']',
     'Examples -> [' + buildExampleList_(bucket.examples, MAX_CATEGORY_EXAMPLES) + ']'
   ];
@@ -1775,14 +1824,16 @@ function buildMonthBreakdownToolResult_(records, model, args) {
       });
       return {
         month: monthKey,
+        month_label: formatMonthDisplayLabel_(monthKey),
         spend: roundCurrency_(bucket.spend),
         income: roundCurrency_(bucket.income),
         net: roundCurrency_(bucket.net),
         excluded_internal_outflow: roundCurrency_(bucket.excludedOutflow || 0),
         excluded_internal_inflow: roundCurrency_(bucket.excludedInflow || 0),
-        accounts: args.include_accounts === false ? [] : serializeNamedTotals_(bucket.accountList, 8),
-        categories: args.include_categories === false ? [] : serializeNamedTotals_(bucket.categoryList, 8),
-        example_transactions: args.include_examples === false ? [] : serializeTransactions_(monthRecords, 5)
+        accounts: args.include_accounts === false ? [] : serializeNamedTotals_(bucket.accountList, MAX_FULL_BREAKDOWN_ITEMS),
+        categories: args.include_categories === false ? [] : serializeNamedTotals_(bucket.categoryList, MAX_FULL_BREAKDOWN_ITEMS),
+        transactions_by_category: args.include_examples === false ? [] : serializeTransactionsByCategory_(monthRecords, MAX_GROUPED_CATEGORY_EXAMPLES),
+        example_transactions: args.include_examples === false ? [] : serializeTransactions_(monthRecords, 8)
       };
     })
   };
@@ -1956,6 +2007,16 @@ function serializeTransactions_(records, limit) {
         account: formatAccountLabel_(record.account)
       };
     });
+}
+
+function serializeTransactionsByCategory_(records, examplesPerCategory) {
+  const grouped = groupTransactionsByPrimaryCategory_(records);
+  return Object.keys(grouped).map(function(category) {
+    return {
+      category: category,
+      transactions: serializeTransactions_(grouped[category], examplesPerCategory || MAX_GROUPED_CATEGORY_EXAMPLES)
+    };
+  });
 }
 
 function normalizeLimit_(value, fallback) {
@@ -2427,6 +2488,136 @@ function createExample_(record, amount, timezone) {
   };
 }
 
+function buildScopedMonthDetailLines_(records, model, monthKeys) {
+  const lines = [];
+  (monthKeys || []).forEach(function(monthKey) {
+    const bucket = model.months[monthKey];
+    if (!bucket) {
+      return;
+    }
+    const monthRecords = filterRecordsByToolArgs_(records, model, {
+      month: monthKey,
+      expensesOnly: true
+    });
+    lines.push('Month -> ' + monthKey + ' (' + formatMonthDisplayLabel_(monthKey) + ')');
+    lines.push('Full Account Breakdown -> [' + formatBucketSummary_(bucket.accountList, Math.max(bucket.accountList.length, MAX_TOP_ITEMS)) + ']');
+    lines.push('Full Category Breakdown -> [' + formatBucketSummary_(bucket.categoryList, Math.max(bucket.categoryList.length, MAX_TOP_ITEMS)) + ']');
+    lines.push('Grouped Transactions By Category ->');
+    buildGroupedCategoryExampleLines_(monthRecords).forEach(function(line) {
+      lines.push(line);
+    });
+    lines.push('Examples -> [' + buildExampleList_(bucket.examples, MAX_CATEGORY_EXAMPLES) + ']');
+  });
+  return lines.length ? lines : ['No scoped month detail available.'];
+}
+
+function buildGroupedCategoryExampleLines_(records) {
+  const grouped = groupTransactionsByPrimaryCategory_(records);
+  const categories = Object.keys(grouped).sort(function(a, b) {
+    return grouped[b].reduce(sumSpend_, 0) - grouped[a].reduce(sumSpend_, 0);
+  });
+  if (!categories.length) {
+    return ['No category-grouped transactions found.'];
+  }
+  return categories.map(function(category) {
+    const examples = grouped[category]
+      .sort(compareTransactionSpendDesc_)
+      .slice(0, MAX_GROUPED_CATEGORY_EXAMPLES)
+      .map(function(record) {
+        return truncateLabel_(record.name, 28) + ' ' + formatCurrency_(Math.abs(Number(record.amount || 0))) + ' (' + record.id + ')';
+      })
+      .join(', ');
+    return category + ' -> [' + examples + ']';
+  });
+}
+
+function groupTransactionsByPrimaryCategory_(records) {
+  return (records || []).reduce(function(groups, record) {
+    if (!record || Number(record.amount || 0) >= 0) {
+      return groups;
+    }
+    const key = formatCategoryLabel_(record.category);
+    groups[key] = groups[key] || [];
+    groups[key].push(record);
+    return groups;
+  }, {});
+}
+
+function compareTransactionSpendDesc_(a, b) {
+  return Math.abs(Number(b.amount || 0)) - Math.abs(Number(a.amount || 0));
+}
+
+function sumSpend_(sum, record) {
+  return sum + Math.abs(Number(record.amount || 0));
+}
+
+function appendAdviceSections_(lines, model) {
+  const sections = buildAdviceSections_(model);
+  if (!sections.quickWins.length && !sections.subscriptions.length && !sections.behaviorPatterns.length && !sections.watchList.length) {
+    return;
+  }
+  lines.push('');
+  lines.push('Quick Wins:');
+  (sections.quickWins.length ? sections.quickWins : ['No obvious quick wins identified from the current scope.']).forEach(function(item) {
+    lines.push('- ' + item);
+  });
+  lines.push('');
+  lines.push('Subscriptions:');
+  (sections.subscriptions.length ? sections.subscriptions : ['No recurring subscription-like merchants stand out in the current scope.']).forEach(function(item) {
+    lines.push('- ' + item);
+  });
+  lines.push('');
+  lines.push('Behavior Patterns:');
+  (sections.behaviorPatterns.length ? sections.behaviorPatterns : ['No dominant behavior pattern stood out in the current scope.']).forEach(function(item) {
+    lines.push('- ' + item);
+  });
+  lines.push('');
+  lines.push('Watch List:');
+  (sections.watchList.length ? sections.watchList : ['No immediate watch-list items beyond normal bills.']).forEach(function(item) {
+    lines.push('- ' + item);
+  });
+}
+
+function buildAdviceSections_(model) {
+  const quickWins = [];
+  const subscriptions = [];
+  const behaviorPatterns = [];
+  const watchList = [];
+  const discretionaryCategories = ['Food & Drink', 'Shopping', 'Services', 'Travel', 'Entertainment', 'Transportation'];
+
+  model.categoryList.forEach(function(item) {
+    if (quickWins.length >= 3) {
+      return;
+    }
+    if (discretionaryCategories.indexOf(item.name) !== -1 && item.total > 0) {
+      quickWins.push(item.name + ' is running at ' + formatCurrency_(item.total) + '; cutting even 10-15% here would move the needle fastest.');
+    }
+  });
+
+  model.recurringCandidates.slice(0, 3).forEach(function(item) {
+    subscriptions.push(item.name + ' appears ' + item.count + ' times for ' + formatCurrency_(item.total) + ' total. Confirm it is still worth keeping.');
+  });
+
+  if (model.totalSpend > 0) {
+    const weekendShare = model.weekendSpend / model.totalSpend;
+    behaviorPatterns.push('Weekend spend is ' + formatPercent_(weekendShare) + ' of total external spend.');
+  }
+  if (model.merchantList.length) {
+    behaviorPatterns.push('Top merchant concentration is ' + model.merchantList[0].name + ' at ' + formatCurrency_(model.merchantList[0].total) + '.');
+  }
+
+  model.anomalies.slice(0, 3).forEach(function(item) {
+    watchList.push(item.merchant + ' on ' + item.date + ' for ' + formatCurrency_(item.spend) + ' is worth confirming as intentional.');
+  });
+
+  return {
+    quickWins: quickWins,
+    subscriptions: subscriptions,
+    behaviorPatterns: behaviorPatterns,
+    watchList: watchList
+  };
+}
+
 function getOrCreateMonthBucket_(months, key) {
   if (!months[key]) {
     months[key] = {
@@ -2495,6 +2686,15 @@ function writeTable_(sheet, row, col, values, headerColor) {
   if (values.length > 1) {
     range.offset(1, 0, values.length - 1, width).setBackground('#ffffff');
   }
+}
+
+function writeVisibleSectionHeader_(sheet, row, col, label, width, color) {
+  sheet.getRange(row, col, 1, width || 4).merge()
+    .setValue(label)
+    .setBackground(color || '#1f2937')
+    .setFontColor('#ffffff')
+    .setFontWeight('bold')
+    .setHorizontalAlignment('left');
 }
 
 function clearCharts_(sheet) {
@@ -2594,12 +2794,41 @@ function formatAccountLabel_(accountId) {
 function formatCategoryLabel_(category) {
   const raw = String(category || 'Uncategorized');
   const family = raw.indexOf('>') !== -1 ? raw.split('>')[0].trim() : raw;
-  return toTitleCase_(family.replace(/_/g, ' '));
+  return humanizePlaidCategorySegment_(family);
 }
 
 function formatDetailedCategoryLabel_(category) {
   const raw = String(category || 'Uncategorized');
-  return toTitleCase_(raw.replace(/\s*>\s*/g, ' / ').replace(/_/g, ' '));
+  return raw.split(/\s*>\s*/).map(function(part) {
+    return humanizePlaidCategorySegment_(part);
+  }).join(' / ');
+}
+
+function humanizePlaidCategorySegment_(segment) {
+  const normalized = String(segment || 'Uncategorized').trim().toUpperCase();
+  const aliasMap = {
+    'FOOD_AND_DRINK': 'Food & Drink',
+    'GOVERNMENT_AND_NON_PROFIT': 'Government & Nonprofit',
+    'GENERAL_SERVICES': 'Services',
+    'GENERAL_MERCHANDISE': 'Shopping',
+    'RENT_AND_UTILITIES': 'Rent & Utilities',
+    'LOAN_PAYMENTS': 'Debt Payments',
+    'TRANSFER_OUT': 'Internal Transfer Out',
+    'TRANSFER_IN': 'Internal Transfer In',
+    'HOME_IMPROVEMENT': 'Home Improvement',
+    'PERSONAL_CARE': 'Personal Care',
+    'TRANSPORTATION': 'Transportation',
+    'ENTERTAINMENT': 'Entertainment',
+    'TRAVEL': 'Travel',
+    'MEDICAL': 'Medical'
+  };
+  if (aliasMap[normalized]) {
+    return aliasMap[normalized];
+  }
+  return toTitleCase_(normalized.replace(/_/g, ' ').toLowerCase())
+    .replace(/\bAnd\b/g, '&')
+    .replace(/\bTv\b/g, 'TV')
+    .replace(/\bNon Profit\b/g, 'Nonprofit');
 }
 
 function classifyCashflowRecord_(record, categoryLabel, detailedCategoryLabel) {
@@ -2651,6 +2880,15 @@ function formatDateForPrompt_(date) {
     return 'Unknown';
   }
   return Utilities.formatDate(date, getSpreadsheetTimeZone_(), 'yyyy-MM-dd');
+}
+
+function formatMonthDisplayLabel_(monthKey) {
+  if (!monthKey || !/^\d{4}-\d{2}$/.test(String(monthKey))) {
+    return String(monthKey || 'Unknown');
+  }
+  const parts = String(monthKey).split('-');
+  const date = new Date(Number(parts[0]), Number(parts[1]) - 1, 1);
+  return Utilities.formatDate(date, getSpreadsheetTimeZone_(), 'MMM yyyy');
 }
 
 function getSpreadsheetTimeZone_() {
