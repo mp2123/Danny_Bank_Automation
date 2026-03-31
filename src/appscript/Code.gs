@@ -541,6 +541,8 @@ function renderDashboard_(sheet, model, sections) {
       .setOption('seriesType', 'bars')
       .setOption('hAxis', { title: 'Month' })
       .setOption('vAxis', { title: 'Amount ($)' })
+      .setOption('legend', { position: 'right', textStyle: { fontSize: 10 } })
+      .setOption('chartArea', { left: 60, top: 50, width: '58%', height: '65%' })
       .setOption('series', {
         2: { type: 'line', color: '#111827' }
       })
@@ -574,6 +576,8 @@ function renderDashboard_(sheet, model, sections) {
       .setOption('title', 'Weekend vs Weekday External Spend by Month')
       .setOption('hAxis', { title: 'Month' })
       .setOption('vAxis', { title: 'Spend ($)' })
+      .setOption('legend', { position: 'right', textStyle: { fontSize: 10 } })
+      .setOption('chartArea', { left: 60, top: 50, width: '58%', height: '65%' })
       .setOption('colors', ['#64748b', '#f97316'])
       .build(),
     sheet.newChart()
@@ -605,6 +609,8 @@ function renderInsights_(sheet, model, sections) {
       .setOption('isStacked', true)
       .setOption('hAxis', { title: 'Month' })
       .setOption('vAxis', { title: 'Spend ($)' })
+      .setOption('legend', { position: 'right', textStyle: { fontSize: 10 } })
+      .setOption('chartArea', { left: 60, top: 50, width: '52%', height: '65%' })
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.COLUMN)
@@ -614,6 +620,8 @@ function renderInsights_(sheet, model, sections) {
       .setOption('isStacked', true)
       .setOption('hAxis', { title: 'Month' })
       .setOption('vAxis', { title: 'Spend ($)' })
+      .setOption('legend', { position: 'right', textStyle: { fontSize: 10 } })
+      .setOption('chartArea', { left: 60, top: 50, width: '52%', height: '65%' })
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.BAR)
@@ -632,6 +640,8 @@ function renderInsights_(sheet, model, sections) {
       .setOption('title', 'Category Drift (Latest vs Prior Month)')
       .setOption('hAxis', { title: 'Category' })
       .setOption('vAxis', { title: 'Delta vs Prior Month ($)' })
+      .setOption('legend', { position: 'top', textStyle: { fontSize: 10 } })
+      .setOption('chartArea', { left: 60, top: 70, width: '72%', height: '58%' })
       .setOption('colors', ['#dc2626'])
       .build()
   ];
