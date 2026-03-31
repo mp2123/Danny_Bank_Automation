@@ -281,7 +281,7 @@ function buildGroundedEvidencePacket_(query, model, records, intent, filters) {
   }
 
   let categoryBreakdowns = [];
-  if (intent.needsCategoryExamples && filters.categories && filters.categories.length && !monthBreakdown) {
+  if (intent.needsCategoryExamples && filters.categories && filters.categories.length) {
     categoryBreakdowns = filters.categories.slice(0, 4).map(function(categoryName) {
       return {
         category: categoryName,
@@ -298,7 +298,7 @@ function buildGroundedEvidencePacket_(query, model, records, intent, filters) {
   }
 
   let accountBreakdowns = [];
-  if (filters.accounts && filters.accounts.length && !monthBreakdown) {
+  if (filters.accounts && filters.accounts.length) {
     accountBreakdowns = filters.accounts.slice(0, 4).map(function(accountName) {
       return {
         account: accountName,
@@ -545,9 +545,22 @@ function renderGroundedVerifiedResponse_(packet) {
     packet.categoryBreakdowns.forEach(function(entry) {
       verifiedLines.push('');
       verifiedLines.push('### Category Detail: ' + entry.category);
-      verifiedLines.push(buildNamedTotalsMarkdownTable_('Account', entry.result.accounts));
+      verifiedLines.push(buildNamedTotalsMarkdownTable_('Metric', [
+        { name: 'Total Spend', total: entry.result.total_spend }
+      ]));
+      if (entry.result.categories && entry.result.categories.length) {
+        verifiedLines.push('');
+        verifiedLines.push('#### Detailed Category Mix');
+        verifiedLines.push(buildNamedTotalsMarkdownTable_('Category', entry.result.categories));
+      }
+      if (entry.result.accounts && entry.result.accounts.length) {
+        verifiedLines.push('');
+        verifiedLines.push('#### Account Breakdown');
+        verifiedLines.push(buildNamedTotalsMarkdownTable_('Account', entry.result.accounts));
+      }
       if (entry.result.example_transactions && entry.result.example_transactions.length) {
         verifiedLines.push('');
+        verifiedLines.push('#### Example Transactions');
         verifiedLines.push(buildTransactionMarkdownTable_(entry.result.example_transactions));
       }
     });
@@ -558,9 +571,22 @@ function renderGroundedVerifiedResponse_(packet) {
     packet.accountBreakdowns.forEach(function(entry) {
       verifiedLines.push('');
       verifiedLines.push('### Account Detail: ' + entry.account);
-      verifiedLines.push(buildNamedTotalsMarkdownTable_('Category', entry.result.categories));
+      verifiedLines.push(buildNamedTotalsMarkdownTable_('Metric', [
+        { name: 'Total Spend', total: entry.result.total_spend }
+      ]));
+      if (entry.result.categories && entry.result.categories.length) {
+        verifiedLines.push('');
+        verifiedLines.push('#### Category Breakdown');
+        verifiedLines.push(buildNamedTotalsMarkdownTable_('Category', entry.result.categories));
+      }
+      if (entry.result.merchants && entry.result.merchants.length) {
+        verifiedLines.push('');
+        verifiedLines.push('#### Merchant Breakdown');
+        verifiedLines.push(buildNamedTotalsMarkdownTable_('Merchant', entry.result.merchants));
+      }
       if (entry.result.example_transactions && entry.result.example_transactions.length) {
         verifiedLines.push('');
+        verifiedLines.push('#### Example Transactions');
         verifiedLines.push(buildTransactionMarkdownTable_(entry.result.example_transactions));
       }
     });
@@ -1094,7 +1120,6 @@ function renderDashboard_(sheet, model, sections) {
       .setOption('hAxis', { title: 'Month', slantedText: true, slantedTextAngle: 35 })
       .setOption('vAxis', { title: 'Spend ($)' })
       .setOption('legend', { position: 'top', textStyle: { fontSize: 10 } })
-      .setOption('annotations', buildSimpleAnnotationOptions_())
       .setOption('colors', ['#64748b', '#f97316'])
       .build(),
     sheet.newChart()
@@ -1441,7 +1466,7 @@ function buildAnalyticsSections_(model) {
     monthlyCategoryMatrix: createSection_(ANALYTICS_LAYOUT.monthlyCategoryMatrix.row, ANALYTICS_LAYOUT.monthlyCategoryMatrix.col, buildMonthlyMatrixTable_(model, model.topCategoryNames, 'categories')),
     monthlyAccountMatrix: createSection_(ANALYTICS_LAYOUT.monthlyAccountMatrix.row, ANALYTICS_LAYOUT.monthlyAccountMatrix.col, buildMonthlyMatrixTable_(model, model.topAccountNames, 'accounts')),
     weekendMonthlyCompare: createSection_(ANALYTICS_LAYOUT.weekendMonthlyCompare.row, ANALYTICS_LAYOUT.weekendMonthlyCompare.col, buildWeekendMonthlyCompareTable_(model)),
-    weekendMonthlyCompareChart: createSection_(ANALYTICS_LAYOUT.weekendMonthlyCompareChart.row, ANALYTICS_LAYOUT.weekendMonthlyCompareChart.col, buildAnnotatedWeekendMonthlyCompareTable_(model)),
+    weekendMonthlyCompareChart: createSection_(ANALYTICS_LAYOUT.weekendMonthlyCompareChart.row, ANALYTICS_LAYOUT.weekendMonthlyCompareChart.col, buildWeekendMonthlyCompareTable_(model)),
     categoryDriftChart: createSection_(ANALYTICS_LAYOUT.categoryDriftChart.row, ANALYTICS_LAYOUT.categoryDriftChart.col, buildCategoryDriftChartTable_(model)),
     anomalies: createSection_(ANALYTICS_LAYOUT.anomalies.row, ANALYTICS_LAYOUT.anomalies.col, buildAnomalyTable_(model)),
     recurring: createSection_(ANALYTICS_LAYOUT.recurring.row, ANALYTICS_LAYOUT.recurring.col, buildRecurringTable_(model)),
@@ -1540,7 +1565,9 @@ function buildWeekendSummaryTable_(model) {
 
 function buildMonthlyMatrixTable_(model, names, bucketKey) {
   const safeNames = names && names.length ? names : [bucketKey === 'accounts' ? 'Unknown Account' : 'Uncategorized'];
-  const header = ['Month'].concat(safeNames);
+  const header = ['Month'].concat(safeNames.map(function(name) {
+    return truncateLabel_(name, bucketKey === 'accounts' ? 14 : 18);
+  }));
   const table = [header];
   model.monthKeys.forEach(function(monthKey) {
     const bucket = model.months[monthKey];
@@ -1619,7 +1646,7 @@ function buildCategoryDriftTable_(model) {
 function buildCategoryDriftChartTable_(model) {
   const table = [['Category', 'Delta']];
   model.categoryDrift.forEach(function(item) {
-    table.push([item.name, roundCurrency_(item.delta)]);
+    table.push([truncateLabel_(item.name, 22), roundCurrency_(item.delta)]);
   });
   if (table.length === 1) {
     table.push(['No drift data', 0]);
@@ -1722,7 +1749,7 @@ function monthlyCashflowHasIncome_(model) {
 
 function buildSimpleAnnotationOptions_() {
   return {
-    alwaysOutside: true,
+    alwaysOutside: false,
     textStyle: {
       fontSize: 10,
       bold: true,
@@ -2518,16 +2545,16 @@ function buildSearchTransactionsToolResult_(records, model, args) {
   const limited = sorted.slice(0, normalizeLimit_(args.limit, 8));
   return {
     scope: buildToolScope_(filtered, model, args),
-    matched_spend: roundCurrency_(limited.reduce(function(sum, record) {
+    matched_spend: roundCurrency_(filtered.reduce(function(sum, record) {
       return sum + (Number(record.amount || 0) < 0 ? Math.abs(Number(record.amount || 0)) : 0);
     }, 0)),
-    matched_income: roundCurrency_(limited.reduce(function(sum, record) {
+    matched_income: roundCurrency_(filtered.reduce(function(sum, record) {
       return sum + (Number(record.amount || 0) > 0 ? Number(record.amount || 0) : 0);
     }, 0)),
     transactions: serializeTransactionsInOrder_(limited, limited.length || normalizeLimit_(args.limit, 8)),
     table_headers: ['Date', 'Merchant', 'Spend', 'Category', 'Account', 'Transaction ID'],
     table_rows: serializeTransactionsInOrder_(limited, limited.length || normalizeLimit_(args.limit, 8)),
-    transactions_by_category: serializeTransactionsByCategory_(limited, MAX_GROUPED_CATEGORY_EXAMPLES)
+    transactions_by_category: serializeTransactionsByCategory_(filtered, MAX_GROUPED_CATEGORY_EXAMPLES)
   };
 }
 
@@ -2856,7 +2883,7 @@ function parseAiIntent_(query, filters) {
     needsWeekend ||
     needsCategoryExamples ||
     needsBreakdown;
-  const needsGroundedEvidence = needsBreakdown || needsTransactions || needsGroupedTransactions || needsTabularOutput || needsCategoryExamples;
+  const needsGroundedEvidence = needsWeekend || needsBreakdown || needsTransactions || needsGroupedTransactions || needsTabularOutput || needsCategoryExamples;
   return {
     needsMonthly: needsMonthly,
     needsWeekly: needsWeekly,
