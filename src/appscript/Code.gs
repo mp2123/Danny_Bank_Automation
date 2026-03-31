@@ -19,7 +19,7 @@ const MAX_CONTEXT_TURNS = 4;
 const FULL_LEDGER_TRANSACTION_THRESHOLD = 360;
 const MAX_LEDGER_CONTEXT_TRANSACTIONS = 360;
 const MAX_TOOL_TRANSACTION_RESULTS = 200;
-const GEMINI_MODEL_CHAIN = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+const GEMINI_MODEL_CHAIN = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
 const ANALYTICS_LAYOUT = {
   overview: { row: 1, col: 1 },
   monthlySummary: { row: 1, col: 5 },
@@ -483,7 +483,7 @@ function setupDashboard_(sheet) {
     .setFontColor('#ffffff')
     .setHorizontalAlignment('center');
   sheet.getRange('A2:N2').merge()
-    .setValue('Executive view: cashflow, categories, cadence, and merchant concentration')
+    .setValue('Executive view: external cashflow, categories, cadence, and merchant concentration (internal payments/transfers excluded)')
     .setBackground('#111827')
     .setFontColor('#93c5fd')
     .setHorizontalAlignment('center');
@@ -527,16 +527,20 @@ function renderDashboard_(sheet, model, sections) {
       .setChartType(Charts.ChartType.BAR)
       .addRange(getSectionRange_(sheet.getParent().getSheetByName('Analytics'), sections.topCategories))
       .setPosition(6, 1, 0, 0)
-      .setOption('title', 'Top Spend Categories')
+      .setOption('title', 'Top External Spend Categories')
       .setOption('legend', { position: 'none' })
+      .setOption('hAxis', { title: 'Spend ($)' })
+      .setOption('vAxis', { title: 'Category' })
       .setOption('colors', ['#2563eb'])
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.COMBO)
       .addRange(getSectionRange_(sheet.getParent().getSheetByName('Analytics'), sections.monthlySummary, 1, 4))
       .setPosition(6, 8, 0, 0)
-      .setOption('title', 'Monthly Cashflow')
+      .setOption('title', 'Monthly External Cashflow (Income vs Spend vs Net)')
       .setOption('seriesType', 'bars')
+      .setOption('hAxis', { title: 'Month' })
+      .setOption('vAxis', { title: 'Amount ($)' })
       .setOption('series', {
         2: { type: 'line', color: '#111827' }
       })
@@ -546,32 +550,40 @@ function renderDashboard_(sheet, model, sections) {
       .setChartType(Charts.ChartType.LINE)
       .addRange(getSectionRange_(sheet.getParent().getSheetByName('Analytics'), sections.weeklySummary, 1, 2))
       .setPosition(22, 1, 0, 0)
-      .setOption('title', 'Weekly Spend by Calendar Week')
+      .setOption('title', 'Weekly External Spend by Calendar Week')
       .setOption('curveType', 'function')
       .setOption('legend', { position: 'none' })
+      .setOption('hAxis', { title: 'Week Starting' })
+      .setOption('vAxis', { title: 'Spend ($)' })
       .setOption('colors', ['#0f766e'])
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.COLUMN)
       .addRange(getSectionRange_(sheet.getParent().getSheetByName('Analytics'), sections.weekdaySummary))
       .setPosition(22, 8, 0, 0)
-      .setOption('title', 'Weekday Leakage Pattern')
+      .setOption('title', 'Weekday External Spend Pattern')
       .setOption('legend', { position: 'none' })
+      .setOption('hAxis', { title: 'Day of Week' })
+      .setOption('vAxis', { title: 'Spend ($)' })
       .setOption('colors', ['#7c3aed'])
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.COLUMN)
       .addRange(getSectionRange_(sheet.getParent().getSheetByName('Analytics'), sections.weekendMonthlyCompare))
       .setPosition(38, 1, 0, 0)
-      .setOption('title', 'Weekend vs Weekday by Month')
+      .setOption('title', 'Weekend vs Weekday External Spend by Month')
+      .setOption('hAxis', { title: 'Month' })
+      .setOption('vAxis', { title: 'Spend ($)' })
       .setOption('colors', ['#64748b', '#f97316'])
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.BAR)
       .addRange(getSectionRange_(sheet.getParent().getSheetByName('Analytics'), sections.topMerchants))
       .setPosition(38, 8, 0, 0)
-      .setOption('title', 'Top Merchants')
+      .setOption('title', 'Top External Spend Merchants')
       .setOption('legend', { position: 'none' })
+      .setOption('hAxis', { title: 'Spend ($)' })
+      .setOption('vAxis', { title: 'Merchant' })
       .setOption('colors', ['#0ea5e9'])
       .build()
   ];
@@ -589,22 +601,28 @@ function renderInsights_(sheet, model, sections) {
       .setChartType(Charts.ChartType.COLUMN)
       .addRange(getSectionRange_(analytics, sections.monthlyCategoryMatrix))
       .setPosition(4, 1, 0, 0)
-      .setOption('title', 'Monthly Category Breakdown')
+      .setOption('title', 'Monthly External Spend by Category')
       .setOption('isStacked', true)
+      .setOption('hAxis', { title: 'Month' })
+      .setOption('vAxis', { title: 'Spend ($)' })
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.COLUMN)
       .addRange(getSectionRange_(analytics, sections.monthlyAccountMatrix))
       .setPosition(4, 9, 0, 0)
-      .setOption('title', 'Monthly Account Breakdown')
+      .setOption('title', 'Monthly External Spend by Account')
       .setOption('isStacked', true)
+      .setOption('hAxis', { title: 'Month' })
+      .setOption('vAxis', { title: 'Spend ($)' })
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.BAR)
       .addRange(getSectionRange_(analytics, sections.topAccounts))
       .setPosition(22, 1, 0, 0)
-      .setOption('title', 'Account Concentration')
+      .setOption('title', 'External Spend by Account')
       .setOption('legend', { position: 'none' })
+      .setOption('hAxis', { title: 'Spend ($)' })
+      .setOption('vAxis', { title: 'Account' })
       .setOption('colors', ['#2563eb'])
       .build(),
     sheet.newChart()
@@ -612,6 +630,8 @@ function renderInsights_(sheet, model, sections) {
       .addRange(getSectionRange_(analytics, sections.categoryDrift))
       .setPosition(22, 9, 0, 0)
       .setOption('title', 'Category Drift (Latest vs Prior Month)')
+      .setOption('hAxis', { title: 'Category' })
+      .setOption('vAxis', { title: 'Delta vs Prior Month ($)' })
       .setOption('colors', ['#dc2626'])
       .build()
   ];
@@ -1612,6 +1632,11 @@ function extractRetrievalFilters_(model, query) {
 
 function extractMentionedMonths_(model, normalizedQuery) {
   const months = [];
+  const relativeMonths = resolveRelativeMonths_(model, normalizedQuery);
+  relativeMonths.forEach(function(monthKey) {
+    months.push(monthKey);
+  });
+
   const isoMatches = normalizedQuery.match(/\b20\d{2}\s(0[1-9]|1[0-2])\b/g) || [];
   isoMatches.forEach(function(match) {
     months.push(match.replace(' ', '-'));
@@ -1654,6 +1679,30 @@ function extractMentionedMonths_(model, normalizedQuery) {
   });
 
   return months.filter(uniqueValue_);
+}
+
+function resolveRelativeMonths_(model, normalizedQuery) {
+  if (!model || !model.monthKeys || !model.monthKeys.length) {
+    return [];
+  }
+
+  const resolved = [];
+  const latestMonth = model.monthKeys[model.monthKeys.length - 1];
+  const previousMonth = model.monthKeys.length > 1 ? model.monthKeys[model.monthKeys.length - 2] : null;
+  const currentCalendarMonth = Utilities.formatDate(new Date(), getSpreadsheetTimeZone_(), 'yyyy-MM');
+  const currentDatasetMonth = model.monthKeys.indexOf(currentCalendarMonth) !== -1 ? currentCalendarMonth : latestMonth;
+
+  if (/(this month|current month|this months|current months)/.test(normalizedQuery)) {
+    resolved.push(currentDatasetMonth);
+  }
+  if (/(last month|previous month|prior month)/.test(normalizedQuery)) {
+    resolved.push(previousMonth || currentDatasetMonth);
+  }
+  if (/(latest month|most recent month)/.test(normalizedQuery)) {
+    resolved.push(latestMonth);
+  }
+
+  return resolved.filter(Boolean);
 }
 
 function hasActiveFilters_(filters) {
