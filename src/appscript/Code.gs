@@ -553,7 +553,6 @@ function renderDashboard_(sheet, model, sections) {
       .setOption('hAxis', { title: 'Month', slantedText: true, slantedTextAngle: 35 })
       .setOption('vAxis', { title: 'Amount ($)' })
       .setOption('legend', { position: 'top', textStyle: { fontSize: 10 } })
-      .setOption('chartArea', { left: 70, top: 65, width: '76%', height: '58%' })
       .setOption('series', {
         2: { type: 'line', color: '#111827', lineWidth: 3, pointSize: 6 }
       })
@@ -592,7 +591,6 @@ function renderDashboard_(sheet, model, sections) {
       .setOption('hAxis', { title: 'Month', slantedText: true, slantedTextAngle: 35 })
       .setOption('vAxis', { title: 'Spend ($)' })
       .setOption('legend', { position: 'top', textStyle: { fontSize: 10 } })
-      .setOption('chartArea', { left: 70, top: 65, width: '76%', height: '58%' })
       .setOption('colors', ['#64748b', '#f97316'])
       .build(),
     sheet.newChart()
@@ -627,7 +625,6 @@ function renderInsights_(sheet, model, sections) {
       .setOption('hAxis', { title: 'Month', slantedText: true, slantedTextAngle: 35 })
       .setOption('vAxis', { title: 'Spend ($)' })
       .setOption('legend', { position: 'top', textStyle: { fontSize: 10 } })
-      .setOption('chartArea', { left: 70, top: 70, width: '76%', height: '56%' })
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.COLUMN)
@@ -639,7 +636,6 @@ function renderInsights_(sheet, model, sections) {
       .setOption('hAxis', { title: 'Month', slantedText: true, slantedTextAngle: 35 })
       .setOption('vAxis', { title: 'Spend ($)' })
       .setOption('legend', { position: 'top', textStyle: { fontSize: 10 } })
-      .setOption('chartArea', { left: 70, top: 70, width: '76%', height: '56%' })
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.BAR)
@@ -661,7 +657,6 @@ function renderInsights_(sheet, model, sections) {
       .setOption('hAxis', { title: 'Delta vs Prior Month ($)' })
       .setOption('vAxis', { title: 'Category' })
       .setOption('legend', { position: 'none' })
-      .setOption('chartArea', { left: 80, top: 55, width: '74%', height: '62%' })
       .setOption('colors', ['#dc2626'])
       .build()
   ];
