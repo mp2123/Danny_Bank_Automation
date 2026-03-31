@@ -7,6 +7,7 @@ const GEMINI_SETTING_KEY = 'GEMINI_API_KEY';
 const GEMINI_KEY_MIGRATED_MARKER = 'Stored securely in Script Properties';
 const LEGACY_GEMINI_KEY_MIGRATED_MARKER = '[Stored in Script Properties]';
 const LAST_AI_USAGE_KEY = 'LAST_AI_USAGE';
+const CHAT_CONTEXT_KEY = 'CHAT_CONTEXT_HISTORY';
 const WEEKDAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const MAX_TOP_ITEMS = 8;
 const MAX_CATEGORY_EXAMPLES = 3;
@@ -14,6 +15,11 @@ const MATRIX_TOP_CATEGORY_COUNT = 5;
 const MATRIX_TOP_ACCOUNT_COUNT = 5;
 const MAX_VISIBLE_TABLE_ROWS = 8;
 const MAX_EVIDENCE_TRANSACTIONS = 14;
+const MAX_CONTEXT_TURNS = 4;
+const FULL_LEDGER_TRANSACTION_THRESHOLD = 180;
+const MAX_LEDGER_CONTEXT_TRANSACTIONS = 180;
+const MAX_TOOL_TRANSACTION_RESULTS = 200;
+const GEMINI_MODEL_CHAIN = ['gemini-2.5-flash', 'gemini-2.0-flash'];
 const ANALYTICS_LAYOUT = {
   overview: { row: 1, col: 1 },
   monthlySummary: { row: 1, col: 5 },
@@ -119,23 +125,32 @@ function chatWithData(query) {
   }
 
   const model = buildAnalyticsModel_(records);
-  const filters = extractRetrievalFilters_(model, query);
-  const intent = parseAiIntent_(query, filters);
+  const conversationTurns = getConversationTurns_();
+  const conversationQuery = buildConversationQuery_(conversationTurns, query);
+  const filters = extractRetrievalFilters_(model, conversationQuery);
+  const intent = parseAiIntent_(conversationQuery, filters);
   try {
-    const result = runGeminiFinanceAssistant_(query, model, records, apiKey);
-    const detail = result.toolsUsed.length
+    const result = runGeminiFinanceAssistant_(query, model, records, apiKey, conversationTurns, intent, filters, conversationQuery);
+    const detailParts = ['Gemini models: ' + result.modelsUsed.join(' -> ')];
+    detailParts.push(result.toolsUsed.length
       ? 'Gemini used tools: ' + result.toolsUsed.join(', ')
-      : 'Gemini used without tool calls';
-    const message = formatChatModeReply_('Gemini Tool Routing', detail, result.text);
+      : 'Gemini used without tool calls');
+    const message = formatChatModeReply_('Gemini Synthesis', detailParts.join(' | '), result.text);
     saveChatHistory_(query, message);
+    saveConversationTurn_(query, result.text, {
+      mode: 'gemini',
+      modelsUsed: result.modelsUsed,
+      toolsUsed: result.toolsUsed
+    });
     return message;
   } catch (e) {
     const scopedRecords = hasActiveFilters_(filters) ? filterTransactionsByRetrieval_(records, filters) : [];
     const answerModel = scopedRecords.length ? buildAnalyticsModel_(scopedRecords) : model;
-    const directReply = buildDirectAnswer_(answerModel, query, intent, filters);
+    const directReply = buildDirectAnswer_(answerModel, conversationQuery, intent, filters);
     if (directReply) {
-      const fallbackMessage = formatChatModeReply_('Verified Direct Fallback', 'Gemini failed, direct verified output used', directReply);
+      const fallbackMessage = formatChatModeReply_('Verified Direct Fallback', 'Gemini unavailable or quota-limited, verified local output used', directReply);
       saveChatHistory_(query, fallbackMessage);
+      saveConversationTurn_(query, directReply, { mode: 'fallback' });
       return fallbackMessage;
     }
     return 'AI Error: ' + e.message;
@@ -169,7 +184,7 @@ function getGeminiConfigStatus() {
     const usage = getLastAiUsage_();
     if (usage) {
       return 'Gemini key stored securely in Script Properties. Last AI call: prompt ~' + usage.promptTokens +
-        ' tok, output ' + usage.outputTokens + ' tok, total ' + usage.totalTokens + ' tok.';
+        ' tok, output ' + usage.outputTokens + ' tok, total ' + usage.totalTokens + ' tok, model ' + (usage.model || 'unknown') + '.';
     }
     return 'Gemini key stored securely in Script Properties.';
   }
@@ -180,16 +195,19 @@ function formatChatModeReply_(mode, detail, body) {
   return 'Mode -> ' + mode + ' (' + detail + ')\n\n' + body;
 }
 
-function runGeminiFinanceAssistant_(query, model, records, apiKey) {
-  const contents = [{ role: 'user', parts: [{ text: query }] }];
+function runGeminiFinanceAssistant_(query, model, records, apiKey, conversationTurns, intent, filters, conversationQuery) {
+  const backgroundContext = buildGeminiBackgroundContext_(model, records, conversationQuery, intent, filters);
+  const contents = buildConversationContents_(conversationTurns, query, backgroundContext);
   const toolsUsed = [];
+  const modelsUsed = [];
   const systemInstruction = buildFinanceAssistantSystemPrompt_();
   const toolDeclarations = buildFinanceToolDeclarations_();
 
   for (let turn = 0; turn < 4; turn++) {
-    const request = buildFinanceAssistantRequest_(systemInstruction, contents, toolDeclarations, turn === 0);
+    const request = buildFinanceAssistantRequest_(systemInstruction, contents, toolDeclarations);
     const tokenEstimate = _countGeminiTokens(request, apiKey);
     const payload = _callGeminiPayload_(request, apiKey, tokenEstimate);
+    modelsUsed.push(payload._modelUsed || GEMINI_MODEL_CHAIN[0]);
     const candidate = payload.candidates && payload.candidates[0];
     if (!candidate || !candidate.content) {
       throw new Error('Gemini returned no candidate content.');
@@ -209,7 +227,8 @@ function runGeminiFinanceAssistant_(query, model, records, apiKey) {
       }
       return {
         text: text,
-        toolsUsed: toolsUsed.filter(uniqueValue_)
+        toolsUsed: toolsUsed.filter(uniqueValue_),
+        modelsUsed: modelsUsed.filter(uniqueValue_)
       };
     }
 
@@ -238,17 +257,21 @@ function runGeminiFinanceAssistant_(query, model, records, apiKey) {
 function buildFinanceAssistantSystemPrompt_() {
   return [
     "You are Michael's Senior Wealth Strategist.",
-    'You have access to exact local finance tools.',
-    'For any question about the user financial data, call one or more tools before answering.',
+    'You have access to exact local finance tools, recent conversation context, verified analytics, and raw transaction evidence.',
+    'Use prior turns to resolve follow-up questions such as "that month", "now", "those", or "break it down further".',
+    'Use your own analysis and judgment. Do not simply restate tool JSON.',
+    'Call tools when you need exact scoped totals, drill-downs, tables, or more transaction rows.',
+    'If the verified background context already answers the question, you may answer directly without tool calls.',
     'Do not invent totals, categories, accounts, merchants, dates, or transaction IDs.',
-    'If the user asks for examples, include examples from tool results.',
+    'If the user asks for examples, include examples from the raw ledger or tool results.',
     'If a month is ambiguous, say which resolved month(s) were used.',
-    'Use the tool output as the source of truth.',
+    'Tool output is the source of truth when exact values are requested.',
+    'When useful, provide a compact table in plain text markdown.',
     'Be concise but complete.'
   ].join('\n');
 }
 
-function buildFinanceAssistantRequest_(systemInstruction, contents, toolDeclarations, forceToolCall) {
+function buildFinanceAssistantRequest_(systemInstruction, contents, toolDeclarations) {
   return {
     systemInstruction: {
       role: 'system',
@@ -258,13 +281,13 @@ function buildFinanceAssistantRequest_(systemInstruction, contents, toolDeclarat
     tools: [{ functionDeclarations: toolDeclarations }],
     toolConfig: {
       functionCallingConfig: {
-        mode: forceToolCall ? 'ANY' : 'AUTO'
+        mode: 'AUTO'
       }
     },
     generationConfig: {
-      temperature: 0.2,
+      temperature: 0.35,
       topP: 0.9,
-      maxOutputTokens: 1400
+      maxOutputTokens: 1800
     }
   };
 }
@@ -328,7 +351,7 @@ function buildFinanceToolDeclarations_() {
     },
     {
       name: 'search_transactions',
-      description: 'Return exact transactions matching optional month, category, merchant, and account filters.',
+      description: 'Return exact raw transactions matching optional month, category, merchant, and account filters. Use this when you need broader evidence, exhaustive examples, or a detailed table.',
       parameters: {
         type: 'OBJECT',
         properties: {
@@ -415,9 +438,34 @@ function saveChatHistory_(userMessage, botReply) {
   props.setProperty('chat_history', JSON.stringify(history));
 }
 
+function getConversationTurns_() {
+  try {
+    return JSON.parse(PropertiesService.getUserProperties().getProperty(CHAT_CONTEXT_KEY) || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveConversationTurn_(userMessage, assistantMessage, meta) {
+  const props = PropertiesService.getUserProperties();
+  const history = getConversationTurns_();
+  history.push({
+    user: String(userMessage || ''),
+    assistant: String(assistantMessage || ''),
+    mode: meta && meta.mode ? meta.mode : '',
+    modelsUsed: meta && meta.modelsUsed ? meta.modelsUsed : [],
+    toolsUsed: meta && meta.toolsUsed ? meta.toolsUsed : []
+  });
+  while (history.length > MAX_CONTEXT_TURNS) {
+    history.shift();
+  }
+  props.setProperty(CHAT_CONTEXT_KEY, JSON.stringify(history));
+}
+
 function clearChatHistory_() {
   const props = PropertiesService.getUserProperties();
   props.deleteProperty('chat_history');
+  props.deleteProperty(CHAT_CONTEXT_KEY);
 }
 
 function setupDashboard_(sheet) {
@@ -1153,6 +1201,94 @@ function buildAiContext_(model, records, query, intent, options) {
   return lines.join('\n');
 }
 
+function buildConversationQuery_(conversationTurns, query) {
+  const priorUserTurns = (conversationTurns || []).slice(-MAX_CONTEXT_TURNS).map(function(turn) {
+    return String(turn.user || '').trim();
+  }).filter(Boolean);
+  return priorUserTurns.concat([String(query || '').trim()]).join('\n');
+}
+
+function buildConversationContents_(conversationTurns, query, backgroundContext) {
+  const contents = [];
+  (conversationTurns || []).slice(-MAX_CONTEXT_TURNS).forEach(function(turn) {
+    if (turn.user) {
+      contents.push({
+        role: 'user',
+        parts: [{ text: turn.user }]
+      });
+    }
+    if (turn.assistant) {
+      contents.push({
+        role: 'model',
+        parts: [{ text: turn.assistant }]
+      });
+    }
+  });
+
+  contents.push({
+    role: 'user',
+    parts: [{
+      text: [
+        'VERIFIED FINANCE CONTEXT',
+        backgroundContext,
+        '',
+        'CURRENT USER REQUEST',
+        String(query || '')
+      ].join('\n')
+    }]
+  });
+  return contents;
+}
+
+function buildGeminiBackgroundContext_(model, records, conversationQuery, intent, filters) {
+  const lines = [];
+  lines.push(buildAiContext_(model, records, conversationQuery, intent, {
+    evidenceLimit: Math.max(MAX_EVIDENCE_TRANSACTIONS * 2, 24)
+  }));
+
+  const rawLedger = buildRawLedgerContext_(records, filters);
+  if (rawLedger.length) {
+    lines.push('');
+    lines.push('=== RAW TRANSACTION LEDGER ===');
+    rawLedger.forEach(function(line) {
+      lines.push(line);
+    });
+  }
+
+  return lines.join('\n');
+}
+
+function buildRawLedgerContext_(records, filters) {
+  const activeFilters = filters || { months: [], categories: [], merchants: [] };
+  const scoped = hasActiveFilters_(activeFilters) ? filterTransactionsByRetrieval_(records, activeFilters) : [];
+  let sourceRecords = scoped.length ? scoped : records.slice();
+  sourceRecords = sourceRecords.filter(function(record) {
+    return record.date;
+  }).sort(function(a, b) {
+    return b.date.getTime() - a.date.getTime();
+  });
+
+  const maxRows = sourceRecords.length <= FULL_LEDGER_TRANSACTION_THRESHOLD
+    ? sourceRecords.length
+    : MAX_LEDGER_CONTEXT_TRANSACTIONS;
+
+  return sourceRecords.slice(0, maxRows).map(function(record) {
+    const amount = Number(record.amount || 0);
+    const signedAmount = amount >= 0
+      ? '+' + formatCurrency_(amount)
+      : '-' + formatCurrency_(Math.abs(amount));
+    return [
+      formatDateForPrompt_(record.date),
+      truncateLabel_(record.name, 42),
+      signedAmount,
+      formatDetailedCategoryLabel_(record.category),
+      truncateLabel_(formatAccountLabel_(record.account), 22),
+      record.pending ? 'pending' : 'posted',
+      '(' + record.id + ')'
+    ].join(' | ');
+  });
+}
+
 function buildResponseContract_(intent) {
   const lines = ['=== RESPONSE CONTRACT ==='];
   lines.push('Use only the verified blocks that were provided.');
@@ -1735,7 +1871,7 @@ function normalizeLimit_(value, fallback) {
   if (!parsed || parsed < 1) {
     return fallback;
   }
-  return Math.min(20, Math.round(parsed));
+  return Math.min(MAX_TOOL_TRANSACTION_RESULTS, Math.round(parsed));
 }
 
 function normalizeFunctionArgs_(args) {
@@ -1987,62 +2123,92 @@ function _callGemini(generateRequest, apiKey, tokenEstimate) {
 }
 
 function _callGeminiPayload_(generateRequest, apiKey, tokenEstimate) {
-  const response = UrlFetchApp.fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(apiKey),
-    {
-      method: 'post',
-      contentType: 'application/json',
-      muteHttpExceptions: true,
-      payload: JSON.stringify(generateRequest)
-    }
-  );
-
-  const status = response.getResponseCode();
-  const payload = JSON.parse(response.getContentText() || '{}');
-  if (status >= 400) {
-    const message = payload.error && payload.error.message ? payload.error.message : 'Gemini request failed with status ' + status;
-    throw new Error(message);
-  }
-
-  if (payload.promptFeedback && payload.promptFeedback.blockReason) {
-    throw new Error('Prompt blocked: ' + payload.promptFeedback.blockReason);
-  }
-
-  storeLastAiUsage_(tokenEstimate, payload.usageMetadata || {});
-  return payload;
-}
-
-function _countGeminiTokens(generateRequest, apiKey) {
-  try {
+  let lastError = null;
+  for (let index = 0; index < GEMINI_MODEL_CHAIN.length; index++) {
+    const modelName = GEMINI_MODEL_CHAIN[index];
     const response = UrlFetchApp.fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:countTokens?key=' + encodeURIComponent(apiKey),
+      'https://generativelanguage.googleapis.com/v1beta/models/' + modelName + ':generateContent?key=' + encodeURIComponent(apiKey),
       {
         method: 'post',
         contentType: 'application/json',
         muteHttpExceptions: true,
-        payload: JSON.stringify({
-          generateContentRequest: generateRequest
-        })
+        payload: JSON.stringify(generateRequest)
       }
     );
-    if (response.getResponseCode() >= 400) {
-      return null;
-    }
+
+    const status = response.getResponseCode();
     const payload = JSON.parse(response.getContentText() || '{}');
-    return {
-      totalTokens: Number(payload.totalTokens || 0),
-      cachedContentTokenCount: Number(payload.cachedContentTokenCount || 0)
-    };
+    if (status >= 400) {
+      const message = payload.error && payload.error.message ? payload.error.message : 'Gemini request failed with status ' + status;
+      if (shouldRetryGeminiWithNextModel_(status, message, index)) {
+        lastError = new Error(message);
+        continue;
+      }
+      throw new Error(message);
+    }
+
+    if (payload.promptFeedback && payload.promptFeedback.blockReason) {
+      throw new Error('Prompt blocked: ' + payload.promptFeedback.blockReason);
+    }
+
+    payload._modelUsed = modelName;
+    storeLastAiUsage_(tokenEstimate, payload.usageMetadata || {}, modelName);
+    return payload;
+  }
+
+  throw lastError || new Error('Gemini request failed across all configured models.');
+}
+
+function _countGeminiTokens(generateRequest, apiKey) {
+  try {
+    for (let index = 0; index < GEMINI_MODEL_CHAIN.length; index++) {
+      const modelName = GEMINI_MODEL_CHAIN[index];
+      const response = UrlFetchApp.fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models/' + modelName + ':countTokens?key=' + encodeURIComponent(apiKey),
+        {
+          method: 'post',
+          contentType: 'application/json',
+          muteHttpExceptions: true,
+          payload: JSON.stringify({
+            generateContentRequest: generateRequest
+          })
+        }
+      );
+      if (response.getResponseCode() >= 400) {
+        continue;
+      }
+      const payload = JSON.parse(response.getContentText() || '{}');
+      return {
+        totalTokens: Number(payload.totalTokens || 0),
+        cachedContentTokenCount: Number(payload.cachedContentTokenCount || 0)
+      };
+    }
+    return null;
   } catch (e) {
     return null;
   }
 }
 
-function storeLastAiUsage_(tokenEstimate, usageMetadata) {
+function shouldRetryGeminiWithNextModel_(status, message, index) {
+  if (index >= GEMINI_MODEL_CHAIN.length - 1) {
+    return false;
+  }
+  const normalized = String(message || '').toLowerCase();
+  return status === 429 ||
+    status === 500 ||
+    status === 503 ||
+    normalized.indexOf('quota') !== -1 ||
+    normalized.indexOf('rate limit') !== -1 ||
+    normalized.indexOf('retry') !== -1 ||
+    normalized.indexOf('resource exhausted') !== -1;
+}
+
+function storeLastAiUsage_(tokenEstimate, usageMetadata, modelName) {
   const payload = {
     promptTokens: Number((usageMetadata && usageMetadata.promptTokenCount) || (tokenEstimate && tokenEstimate.totalTokens) || 0),
     outputTokens: Number((usageMetadata && usageMetadata.candidatesTokenCount) || 0),
-    totalTokens: Number((usageMetadata && usageMetadata.totalTokenCount) || ((tokenEstimate && tokenEstimate.totalTokens) || 0))
+    totalTokens: Number((usageMetadata && usageMetadata.totalTokenCount) || ((tokenEstimate && tokenEstimate.totalTokens) || 0)),
+    model: modelName || ''
   };
   PropertiesService.getUserProperties().setProperty(LAST_AI_USAGE_KEY, JSON.stringify(payload));
 }
