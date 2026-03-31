@@ -16,8 +16,8 @@ const MATRIX_TOP_ACCOUNT_COUNT = 5;
 const MAX_VISIBLE_TABLE_ROWS = 8;
 const MAX_EVIDENCE_TRANSACTIONS = 14;
 const MAX_CONTEXT_TURNS = 4;
-const FULL_LEDGER_TRANSACTION_THRESHOLD = 180;
-const MAX_LEDGER_CONTEXT_TRANSACTIONS = 180;
+const FULL_LEDGER_TRANSACTION_THRESHOLD = 360;
+const MAX_LEDGER_CONTEXT_TRANSACTIONS = 360;
 const MAX_TOOL_TRANSACTION_RESULTS = 200;
 const GEMINI_MODEL_CHAIN = ['gemini-2.5-flash', 'gemini-2.0-flash'];
 const ANALYTICS_LAYOUT = {
@@ -488,7 +488,7 @@ function setupDashboard_(sheet) {
     .setFontColor('#93c5fd')
     .setHorizontalAlignment('center');
   sheet.getRange('A3:H3')
-    .setValues([['TOTAL INCOME', 'TOTAL EXPENSES', 'NET CASHFLOW', 'SAVINGS RATE', 'DAILY BURN', 'TOP MERCHANT', 'WEEKEND SHARE', 'RECURRING']])
+    .setValues([['EXTERNAL INCOME', 'EXTERNAL SPEND', 'NET CASHFLOW', 'SAVINGS RATE', 'DAILY BURN', 'TOP MERCHANT', 'WEEKEND SHARE', 'RECURRING']])
     .setBackground('#1f2937')
     .setFontColor('#93c5fd')
     .setFontWeight('bold')
@@ -650,6 +650,9 @@ function buildAnalyticsModel_(records) {
     expenseCount: 0,
     incomeCount: 0,
     pendingCount: 0,
+    excludedTransactionCount: 0,
+    excludedCashOutflow: 0,
+    excludedCashInflow: 0,
     totalSpend: 0,
     totalIncome: 0,
     netCashflow: 0,
@@ -702,6 +705,21 @@ function buildAnalyticsModel_(records) {
     const detailedCategoryLabel = formatDetailedCategoryLabel_(record.category);
     const monthBucket = getOrCreateMonthBucket_(model.months, monthKey);
     const weekBucket = getOrCreateWeekBucket_(model.weeks, weekKey);
+    const cashflowClass = classifyCashflowRecord_(record, categoryLabel, detailedCategoryLabel);
+
+    if (cashflowClass.excludeFromCashflow) {
+      model.excludedTransactionCount += 1;
+      monthBucket.excludedCount += 1;
+      if (record.amount > 0) {
+        model.excludedCashInflow += record.amount;
+        monthBucket.excludedInflow += record.amount;
+      } else if (record.amount < 0) {
+        const movedAmount = Math.abs(record.amount);
+        model.excludedCashOutflow += movedAmount;
+        monthBucket.excludedOutflow += movedAmount;
+      }
+      return;
+    }
 
     if (record.amount > 0) {
       model.incomeCount += 1;
@@ -888,18 +906,21 @@ function buildOverviewTable_(model) {
     ['Transactions', model.transactionCount],
     ['Expenses', model.expenseCount],
     ['Pending', model.pendingCount],
-    ['Total Spend', roundCurrency_(model.totalSpend)],
-    ['Total Income', roundCurrency_(model.totalIncome)],
+    ['External Spend', roundCurrency_(model.totalSpend)],
+    ['External Income', roundCurrency_(model.totalIncome)],
     ['Net Cashflow', roundCurrency_(model.netCashflow)],
     ['Savings Rate', model.savingsRate],
     ['Daily Avg Burn', roundCurrency_(model.dailyAverageBurn)],
+    ['Excluded Internal Outflow', roundCurrency_(model.excludedCashOutflow)],
+    ['Excluded Internal Inflow', roundCurrency_(model.excludedCashInflow)],
+    ['Excluded Internal Count', model.excludedTransactionCount],
     ['Weekend Share', model.totalSpend > 0 ? model.weekendSpend / model.totalSpend : 0],
     ['Recurring Merchants', model.recurringCandidates.length]
   ];
 }
 
 function buildMonthlySummaryTable_(model) {
-  const table = [['Month', 'Income', 'Spend', 'Net', 'Top Account', 'Top Category', 'Example']];
+  const table = [['Month', 'Income', 'Spend', 'Net', 'Excluded Outflow', 'Excluded Inflow', 'Top Account', 'Top Category', 'Example']];
   model.monthKeys.forEach(function(monthKey) {
     const bucket = model.months[monthKey];
     table.push([
@@ -907,13 +928,15 @@ function buildMonthlySummaryTable_(model) {
       roundCurrency_(bucket.income),
       roundCurrency_(bucket.spend),
       roundCurrency_(bucket.net),
+      roundCurrency_(bucket.excludedOutflow || 0),
+      roundCurrency_(bucket.excludedInflow || 0),
       bucket.topAccount,
       bucket.topCategory,
       bucket.examples.length ? buildExampleList_(bucket.examples, 1) : 'N/A'
     ]);
   });
   if (table.length === 1) {
-    table.push(['No data', 0, 0, 0, 'N/A', 'N/A', 'N/A']);
+    table.push(['No data', 0, 0, 0, 0, 0, 'N/A', 'N/A', 'N/A']);
   }
   return table;
 }
@@ -1050,7 +1073,8 @@ function buildAiContext_(model, records, query, intent, options) {
   lines.push('=== VERIFIED OVERVIEW ===');
   lines.push('Period -> ' + formatDateForPrompt_(model.minDate) + ' to ' + formatDateForPrompt_(model.maxDate) + ' (' + model.dayCount + ' days / ' + model.monthCount + ' months)');
   lines.push('Transactions -> ' + model.transactionCount + ' total, ' + model.expenseCount + ' expenses, ' + model.pendingCount + ' pending');
-  lines.push('Totals -> Spend ' + formatCurrency_(model.totalSpend) + ', Income ' + formatCurrency_(model.totalIncome) + ', Net ' + formatCurrency_(model.netCashflow));
+  lines.push('Totals -> External Spend ' + formatCurrency_(model.totalSpend) + ', External Income ' + formatCurrency_(model.totalIncome) + ', Net ' + formatCurrency_(model.netCashflow));
+  lines.push('Excluded Internal Cash Movements -> Outflow ' + formatCurrency_(model.excludedCashOutflow) + ', Inflow ' + formatCurrency_(model.excludedCashInflow) + ', Count ' + model.excludedTransactionCount);
   lines.push('Savings Rate -> ' + formatPercent_(model.savingsRate));
   lines.push('Daily Burn -> ' + formatCurrency_(model.dailyAverageBurn));
   lines.push('Top Accounts -> [' + formatBucketSummary_(model.accountList, MAX_TOP_ITEMS) + ']');
@@ -1330,6 +1354,8 @@ function buildDirectAnswer_(model, query, intent, filters) {
       lines.push('Spend -> ' + formatCurrency_(bucket.spend));
       lines.push('Income -> ' + formatCurrency_(bucket.income));
       lines.push('Net -> ' + formatCurrency_(bucket.net));
+      lines.push('Excluded Internal Outflow -> ' + formatCurrency_(bucket.excludedOutflow || 0));
+      lines.push('Excluded Internal Inflow -> ' + formatCurrency_(bucket.excludedInflow || 0));
       lines.push('Accounts -> [' + formatBucketSummary_(bucket.accountList, MAX_TOP_ITEMS) + ']');
       lines.push('Categories -> [' + formatBucketSummary_(bucket.categoryList, MAX_TOP_ITEMS) + ']');
       lines.push('Examples -> [' + buildExampleList_(bucket.examples, MAX_CATEGORY_EXAMPLES) + ']');
@@ -1428,7 +1454,7 @@ function buildStrategistDiagnostics_(model) {
   const monthDelta = latestBucket && previousBucket ? latestBucket.spend - previousBucket.spend : 0;
   const biggestDrift = model.categoryDrift.length ? model.categoryDrift[0] : null;
 
-  lines.push('Average Monthly Spend -> ' + formatCurrency_(averageMonthlySpend));
+    lines.push('Average Monthly Spend -> ' + formatCurrency_(averageMonthlySpend));
   if (highestMonth) {
     lines.push('Highest Spend Month -> ' + highestMonth.key + ' ' + formatCurrency_(highestMonth.spend));
   }
@@ -1468,6 +1494,8 @@ function buildLatestMonthSnapshot_(model) {
     'Month -> ' + latestKey,
     'Spend -> ' + formatCurrency_(bucket.spend),
     'Income -> ' + formatCurrency_(bucket.income),
+    'Excluded Internal Outflow -> ' + formatCurrency_(bucket.excludedOutflow || 0),
+    'Excluded Internal Inflow -> ' + formatCurrency_(bucket.excludedInflow || 0),
     'Accounts -> [' + formatBucketSummary_(bucket.accountList, 5) + ']',
     'Categories -> [' + formatBucketSummary_(bucket.categoryList, 6) + ']',
     'Merchants -> [' + formatBucketSummary_(bucket.merchantList, 6) + ']',
@@ -1656,6 +1684,9 @@ function buildOverviewToolResult_(model) {
     period_end: formatDateForPrompt_(model.maxDate),
     total_spend: roundCurrency_(model.totalSpend),
     total_income: roundCurrency_(model.totalIncome),
+    excluded_internal_outflow: roundCurrency_(model.excludedCashOutflow),
+    excluded_internal_inflow: roundCurrency_(model.excludedCashInflow),
+    excluded_internal_count: model.excludedTransactionCount,
     net_cashflow: roundCurrency_(model.netCashflow),
     savings_rate: roundCurrency_(model.savingsRate * 100),
     daily_average_burn: roundCurrency_(model.dailyAverageBurn),
@@ -1688,6 +1719,8 @@ function buildMonthBreakdownToolResult_(records, model, args) {
         spend: roundCurrency_(bucket.spend),
         income: roundCurrency_(bucket.income),
         net: roundCurrency_(bucket.net),
+        excluded_internal_outflow: roundCurrency_(bucket.excludedOutflow || 0),
+        excluded_internal_inflow: roundCurrency_(bucket.excludedInflow || 0),
         accounts: args.include_accounts === false ? [] : serializeNamedTotals_(bucket.accountList, 8),
         categories: args.include_categories === false ? [] : serializeNamedTotals_(bucket.categoryList, 8),
         example_transactions: args.include_examples === false ? [] : serializeTransactions_(monthRecords, 5)
@@ -2345,6 +2378,9 @@ function getOrCreateMonthBucket_(months, key) {
       transactionCount: 0,
       weekendSpend: 0,
       weekdaySpend: 0,
+      excludedOutflow: 0,
+      excludedInflow: 0,
+      excludedCount: 0,
       accounts: {},
       categories: {},
       merchants: {},
@@ -2505,6 +2541,24 @@ function formatCategoryLabel_(category) {
 function formatDetailedCategoryLabel_(category) {
   const raw = String(category || 'Uncategorized');
   return toTitleCase_(raw.replace(/\s*>\s*/g, ' / ').replace(/_/g, ' '));
+}
+
+function classifyCashflowRecord_(record, categoryLabel, detailedCategoryLabel) {
+  const normalizedName = normalizeQueryText_(record && record.name);
+  const primary = String(categoryLabel || '');
+  const detailed = String(detailedCategoryLabel || '');
+  const isCreditCardPayment = detailed === 'Loan Payments / Loan Payments Credit Card Payment' ||
+    /payment thank you|autopay payment|online ach payment|automatic payment|des ach pmt|des ccpymt|credit card payment/.test(normalizedName);
+  const isAccountTransfer = primary === 'Transfer In' ||
+    primary === 'Transfer Out' ||
+    detailed === 'Transfer In / Transfer In Account Transfer' ||
+    detailed === 'Transfer Out / Transfer Out Account Transfer';
+
+  return {
+    isCreditCardPayment: isCreditCardPayment,
+    isAccountTransfer: isAccountTransfer,
+    excludeFromCashflow: isCreditCardPayment || isAccountTransfer
+  };
 }
 
 function truncateLabel_(text, limit) {
