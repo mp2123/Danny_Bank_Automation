@@ -104,6 +104,13 @@
         margin-top: 10px;
       }
 
+      .config-status {
+        margin-top: 8px;
+        font-size: 11px;
+        color: var(--text);
+        line-height: 1.4;
+      }
+
       .prompt-pill {
         display: inline-block;
         padding: 6px 12px;
@@ -133,31 +140,41 @@
 
     <div style="margin-bottom:15px;">
       <div style="font-size:10px; color:var(--muted); margin-bottom:8px; font-weight:bold; text-transform:uppercase; letter-spacing:0.5px;">Analytical Prompts</div>
-      <div class="prompt-pill" onclick="usePrompt('Analyze my weekend leaks.')">📊 Weekend</div>
-      <div class="prompt-pill" onclick="usePrompt('Identify vampire costs.')">🧛 Vampire</div>
-      <div class="prompt-pill" onclick="usePrompt('Optimize my Top 3 categories.')">📉 Optimize</div>
+      <div class="prompt-pill" onclick="usePrompt('Analyze my weekend leaks. Include categories, merchants, and examples.')">📊 Weekend</div>
+      <div class="prompt-pill" onclick="usePrompt('What is my monthly spend breakdown for each past month? Include account and category breakdowns with examples.')">🗓️ Monthly</div>
+      <div class="prompt-pill" onclick="usePrompt('Give me category breakdowns with merchant examples and transaction IDs.')">🧾 Category</div>
       <div class="prompt-pill" onclick="usePrompt('What is my real savings rate?')">💰 Rate</div>
+      <div class="prompt-pill" onclick="usePrompt('What changed most in my latest month versus the prior month?')">📈 Drift</div>
+      <div class="prompt-pill" onclick="usePrompt('Which merchants look recurring or subscription-like?')">🔁 Recurring</div>
+      <div class="prompt-pill" onclick="usePrompt('Which transactions look unusual or worth reviewing?')">🚨 Anomalies</div>
+      <div class="prompt-pill" onclick="usePrompt('Where can I cut $500 per month with the least lifestyle damage?')">✂️ Cut $500</div>
+      <div class="prompt-pill" onclick="usePrompt('What are my biggest merchant concentration risks?')">🏪 Merchant Risk</div>
+      <div class="prompt-pill" onclick="usePrompt('Which categories are driving most of my overspend and what should I do first?')">🎯 Overspend</div>
     </div>
 
-    <input type="text" id="chatInput" placeholder="Ask Gemini..." onkeypress="if(event.key === 'Enter') sendMsg()">
+    <input type="text" id="chatInput" placeholder="Ask about months, weekends, accounts, categories, or merchants..." onkeypress="if(event.key === 'Enter') sendMsg()">
     <button class="btn btn-ai" onclick="sendMsg()">Send</button>
 
     <div class="sync-card">
       <div style="font-weight:bold; color:var(--blue); font-size:12px;">🔒 Private Local Sync</div>
       <code style="display:block; background:#000; padding:5px; margin-top:5px; border-radius:4px; font-size:10px;">python3 -m src.engine.main</code>
+      <div id="configStatus" class="config-status">Checking Gemini configuration…</div>
     </div>
 
-    <button class="btn" style="margin-top:15px;" onclick="refreshVisuals()">📈 Refresh Visuals 2.0</button>
+    <button class="btn" style="margin-top:15px;" onclick="refreshVisuals()">📈 Refresh Command Center</button>
     <div class="status" id="statusText">Ready</div>
 
     <script>
-      window.onload = loadHistory;
+      window.onload = function() {
+        loadHistory();
+        loadConfigStatus();
+      };
 
       function loadHistory() {
         google.script.run.withSuccessHandler(history => {
-          const container = document.getElementById('chat-history');
+          clearChatUi_();
           if (history.length === 0) {
-            appendBotMessage("AI: Connected! Enter your key in 'Settings' to start analysis.");
+            appendBotMessage("Connected. Ask for monthly breakdowns, weekend leaks, category detail, or savings analysis.");
             return;
           }
           history.forEach(m => {
@@ -165,6 +182,12 @@
             appendBotMessage(m.bot);
           });
         }).getChatHistory();
+      }
+
+      function loadConfigStatus() {
+        google.script.run.withSuccessHandler(status => {
+          document.getElementById('configStatus').textContent = status;
+        }).getGeminiConfigStatus();
       }
 
       function usePrompt(text) {
@@ -220,6 +243,10 @@
         return b;
       }
 
+      function clearChatUi_() {
+        document.getElementById('chat-history').innerHTML = '';
+      }
+
       function setStatus(txt) { document.getElementById('statusText').textContent = txt; }
 
       function sendMsg() {
@@ -237,12 +264,24 @@
         google.script.run.withSuccessHandler(reply => {
           botDiv.remove(); // Remove thinking
           appendBotMessage(reply);
+          loadConfigStatus();
+        }).withFailureHandler(error => {
+          botDiv.remove();
+          appendBotMessage('Request failed: ' + error.message);
+          setStatus('AI request failed');
         }).chatWithData(msg);
       }
 
       function refreshVisuals() {
         setStatus('Updating Dashboard...');
-        google.script.run.withSuccessHandler(() => setStatus('Dashboard Ready!')).refreshVisuals();
+        google.script.run.withSuccessHandler(message => {
+          clearChatUi_();
+          appendBotMessage("Connected. Ask for monthly breakdowns, weekend leaks, category detail, or savings analysis.");
+          loadConfigStatus();
+          setStatus(message || 'Dashboard Ready!');
+        })
+          .withFailureHandler(error => setStatus('Refresh failed: ' + error.message))
+          .refreshVisuals();
       }
     </script>
   </body>

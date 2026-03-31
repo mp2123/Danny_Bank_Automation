@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from .plaid_client import PlaidClient
 from .sheets_client import SheetsClient
 from .processor import TransactionProcessor
+from .sync_utils import determine_sync_window
 
 # Setup logging
 log_file_path = os.path.join(os.path.dirname(__file__), '../../automation.log')
@@ -18,6 +19,7 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
 
 def main():
     """Main function to orchestrate the automation."""
@@ -40,6 +42,12 @@ def main():
     # Split tokens by comma to support multiple institutions
     access_tokens = [t.strip() for t in PLAID_ACCESS_TOKEN.split(',') if t.strip()]
     logger.info(f"Detected {len(access_tokens)} institution(s) to sync.")
+    logger.info(
+        "Sync target -> spreadsheet_id=%s | sheet_name=%s | plaid_env=%s",
+        GOOGLE_SPREADSHEET_ID,
+        GOOGLE_SHEET_NAME,
+        PLAID_ENV,
+    )
 
     # 2. Initialize clients
     plaid_client = PlaidClient(PLAID_CLIENT_ID, PLAID_SECRET, PLAID_ENV)
@@ -56,41 +64,47 @@ def main():
 
     # 4. Determine Date Range (Incremental Sync)
     latest_date_str = sheets_client.get_latest_transaction_date(google_creds)
-    
-    today = datetime.date.today()
-    if latest_date_str:
-        try:
-            last_sync_date = datetime.datetime.strptime(latest_date_str, "%Y-%m-%d").date()
-            start_date = last_sync_date - datetime.timedelta(days=1)
-            logger.info(f"Incremental sync detected. Last transaction was {latest_date_str}. Starting from {start_date.isoformat()}")
-        except ValueError:
-            start_date = today - datetime.timedelta(days=730)
-            logger.warning(f"Could not parse latest date '{latest_date_str}'. Defaulting to 2 years.")
+    logger.info("Latest detected transaction date -> %s", latest_date_str or "none")
+
+    start_date, end_date, sync_mode = determine_sync_window(latest_date_str)
+    logger.info(
+        "Chosen sync mode -> %s | window=%s -> %s",
+        sync_mode,
+        start_date.isoformat(),
+        end_date.isoformat(),
+    )
+    if sync_mode == 'incremental':
+        logger.info(f"Incremental sync detected. Last transaction was {latest_date_str}. Starting from {start_date.isoformat()}")
     else:
-        start_date = today - datetime.timedelta(days=730)
+        if latest_date_str:
+            logger.warning(f"Could not parse latest date '{latest_date_str}'. Defaulting to 2 years.")
         logger.info("No previous transactions found. Performing deep 2-year history sync.")
-        
-    end_date = today
 
     # 5. Retrieve Existing Transaction IDs (for deduplication)
     logger.info("Reading existing transaction IDs from Google Sheet...")
     existing_ids = sheets_client.get_existing_ids(google_creds)
+    logger.info("Loaded %s existing transaction IDs from Google Sheet.", len(existing_ids))
+    if existing_ids and sync_mode == 'bootstrap':
+        logger.warning(
+            "Existing IDs were found while sync mode is bootstrap. Verify the target sheet date column formatting and spreadsheet target."
+        )
 
     # 6. Retrieve Transactions from all Plaid tokens
     all_new_data = []
-    for token in access_tokens:
-        institution_name = "Unknown" # Ideally we'd fetch this from Plaid
-        logger.info(f"Retrieving transactions for token: {token[:15]}...")
+    total_tokens = len(access_tokens)
+    for index, token in enumerate(access_tokens, start=1):
+        logger.info(f"Retrieving transactions for institution {index} of {total_tokens}...")
         transactions = plaid_client.get_transactions(token, start_date, end_date)
 
         if transactions is None:
-            logger.error(f"Failed to retrieve transactions for token {token[:15]}. Skipping.")
+            logger.error(f"Failed to retrieve transactions for institution {index}. Skipping.")
             continue
 
         # 7. Parse Transactions
-        logger.info(f"Parsing data for institution...")
+        logger.info("Parsing data for institution...")
         parsed_data = processor.parse_plaid_transactions(transactions, existing_ids)
         all_new_data.extend(parsed_data)
+        existing_ids.update(row[0] for row in parsed_data)
 
     # 8. Update Google Sheet
     if not all_new_data:

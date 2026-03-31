@@ -24,7 +24,8 @@ class TransactionProcessor:
                 continue
 
             # Extract fields
-            date = t['date'].isoformat()
+            raw_date = t['date']
+            date = raw_date.isoformat() if hasattr(raw_date, 'isoformat') else str(raw_date)
             name = t['name']
             amount = t['amount'] * -1 # Plaid amounts are positive for debits, we invert for easier reading
             
@@ -41,6 +42,7 @@ class TransactionProcessor:
             # Match headers order
             row = [transaction_id, date, name, amount, category, account_id, pending]
             parsed_data.append(row)
+            existing_ids.add(transaction_id)
 
         logger.info(f"Parsed {len(parsed_data)} new transactions.")
         return parsed_data

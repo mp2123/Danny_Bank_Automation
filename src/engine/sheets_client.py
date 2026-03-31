@@ -1,10 +1,12 @@
-import os
 import logging
+import os
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+
+from .sync_utils import coerce_sheet_date_value, extract_existing_ids
 
 logger = logging.getLogger(__name__)
 
@@ -69,8 +71,7 @@ class SheetsClient:
             service = build('sheets', 'v4', credentials=creds)
             sheet = service.spreadsheets()
 
-            # Wrap sheet name in single quotes to handle hyphens/spaces
-            range_to_append = f"'{self.sheet_name}'" 
+            range_to_append = f"'{self.sheet_name}'!A:G"
 
             body = {
                 'values': values
@@ -100,8 +101,7 @@ class SheetsClient:
             service = build('sheets', 'v4', credentials=creds)
             sheet = service.spreadsheets()
 
-            # Assume IDs are in the first column (A)
-            range_name = f"'{self.sheet_name}'!A:A"
+            range_name = f"'{self.sheet_name}'!A2:A"
             result = sheet.values().get(
                 spreadsheetId=self.spreadsheet_id,
                 range=range_name
@@ -110,8 +110,8 @@ class SheetsClient:
             values = result.get('values', [])
             if not values:
                 return set()
-            
-            return set(row[0] for row in values if row)
+
+            return extract_existing_ids(values)
 
         except HttpError as err:
             logger.error(f"Google Sheets API Error: {err}")
@@ -126,23 +126,24 @@ class SheetsClient:
             service = build('sheets', 'v4', credentials=creds)
             sheet = service.spreadsheets()
 
-            # Assume dates are in the second column (B)
-            range_name = f"'{self.sheet_name}'!B:B"
+            range_name = f"'{self.sheet_name}'!B2:B"
             result = sheet.values().get(
                 spreadsheetId=self.spreadsheet_id,
-                range=range_name
+                range=range_name,
+                valueRenderOption='UNFORMATTED_VALUE',
+                dateTimeRenderOption='SERIAL_NUMBER'
             ).execute()
 
             values = result.get('values', [])
-            if len(values) <= 1: # Only header exists or sheet is empty
+            if not values:
                 return None
-            
-            # Skip the header (row 0), then filter and find the max
-            dates = [row[0] for row in values[1:] if row and len(row[0]) == 10]
+
+            dates = [coerce_sheet_date_value(row[0]) for row in values if row]
+            dates = [date for date in dates if date]
             if not dates:
                 return None
-            
-            return max(dates) # YYYY-MM-DD strings sort correctly
+
+            return max(dates).isoformat()
 
         except HttpError as err:
             logger.error(f"Google Sheets API Error: {err}")

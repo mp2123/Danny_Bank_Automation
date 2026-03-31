@@ -46,7 +46,7 @@
 3. Create `Code.gs` and `Sidebar.html` using the files in `src/appscript/`.
 4. **Save and Refresh** the Google Sheet.
 5. Click **🏦 Bank Automation > ⚙️ Initial Setup**.
-6. **Gemini Key:** Go to the new **Settings** tab and paste your Gemini API Key in cell `B2`.
+6. **Gemini Key:** Go to the new **Settings** tab and paste your Gemini API Key in cell `B2` once. The script will migrate it into secure Script/User Properties on first use and the sidebar will report that the key is stored securely.
 
 ---
 
@@ -58,7 +58,7 @@ python3 -m src.engine.main
 ```
 
 ### B. One-Click Shortcut (Mac)
-1. Double-click the `run_sync.command` file.
+1. Double-click the repo's `run_sync.command` file.
 2. *First time only:* Right-click > Open, then run `xattr -d com.apple.quarantine run_sync.command` in terminal if blocked.
 
 ### C. CSV Imports (Apple Card / US Bank)
@@ -72,5 +72,8 @@ python3 -m src.engine.main
 ---
 
 ## 5. Dashboard & AI
-1. After syncing, click **🏦 Bank Automation > 📈 Refresh Charts/Visuals**.
-2. Open the Sidebar to ask Gemini questions about your data using the **Insight Ideas** pills.
+1. After syncing, click **🏦 Bank Automation > 📈 Refresh Dashboard & Visuals**.
+2. The hidden `Analytics` tab is now script-generated, so the `Dashboard` and `Insights` tabs should exactly mirror the sheet-backed analytics tables.
+3. Open the Sidebar to ask Gemini questions about your data using the richer monthly, weekend, and category prompt pills.
+4. Ask monthly history questions to receive verified month-by-month totals with account/category rollups and examples.
+5. Ask category or breakdown questions to receive `Category -> Total -> [Merchant (Transaction ID)]` examples on demand.
