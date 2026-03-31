@@ -1,5 +1,8 @@
 # Danny Bank Automation - PROJECT_TRANSITION_V5.md
 
+Historical transition memo retained for archive.
+For the current operating state, use [README.md](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/README.md) and [sessions.md](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/sessions.md).
+
 ## 🎯 Project Overview
 A secure, local-first bank automation system syncing Plaid transactions to Google Sheets with a Gemini-powered "Wealth Strategist" sidebar.
 

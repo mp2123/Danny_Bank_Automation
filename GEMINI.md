@@ -1,31 +1,39 @@
-# Danny Bank Automation - Project Context
+# Gemini Project Context
 
-## Overview
-A secure, shareable bank transaction automation tool using Plaid and Google Sheets.
-Targeting cross-platform (macOS/Windows) via a Python backend and a Google Sheets/AppsScript frontend.
+## Project Summary
+Danny Bank Automation is a local-first personal finance intelligence project.
 
-## Goals
-1. **Automation:** Periodic retrieval of transaction data from Plaid.
-2. **Dashboard:** Visual insights and charts in Google Sheets.
-3. **AI Integration:** Querying transaction history via Gemini Sidebar.
-4. **Security:** Secure local credential management (.env, token.json).
-5. **Shareability:** Easy-to-install tool for other users.
+It uses:
+- Python for Plaid + Google Sheets sync
+- Google Apps Script for dashboarding and sidebar behavior
+- Gemini for finance Q&A and narrative advice
 
-## Project Structure (Target)
-- `src/engine/`: Python backend for Plaid/Sheets APIs.
-- `src/appscript/`: Google Apps Script source code.
-- `.gemini/skills/`: Workspace-specific Agent Skills.
-- `docs/`: Installation and design documentation.
-- `tests/`: Module testing.
+## Current AI Design
+The current target behavior is hybrid:
+- verified local analytics produce the factual finance blocks
+- Gemini provides synthesis, prioritization, and advice
+- deterministic fallback remains available when Gemini is unavailable or quota-limited
 
-## Strategic Direction (Senior Engineer Notes)
-- Adhere to the "Registry" pattern seen in the user's previous "Agentic OS" project.
-- Prioritize data privacy; avoid logging sensitive financial details.
-- Use a cross-platform Python script for the heavy lifting (Plaid fetching).
-- Leverage Google Apps Script for the user-facing sidebar and dashboard logic.
-- Implement an Agent Skill to guide LLM interactions with bank data.
-- **Data Strategy:** Use Plaid's "Limited Production" mode (200 free lifetime calls) for real-world testing and personal automation.
+The model should not be relied on for exact accounting math when verified local tool results already exist.
 
-## Deployment Environment
-- Primary: macOS (darwin)
-- Secondary: Windows (compatible with Task Scheduler)
+## Important AI Constraints
+- Raw transaction rows may be passed into Gemini by the Apps Script layer when context size allows.
+- Payments/transfers remain in the raw ledger but must not be counted as lifestyle spend in verified analytics.
+- Evidence-heavy prompts should be grounded in local tool output before Gemini writes the narrative section.
+
+## Key Files
+- [src/appscript/Code.gs](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Code.gs)
+- [src/appscript/Sidebar.html](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Sidebar.html)
+- [src/engine/main.py](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/main.py)
+
+## Current Status
+Current recovery version: `v5.4`
+
+Recent focus areas:
+- grounded evidence responses
+- chart stability and readability
+- quota fallback behavior
+- payment/transfer exclusion from verified spend analytics
+
+## Deployment Reminder
+Repo changes under `src/appscript/` are not live until they are manually copied into the bound Apps Script project in Google Sheets.
