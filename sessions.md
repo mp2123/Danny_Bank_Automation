@@ -19,6 +19,7 @@ What is working now:
 - Apps Script API deployment helper: [appscript_deploy.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/appscript_deploy.py)
 - Manual income CSV importer: [csv_importer.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/csv_importer.py)
 - First-user local setup guide: [LOCAL_APP_SETUP.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/LOCAL_APP_SETUP.md)
+- Local packaging plan: [PACKAGING_PLAN.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/PACKAGING_PLAN.md)
 - Rules-based analytics exclusion system (Analytics, Dashboard, AI)
 - Hidden `Analytics` data mart powering the visible sheets
 - `Dashboard` and `Insights` rendering from Apps Script
@@ -35,6 +36,10 @@ Completed:
 - kept confirmed import behind explicit browser confirmation because it can append rows to Google Sheets
 - added import result rendering, row review output, last-import activity state, and dashboard-refresh next action after successful append
 - kept real live import blocked until a user-provided `src/imports/income.csv` exists
+
+Packaging prep:
+- added [PACKAGING_PLAN.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/PACKAGING_PLAN.md) for the local app wrapper/signing/notarization path
+- kept SaaS, billing, remote diagnostics, and hosted transaction storage deferred
 
 ### Session 11 - 2026-05-02
 Objective:

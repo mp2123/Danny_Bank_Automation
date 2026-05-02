@@ -61,6 +61,8 @@ Before selling a packaged Mac app:
 - keep financial advice language framed as analytics and planning, not regulated financial advice
 - make logs and diagnostics secret-safe by default
 
+See [PACKAGING_PLAN.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/PACKAGING_PLAN.md) for the current local app packaging sequence.
+
 ## Monetization Sequence
 1. Harden the personal/internal product.
 2. Offer a paid setup/service version to a small number of users.

@@ -70,6 +70,7 @@ Primary files:
 - [GEMINI.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/GEMINI.md): AI-oriented project context
 - [PROJECT_TRANSITION_V5.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/PROJECT_TRANSITION_V5.md): archival transition memo from the earlier recovery phase
 - [LOCAL_APP_SETUP.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/LOCAL_APP_SETUP.md): customer-facing local app setup guide
+- [PACKAGING_PLAN.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/PACKAGING_PLAN.md): local app packaging and distribution plan
 - [research/docs/setup_guide.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/research/docs/setup_guide.md): setup details
 
 ## Setup
@@ -377,6 +378,7 @@ node --check --input-type=commonjs < src/appscript/Code.gs
 ## Next Improvement Themes
 - Continue improving the Apps Script deployment helper and later add optional `clasp` power-user support
 - Prove manual income import with a real local `src/imports/income.csv`
+- Prepare signed/notarized Mac packaging after the local workflows are proven
 - Package/polish the local control center into the first sellable Mac-friendly surface
 - Resume U.S. Bank connection after Plaid Production registration approval
 - Connect Capital One and other OAuth institutions
