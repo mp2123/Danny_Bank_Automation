@@ -8,9 +8,11 @@ from src.engine.control_center import (
     build_config_status,
     build_manual_income_import_guidance,
     build_next_actions,
+    build_readiness,
     build_quickstart_repair_command,
     build_sheet_open_url,
     build_sheet_status,
+    build_status_payload,
     parse_sync_summary,
     record_runtime_event,
     build_us_bank_guidance,
@@ -260,3 +262,102 @@ def test_sheet_open_url_is_kept_out_of_status_payload():
     url = build_sheet_open_url({'GOOGLE_SPREADSHEET_ID': 'sheet_123'})
 
     assert url == 'https://docs.google.com/spreadsheets/d/sheet_123/edit'
+
+
+def test_readiness_with_missing_env_blocks_sync(tmp_path):
+    readiness = build_readiness(
+        root=tmp_path,
+        env={},
+        doctor_payload={'checks': []},
+        accounts_payload={'items': []},
+    )
+
+    assert readiness['can_sync'] is False
+    assert readiness['recommended_next_step']['title'] == 'Create local .env'
+    assert any(step['title'] == 'Create local .env' and step['status'] == 'missing' for step in readiness['steps'])
+
+
+def test_readiness_with_missing_plaid_keys_blocks_sync(tmp_path):
+    (tmp_path / '.env').write_text('GOOGLE_SPREADSHEET_ID=sheet\n')
+    (tmp_path / 'credentials.json').write_text('{}')
+
+    readiness = build_readiness(
+        root=tmp_path,
+        env={'GOOGLE_SPREADSHEET_ID': 'sheet'},
+        doctor_payload={'checks': []},
+        accounts_payload={'items': []},
+    )
+
+    assert readiness['can_sync'] is False
+    assert any(step['title'] == 'Add Plaid API keys' and step['blocking'] for step in readiness['steps'])
+
+
+def test_readiness_with_missing_google_credentials_blocks_sync(tmp_path):
+    (tmp_path / '.env').write_text('configured')
+    env = {
+        'PLAID_CLIENT_ID': 'client',
+        'PLAID_SECRET': 'secret',
+        'PLAID_ENV': 'production',
+        'PLAID_ACCESS_TOKEN': 'token',
+        'GOOGLE_SPREADSHEET_ID': 'sheet',
+    }
+
+    readiness = build_readiness(root=tmp_path, env=env, doctor_payload={'checks': []}, accounts_payload={'items': []})
+
+    assert readiness['can_sync'] is False
+    assert any(step['title'] == 'Add Google OAuth credentials' for step in readiness['steps'])
+
+
+def test_readiness_with_no_plaid_tokens_blocks_sync(tmp_path):
+    (tmp_path / '.env').write_text('configured')
+    (tmp_path / 'credentials.json').write_text('{}')
+    env = {
+        'PLAID_CLIENT_ID': 'client',
+        'PLAID_SECRET': 'secret',
+        'PLAID_ENV': 'production',
+        'GOOGLE_SPREADSHEET_ID': 'sheet',
+    }
+
+    readiness = build_readiness(root=tmp_path, env=env, doctor_payload={'checks': []}, accounts_payload={'items': []})
+
+    assert readiness['can_sync'] is False
+    assert any(step['title'] == 'Connect a bank' and step['blocking'] for step in readiness['steps'])
+
+
+def test_readiness_with_working_config_allows_sync_with_income_warning(tmp_path):
+    (tmp_path / '.env').write_text('configured')
+    (tmp_path / 'credentials.json').write_text('{}')
+    (tmp_path / 'token.json').write_text('{}')
+    env = {
+        'PLAID_CLIENT_ID': 'client',
+        'PLAID_SECRET': 'plaid_secret_value_123',
+        'PLAID_ENV': 'production',
+        'PLAID_ACCESS_TOKEN': 'plaid_access_value_123',
+        'GOOGLE_SPREADSHEET_ID': 'sheet',
+        'GOOGLE_APPS_SCRIPT_ID': 'script_id_value_123',
+    }
+    accounts = {'items': [{'accounts': [{'type': 'credit', 'subtype': 'credit card'}]}]}
+
+    readiness = build_readiness(root=tmp_path, env=env, doctor_payload={'checks': []}, accounts_payload=accounts)
+    serialized = json.dumps(readiness)
+
+    assert readiness['can_sync'] is True
+    assert 'Savings rate needs income' in serialized
+    assert 'plaid_access_value_123' not in serialized
+    assert 'plaid_secret_value_123' not in serialized
+    assert 'script_id_value_123' not in serialized
+
+
+def test_status_payload_exposes_readiness_without_secrets(tmp_path):
+    (tmp_path / '.env').write_text('configured')
+    payload = build_status_payload(
+        root=tmp_path,
+        env={'PLAID_SECRET': 'secret_abc', 'PLAID_ACCESS_TOKEN': 'access-one'},
+        runtime_state={},
+    )
+
+    serialized = json.dumps(payload)
+
+    assert 'readiness' in payload
+    assert 'secret_abc' not in serialized
+    assert 'access-one' not in serialized

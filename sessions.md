@@ -9,7 +9,7 @@ This repository exists to run a local-first personal finance workflow:
 - support a Gemini sidebar that mixes verified local analytics with model-generated advice
 
 ## Current Status Snapshot
-Current working state: `v5.8`
+Current working state: `v5.9`
 What is working now:
 - Python sync engine for Plaid -> Google Sheets
 - Friendly account labels resolved during sync
@@ -18,11 +18,24 @@ What is working now:
 - Local browser control center: [control_center.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/control_center.py)
 - Apps Script API deployment helper: [appscript_deploy.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/appscript_deploy.py)
 - Manual income CSV importer: [csv_importer.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/csv_importer.py)
+- First-user local setup guide: [LOCAL_APP_SETUP.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/LOCAL_APP_SETUP.md)
 - Rules-based analytics exclusion system (Analytics, Dashboard, AI)
 - Hidden `Analytics` data mart powering the visible sheets
 - `Dashboard` and `Insights` rendering from Apps Script
 - Gemini sidebar with logging, verified data, and fallback support
 - Fixed duplicate chart bars and improved dashboard exclusion transparency
+
+### Session 11 - 2026-05-02
+Objective:
+- make the control center behave more like a first-user local app cockpit instead of a developer panel
+
+Completed:
+- added a setup-readiness model and exposed it through `/api/status`
+- added sync gating based on required local config, Google credentials, Sheet ID, and Plaid token presence
+- rendered a prominent Setup Readiness panel with exactly one recommended next step
+- hardened [control_center.command](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/control_center.command) so it can create or repair `.venv`
+- generalized bank-link launcher language to `New Bank` while keeping U.S. Bank as a Plaid OAuth blocker/help item
+- added [LOCAL_APP_SETUP.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/LOCAL_APP_SETUP.md)
 
 ### Session 10 - 2026-05-02
 Objective:
@@ -140,9 +153,9 @@ Completed:
 
 ## Next Session Priorities
 Highest-value next steps:
-1. Package/polish the local control center into the first sellable Mac-friendly surface.
+1. Browser-validate the readiness cockpit and deploy/import guidance after live config is updated.
 2. Add browser-confirmed manual income import only after more live testing.
-3. Add optional `clasp` or release packaging later if the API deploy helper is not enough.
+3. Add optional `clasp`, signing/notarization investigation, or release packaging.
 4. Resume U.S. Bank via `.venv/bin/python -m src.engine.connect_bank` once Plaid approves OAuth institution registration.
 5. Revisit Capital One and other OAuth institutions after U.S. Bank/Plaid registration is verified.
 

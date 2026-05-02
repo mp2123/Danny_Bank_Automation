@@ -207,6 +207,147 @@ def build_account_guidance(accounts_payload):
     }
 
 
+def readiness_step(status, title, detail, action_label, blocking):
+    return {
+        'status': status,
+        'title': title,
+        'detail': detail,
+        'action_label': action_label,
+        'blocking': bool(blocking),
+    }
+
+
+def get_doctor_check(doctor_payload, name):
+    for check in (doctor_payload or {}).get('checks', []):
+        if check.get('name') == name:
+            return check
+    return None
+
+
+def build_readiness(root=None, env=None, doctor_payload=None, accounts_payload=None):
+    root = Path(root or repo_root())
+    env = env or {}
+    doctor_payload = doctor_payload or {'checks': []}
+    accounts_payload = accounts_payload or {'items': []}
+    config = build_config_status(env)
+    sheet = build_sheet_status(env)
+    account_guidance = build_account_guidance(accounts_payload)
+
+    env_exists = (root / '.env').exists()
+    credentials_exists = (root / 'credentials.json').exists()
+    token_exists = (root / 'token.json').exists()
+    python_ready = (root / '.venv' / 'bin' / 'python').exists() or (root / 'venv' / 'bin' / 'python').exists()
+    plaid_keys = all(env.get(key) for key in ['PLAID_CLIENT_ID', 'PLAID_SECRET', 'PLAID_ENV'])
+    plaid_tokens = config['token_count'] > 0
+    linked_accounts_available = bool((accounts_payload or {}).get('items'))
+
+    google_sheet_check = get_doctor_check(doctor_payload, 'Google Sheets')
+    if google_sheet_check:
+        sheet_reachable_status = 'ready' if google_sheet_check.get('status') == 'PASS' else 'missing'
+        sheet_reachable_detail = google_sheet_check.get('detail') or 'Google Sheet check completed.'
+        sheet_reachable_blocking = google_sheet_check.get('status') == 'FAIL'
+    elif sheet['configured']:
+        sheet_reachable_status = 'warning'
+        sheet_reachable_detail = 'Sheet ID is configured; live reachability has not been checked in this control-center snapshot.'
+        sheet_reachable_blocking = False
+    else:
+        sheet_reachable_status = 'missing'
+        sheet_reachable_detail = 'GOOGLE_SPREADSHEET_ID is missing.'
+        sheet_reachable_blocking = True
+
+    steps = [
+        readiness_step(
+            'ready' if python_ready else 'warning',
+            'Local Python environment',
+            'Local virtualenv is ready.' if python_ready else 'The launcher can create or repair .venv when opened.',
+            'Open Control Center',
+            False,
+        ),
+        readiness_step(
+            'ready' if env_exists else 'missing',
+            'Create local .env',
+            '.env exists.' if env_exists else 'Create .env from .env.example and fill in local Plaid/Google settings.',
+            'Create .env',
+            not env_exists,
+        ),
+        readiness_step(
+            'ready' if plaid_keys else 'missing',
+            'Add Plaid API keys',
+            'Plaid client ID, secret, and env are configured.' if plaid_keys else 'Add PLAID_CLIENT_ID, PLAID_SECRET, and PLAID_ENV to .env.',
+            'Add Plaid keys',
+            not plaid_keys,
+        ),
+        readiness_step(
+            'ready' if credentials_exists else 'missing',
+            'Add Google OAuth credentials',
+            'credentials.json exists.' if credentials_exists else 'Place Google OAuth credentials.json in the repo root.',
+            'Add credentials.json',
+            not credentials_exists,
+        ),
+        readiness_step(
+            'ready' if token_exists else ('warning' if credentials_exists else 'missing'),
+            'Authorize Google Sheets',
+            'token.json exists.' if token_exists else ('Google OAuth token can be created from credentials.json on first Sheets auth.' if credentials_exists else 'Add credentials.json before Google auth can run.'),
+            'Authorize Google',
+            False if credentials_exists else True,
+        ),
+        readiness_step(
+            'ready' if sheet['configured'] else 'missing',
+            'Configure Google Sheet',
+            'GOOGLE_SPREADSHEET_ID is configured.' if sheet['configured'] else 'Add GOOGLE_SPREADSHEET_ID to .env.',
+            'Add Sheet ID',
+            not sheet['configured'],
+        ),
+        readiness_step(
+            sheet_reachable_status,
+            'Reach Google Sheet',
+            sheet_reachable_detail,
+            'Run Doctor',
+            sheet_reachable_blocking,
+        ),
+        readiness_step(
+            'ready' if env.get('GOOGLE_APPS_SCRIPT_ID') else 'warning',
+            'Apps Script deploy path',
+            'GOOGLE_APPS_SCRIPT_ID is configured for API deploys.' if env.get('GOOGLE_APPS_SCRIPT_ID') else 'API deploy helper is not configured; manual Apps Script paste fallback remains available.',
+            'Configure Apps Script ID',
+            False,
+        ),
+        readiness_step(
+            'ready' if plaid_tokens else 'missing',
+            'Connect a bank',
+            f'{config["token_count"]} Plaid access token(s) configured.' if plaid_tokens else 'No Plaid access token is configured yet.',
+            'Connect a bank',
+            not plaid_tokens,
+        ),
+        readiness_step(
+            'ready' if linked_accounts_available else ('warning' if plaid_tokens else 'missing'),
+            'Load linked accounts',
+            'Linked account metadata is available.' if linked_accounts_available else ('Plaid token exists, but account metadata has not loaded in this snapshot.' if plaid_tokens else 'Connect a bank before linked accounts are available.'),
+            'List Linked Accounts',
+            False if plaid_tokens else True,
+        ),
+        readiness_step(
+            'ready' if account_guidance['income_status'] == 'potential_income_source_present' else 'warning',
+            'Savings rate needs income',
+            account_guidance['detail'],
+            'Import manual income',
+            False,
+        ),
+    ]
+
+    blocking_steps = [step for step in steps if step['blocking'] and step['status'] != 'ready']
+    warning_steps = [step for step in steps if not step['blocking'] and step['status'] != 'ready']
+    recommended = (blocking_steps or warning_steps or [None])[0]
+    can_sync = env_exists and plaid_keys and credentials_exists and sheet['configured'] and plaid_tokens
+
+    return {
+        'can_sync': bool(can_sync),
+        'has_blocking_items': bool(blocking_steps),
+        'recommended_next_step': recommended,
+        'steps': steps,
+    }
+
+
 def parse_sync_summary(output, ok):
     text = output or ''
     appended_match = re.search(r'Appending\s+(\d+)\s+total new transactions', text)
@@ -310,7 +451,8 @@ def build_status_payload(root=None, env=None, runtime_state=None):
     env = env or load_control_env(root)
     doctor_payload = build_doctor_payload(root, env, skip_network=True)
     accounts_payload = collect_linked_accounts(env)
-    runtime_state = runtime_state or RUNTIME_STATE
+    readiness = build_readiness(root, env, doctor_payload, accounts_payload)
+    runtime_state = RUNTIME_STATE if runtime_state is None else runtime_state
     return {
         'project_root': str(root),
         'config': build_config_status(env),
@@ -318,6 +460,7 @@ def build_status_payload(root=None, env=None, runtime_state=None):
         'doctor': doctor_payload,
         'accounts': accounts_payload,
         'account_guidance': build_account_guidance(accounts_payload),
+        'readiness': readiness,
         'runtime': runtime_state,
         'next_actions': build_next_actions(
             doctor_payload=doctor_payload,
@@ -545,6 +688,17 @@ def render_control_center_html():
     }}
     .dot.failed {{ background: var(--red); }}
     .empty {{ color: var(--muted); font-size: 12px; padding: 10px 0; }}
+    .readiness {{
+      border: 1px solid var(--border);
+      border-left: 5px solid var(--amber);
+      background: #fff;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }}
+    .readiness.ready {{ border-left-color: var(--green); }}
+    .readiness-grid {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }}
     @media (max-width: 900px) {{
       .layout {{ grid-template-columns: 1fr; }}
       .grid {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
@@ -566,11 +720,12 @@ def render_control_center_html():
     <div class="topline" id="headerBadges"></div>
   </header>
   <main>
+    <section id="readinessPanel"></section>
     <section class="grid" id="cards"></section>
     <section class="actions">
       <button onclick="runDoctor()">Run Doctor</button>
       <button onclick="listAccounts()">List Linked Accounts</button>
-      <button class="warning" onclick="runSync()">Run Sync Now</button>
+      <button id="runSyncButton" class="warning" onclick="runSync()">Run Sync Now</button>
       <button class="secondary" onclick="openSheet()">Open Google Sheet</button>
       <button class="secondary" onclick="checkAppsScriptDeploy()">Check Apps Script Deploy Status</button>
       <button class="secondary" onclick="deployAppsScript()">Deploy Apps Script</button>
@@ -652,6 +807,33 @@ def render_control_center_html():
       `).join('');
     }}
 
+    function renderReadiness(status) {{
+      const readiness = status.readiness || {{}};
+      const recommended = readiness.recommended_next_step;
+      const visibleSteps = (readiness.steps || []).filter(step => step.status !== 'ready').slice(0, 6);
+      const panelClass = readiness.has_blocking_items ? 'readiness' : 'readiness ready';
+      document.getElementById('readinessPanel').innerHTML = `
+        <section class="${{panelClass}}">
+          <h2>Setup Readiness</h2>
+          <div class="muted">${{readiness.can_sync ? 'Required sync setup is ready.' : 'Complete the blocking setup items before running sync.'}}</div>
+          ${{recommended ? `<div class="row" style="margin-top:10px;"><div class="row-title">Recommended next step: ${{recommended.title}}</div><div class="row-detail">${{recommended.detail}}</div></div>` : ''}}
+          <div class="readiness-grid">
+            ${{visibleSteps.map(step => `
+              <div class="row">
+                <div class="row-title">${{badge(step.status, step.blocking ? 'fail' : 'warn')}} ${{step.title}}</div>
+                <div class="row-detail">${{step.detail}}</div>
+              </div>
+            `).join('')}}
+          </div>
+        </section>
+      `;
+      const syncButton = document.getElementById('runSyncButton');
+      if (syncButton) {{
+        syncButton.disabled = !readiness.can_sync;
+        syncButton.title = readiness.can_sync ? '' : 'Complete setup readiness items before syncing.';
+      }}
+    }}
+
     function renderHeader(status) {{
       const warningCount = status.doctor.checks.filter(check => check.status === 'WARN').length;
       const failCount = status.doctor.checks.filter(check => check.status === 'FAIL').length;
@@ -729,6 +911,7 @@ def render_control_center_html():
     function renderAll(status) {{
       latestStatus = status;
       renderHeader(status);
+      renderReadiness(status);
       renderCards(status);
       renderWarnings(status);
       renderActions(status);
@@ -737,21 +920,23 @@ def render_control_center_html():
       renderActivity(status);
     }}
 
-    async function loadStatus() {{
+    async function loadStatus(writeOutput = true) {{
       const status = await api('/api/status');
       renderAll(status);
       const lines = ['Project root: ' + status.project_root, '', 'Doctor snapshot:'];
       status.doctor.checks.forEach(check => {{
         lines.push(`[${{check.status}}] ${{check.name}}: ${{check.detail}}`);
       }});
-      setOutput(lines.join('\\n'));
+      if (writeOutput) {{
+        setOutput(lines.join('\\n'));
+      }}
     }}
 
     async function runDoctor() {{
       setOutput('Running doctor...');
       const result = await api('/api/doctor', {{ method: 'POST' }});
       setOutput(result.checks.map(check => `[${{check.status}}] ${{check.name}}: ${{check.detail}}`).join('\\n'));
-      await loadStatus();
+      await loadStatus(false);
     }}
 
     async function listAccounts() {{
@@ -764,10 +949,14 @@ def render_control_center_html():
       }});
       (result.errors || []).forEach(error => lines.push('', `Item ${{error.item_index}} failed: ${{error.error}}`));
       setOutput(lines.join('\\n'));
-      await loadStatus();
+      await loadStatus(false);
     }}
 
     async function runSync() {{
+      if (latestStatus && latestStatus.readiness && !latestStatus.readiness.can_sync) {{
+        setOutput('Sync is blocked until required setup readiness items are complete.');
+        return;
+      }}
       if (!confirm('Run a live sync now? This can append new rows to Google Sheets.')) {{
         return;
       }}
@@ -789,7 +978,7 @@ def render_control_center_html():
         result.output || 'No output.'
       ];
       setOutput(summaryLines.join('\\n'));
-      await loadStatus();
+      await loadStatus(false);
     }}
 
     async function openSheet() {{
@@ -801,7 +990,7 @@ def render_control_center_html():
       setOutput('Checking Apps Script deploy status...');
       const result = await api('/api/appscript/dry-run', {{ method: 'POST' }});
       setOutput(result.output || result);
-      await loadStatus();
+      await loadStatus(false);
     }}
 
     async function deployAppsScript() {{
@@ -815,7 +1004,7 @@ def render_control_center_html():
         body: JSON.stringify({{ confirm: true }})
       }});
       setOutput(result.output || result);
-      await loadStatus();
+      await loadStatus(false);
     }}
 
     async function copyChecklist() {{
@@ -898,6 +1087,10 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
                 return
             if path == '/api/sync':
                 payload = self._read_json()
+                readiness = build_readiness(self.root, self._env(), build_doctor_payload(self.root, self._env(), skip_network=True), collect_linked_accounts(self._env()))
+                if not readiness['can_sync']:
+                    recommended = readiness.get('recommended_next_step') or {}
+                    raise ControlCenterError('Sync is blocked until setup is ready. Next step: ' + (recommended.get('title') or 'complete setup readiness items'))
                 result = run_sync_command(
                     confirm=payload.get('confirm') is True,
                     root=self.root,

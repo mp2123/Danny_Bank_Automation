@@ -16,7 +16,7 @@ This repository syncs transaction data from Plaid-linked institutions into Googl
   - fall back to deterministic local output when Gemini is unavailable or quota-limited
 
 ## Current State
-The repository is currently at the `v5.6` control-center product polish stage.
+The repository is currently at the `v5.9` first-user readiness cockpit stage.
 
 Key capabilities now in place:
 - Shared analytics model across visuals and AI
@@ -25,7 +25,7 @@ Key capabilities now in place:
 - Internal payment/transfer exclusion from spend and cashflow analytics while retaining those rows in the raw ledger
 - Multi-model Gemini fallback in the Apps Script layer
 - A desktop-friendly `run_sync.command` launcher for manual sync runs
-- A local-only browser control center for setup checks, linked accounts, confirmed sync, Sheet launch, warnings, and next-action guidance
+- A local-only browser control center for setup readiness, linked accounts, confirmed sync, Apps Script deploy checks, manual-income guidance, Sheet launch, warnings, and next-action guidance
 
 ## Architecture
 ### 1. Python Sync Engine
@@ -69,6 +69,7 @@ Primary files:
 - [AGENTS.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/AGENTS.md): contributor/agent workflow notes for future editing sessions
 - [GEMINI.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/GEMINI.md): AI-oriented project context
 - [PROJECT_TRANSITION_V5.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/PROJECT_TRANSITION_V5.md): archival transition memo from the earlier recovery phase
+- [LOCAL_APP_SETUP.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/LOCAL_APP_SETUP.md): customer-facing local app setup guide
 - [research/docs/setup_guide.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/research/docs/setup_guide.md): setup details
 
 ## Setup
@@ -158,15 +159,18 @@ cd /Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation
 ```
 
 It binds to `127.0.0.1:8790` by default and provides buttons for:
+- following setup-readiness next steps
 - running the setup doctor
 - listing linked Plaid accounts
 - running a confirmed live sync
 - opening the configured Google Sheet
-- viewing U.S. Bank / OAuth-blocked bank guidance
+- checking/deploying Apps Script when `GOOGLE_APPS_SCRIPT_ID` is configured
+- viewing manual-income import guidance
+- viewing bank-link / OAuth-blocked bank guidance
 - viewing the Quickstart repair command
 - copying the Apps Script redeploy checklist
 
-The sync button requires explicit browser confirmation because it can append rows to Google Sheets. The control center also summarizes sync progress, stores last-run status for the current local session, and shows next actions such as refreshing the dashboard after new rows are appended. Secrets and Plaid access tokens are not displayed.
+The sync button is blocked until required readiness items are present, then requires explicit browser confirmation because it can append rows to Google Sheets. The control center also summarizes sync progress, stores last-run status for the current local session, and shows next actions such as refreshing the dashboard after new rows are appended. Secrets and Plaid access tokens are not displayed.
 
 For a manual launcher:
 
@@ -174,12 +178,14 @@ For a manual launcher:
 ./control_center.command
 ```
 
-### Adding U.S. Bank Credit Card
+For first-user setup, start with [LOCAL_APP_SETUP.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/LOCAL_APP_SETUP.md).
+
+### Adding A Bank
 Use the repo-native Plaid Link helper first:
 
 ```bash
 cd /Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation
-.venv/bin/python -m src.engine.connect_bank --institution-note "U.S. Bank"
+.venv/bin/python -m src.engine.connect_bank --institution-note "New Bank"
 ```
 
 The helper:
@@ -203,7 +209,7 @@ Then refresh the live Sheet:
 🏦 Bank Automation -> 📈 Refresh Dashboard & Visuals
 ```
 
-Expected result: U.S. Bank appears in the linked-account list, new rows use readable labels in `Transactions!F:F`, and Dashboard/AI include the U.S. Bank credit-card activity.
+Expected result: the institution appears in the linked-account list, new rows use readable labels in `Transactions!F:F`, and Dashboard/AI include the account activity.
 
 Optional flags:
 

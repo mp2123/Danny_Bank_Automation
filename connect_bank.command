@@ -13,4 +13,4 @@ else
   "$PYTHON_BIN" -m pip install -r requirements.txt
 fi
 
-exec "$PYTHON_BIN" -m src.engine.connect_bank --institution-note "U.S. Bank"
+exec "$PYTHON_BIN" -m src.engine.connect_bank --institution-note "New Bank"
