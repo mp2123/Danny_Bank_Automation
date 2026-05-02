@@ -28,7 +28,7 @@ Key capabilities now in place:
 
 ## Architecture
 ### 1. Python Sync Engine
-Located in [src/engine](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine)
+Located in [src/engine](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine)
 
 Responsibilities:
 - read environment configuration
@@ -38,10 +38,10 @@ Responsibilities:
 - log sync diagnostics
 
 Primary entrypoint:
-- [main.py](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/main.py)
+- [main.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/main.py)
 
 ### 2. Google Apps Script Layer
-Located in [src/appscript](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript)
+Located in [src/appscript](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript)
 
 Responsibilities:
 - render the sidebar UI
@@ -51,8 +51,8 @@ Responsibilities:
 - determine when to use grounded verified tool data vs freeform Gemini synthesis
 
 Primary files:
-- [Code.gs](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Code.gs)
-- [Sidebar.html](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Sidebar.html)
+- [Code.gs](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Code.gs)
+- [Sidebar.html](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Sidebar.html)
 
 ### 3. Spreadsheet Surfaces
 - `Transactions`: raw synced ledger
@@ -63,23 +63,24 @@ Primary files:
 - `AI Insights Log`: optional chat logging target
 
 ## Repo Map
-- [README.md](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/README.md): project overview and operating guide
-- [sessions.md](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/sessions.md): session log, current state, next-session handoff
-- [AGENTS.md](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/AGENTS.md): contributor/agent workflow notes for future editing sessions
-- [GEMINI.md](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/GEMINI.md): AI-oriented project context
-- [PROJECT_TRANSITION_V5.md](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/PROJECT_TRANSITION_V5.md): archival transition memo from the earlier recovery phase
-- [research/docs/setup_guide.md](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/research/docs/setup_guide.md): setup details
+- [README.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/README.md): project overview and operating guide
+- [sessions.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/sessions.md): session log, current state, next-session handoff
+- [AGENTS.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/AGENTS.md): contributor/agent workflow notes for future editing sessions
+- [GEMINI.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/GEMINI.md): AI-oriented project context
+- [PROJECT_TRANSITION_V5.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/PROJECT_TRANSITION_V5.md): archival transition memo from the earlier recovery phase
+- [research/docs/setup_guide.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/research/docs/setup_guide.md): setup details
 
 ## Setup
 ### Python Environment
 ```bash
-cd /Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation
+cd /Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation
 python3 -m venv .venv
-source .venv/bin/activate
-python3 -m pip install --upgrade pip
-python3 -m pip install -r requirements.txt
-python3 setup.py
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python setup.py
 ```
+
+The `.venv` activation scripts are machine-specific because Python virtual environments store absolute paths. When moving between the Mac mini and Mac Pro, prefer `.venv/bin/python -m ...` or `./run_sync.command`; the launcher repairs dependencies for the current Mac without relying on activation.
 
 ### Required Local Configuration
 Create or update `.env` with:
@@ -92,9 +93,30 @@ Create or update `.env` with:
 
 ### Manual Sync
 ```bash
-cd /Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation
-source .venv/bin/activate
-python3 -m src.engine.main
+cd /Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation
+.venv/bin/python -m src.engine.main
+```
+
+### Linked Account Inventory
+List currently configured Plaid institutions and accounts without printing access tokens:
+
+```bash
+cd /Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation
+.venv/bin/python -m src.engine.list_linked_accounts
+```
+
+### Friendly Account Labels
+New Plaid sync rows store readable account labels in the `Transactions` Account column, such as:
+
+```text
+American Express - Gold Card ending 2003
+```
+
+To migrate existing rows that still contain raw Plaid account IDs:
+
+```bash
+cd /Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation
+.venv/bin/python -m src.engine.migrate_account_labels
 ```
 
 ### Desktop Shortcut
@@ -102,14 +124,136 @@ python3 -m src.engine.main
 ./run_sync.command
 ```
 
+Repo-local convenience launchers are also available:
+
+```bash
+./list_linked_accounts.command
+./connect_bank.command
+```
+
+The Desktop wrapper at `/Users/michaelpanico/Desktop/run_sync.command` should point into this repo and execute `./run_sync.command`. The repo launcher keeps both Mac mini and old Mac Pro fallback paths for portability.
+
+### Setup Health Check
+Run the doctor when moving Macs, repairing dependencies, or checking whether Plaid/Google setup is healthy:
+
+```bash
+cd /Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation
+.venv/bin/python -m src.engine.doctor
+```
+
+For an offline/local-only check:
+
+```bash
+.venv/bin/python -m src.engine.doctor --skip-network
+```
+
+### Adding U.S. Bank Credit Card
+Use the repo-native Plaid Link helper first:
+
+```bash
+cd /Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation
+.venv/bin/python -m src.engine.connect_bank --institution-note "U.S. Bank"
+```
+
+The helper:
+- opens Plaid Link in a local browser page
+- creates a Link session for `transactions` only
+- exchanges the temporary `public_token` for a Plaid `access_token`
+- previews the institution/accounts with friendly card labels
+- appends the new access token to `.env` only after typing `YES`
+- masks tokens in terminal output
+
+After U.S. Bank is appended, verify and sync:
+
+```bash
+.venv/bin/python -m src.engine.list_linked_accounts
+.venv/bin/python -m src.engine.main
+```
+
+Then refresh the live Sheet:
+
+```text
+🏦 Bank Automation -> 📈 Refresh Dashboard & Visuals
+```
+
+Expected result: U.S. Bank appears in the linked-account list, new rows use readable labels in `Transactions!F:F`, and Dashboard/AI include the U.S. Bank credit-card activity.
+
+Optional flags:
+
+```bash
+.venv/bin/python -m src.engine.connect_bank --institution-note "U.S. Bank" --no-open
+.venv/bin/python -m src.engine.connect_bank --institution-note "U.S. Bank" --dry-run
+.venv/bin/python -m src.engine.connect_bank --institution-note "U.S. Bank" --port 8766
+.venv/bin/python -m src.engine.connect_bank --institution-note "U.S. Bank" --redirect-uri "https://localhost:3000/"
+```
+
+Savings-rate note: U.S. Bank is being connected as a credit card. True savings rate remains `N/A - no verified income` until a checking/payroll income account is linked or imported.
+
+### Current Known Plaid Blockers
+U.S. Bank currently returns Plaid error `INSTITUTION_REGISTRATION_REQUIRED`. That means Plaid is blocking the connection until Production/OAuth institution registration is approved for this client. It is not a local sync, Google Sheets, or connector-code failure.
+
+Check status and required next steps in Plaid Dashboard:
+
+```text
+https://dashboard.plaid.com/activity/status/oauth-institutions
+```
+
+Keep U.S. Bank and similar OAuth-gated institutions on the backburner until Plaid registration is complete. The current working production dataset is Bank of America, American Express, and Wells Fargo.
+
+### Quickstart Fallback
+If the repo-native helper fails because of a Plaid OAuth redirect/browser issue, use the local Plaid Quickstart at `/Users/michaelpanico/Desktop/quickstart`.
+
+Quickstart is already expected to use only the Transactions product:
+
+```text
+PLAID_ENV=production
+PLAID_PRODUCTS=transactions
+PLAID_COUNTRY_CODES=US
+PLAID_REDIRECT_URI=
+```
+
+Rebuild and run the Quickstart backend with path-safe commands:
+
+```bash
+cd /Users/michaelpanico/Desktop/quickstart/python
+/bin/rm -rf -- ./venv
+python3 -m venv venv
+./venv/bin/python -m pip install --upgrade pip
+./venv/bin/python -m pip install -r requirements.txt
+./venv/bin/python server.py
+```
+
+Leave that terminal open. Then start the frontend in a second terminal:
+
+```bash
+cd /Users/michaelpanico/Desktop/quickstart/frontend
+npm start
+```
+
+Open `http://localhost:3000`, connect U.S. Bank, then retrieve the access token:
+
+```bash
+curl -s -X POST http://localhost:8000/api/info
+```
+
+Append only the returned `access_token` to this repo's comma-separated `PLAID_ACCESS_TOKEN` value in `.env`, then run:
+
+```bash
+cd /Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation
+.venv/bin/python -m src.engine.list_linked_accounts
+.venv/bin/python -m src.engine.main
+```
+
+Then refresh the live Sheet.
+
 ## Apps Script Deployment
 Repo changes do not deploy themselves into the live Google Sheet.
 
 After changing the Apps Script layer:
 1. Open the bound Apps Script project from the sheet.
 2. Replace the live contents with:
-   - [Code.gs](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Code.gs)
-   - [Sidebar.html](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Sidebar.html)
+   - [Code.gs](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Code.gs)
+   - [Sidebar.html](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Sidebar.html)
 3. Save.
 4. Reload the Google Sheet.
 5. Run `🏦 Bank Automation -> 📈 Refresh Dashboard & Visuals`.
@@ -142,8 +286,12 @@ Credit-card payments and internal transfers remain in the raw `Transactions` she
 Use these before pushing changes:
 
 ```bash
-pytest -q
+cd /Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation
+.venv/bin/python -m pytest -q
 node --check --input-type=commonjs < src/appscript/Code.gs
+.venv/bin/python -m py_compile src/engine/connect_bank.py src/engine/doctor.py
+.venv/bin/python -m src.engine.list_linked_accounts
+.venv/bin/python -m src.engine.doctor
 ```
 
 ## Operational Notes
@@ -153,10 +301,11 @@ node --check --input-type=commonjs < src/appscript/Code.gs
 - The current repo intentionally keeps research/history material under `research/` and historical handoff context in `PROJECT_TRANSITION_V5.md`.
 
 ## Next Improvement Themes
-- Better chart annotation support if Google Sheets embedded-chart role inference proves unstable
-- More robust transaction table rendering for long evidence-heavy prompts
-- Optional account exclusion or filtering controls without re-linking Plaid items
-- Future UX polish on the sidebar and dashboard spacing
+- Resume U.S. Bank connection after Plaid Production registration approval
+- Connect Capital One and other OAuth institutions
+- Expand Rules sheet with more automated pattern matching for transfers
+- Add a checking/payroll account for verified income and savings rate analytics
+- Polish sidebar and dashboard aesthetics
 
 ## License
 MIT

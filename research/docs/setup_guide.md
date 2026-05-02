@@ -14,14 +14,14 @@
    git clone https://github.com/mp2123/Danny_Bank_Automation.git
    cd Danny_Bank_Automation
    ```
-2. **Create and Activate Virtual Environment:**
+2. **Create Virtual Environment:**
    ```bash
-   python3 -m venv venv
-   source venv/bin/activate
+   python3 -m venv .venv
    ```
 3. **Install Dependencies:**
    ```bash
-   pip install -r requirements.txt
+   .venv/bin/python -m pip install --upgrade pip
+   .venv/bin/python -m pip install -r requirements.txt
    ```
 4. **Configure Environment:**
    - Copy `.env.example` to `.env`.
@@ -53,8 +53,7 @@
 ## 4. Running the Sync
 ### A. Automated Sync (Standard)
 ```bash
-source venv/bin/activate
-python3 -m src.engine.main
+.venv/bin/python -m src.engine.main
 ```
 
 ### B. One-Click Shortcut (Mac)
@@ -66,7 +65,7 @@ python3 -m src.engine.main
 2. Save the file into `src/imports/`.
 3. Run:
    ```bash
-   python3 -m src.engine.csv_importer
+   .venv/bin/python -m src.engine.csv_importer
    ```
 
 ---

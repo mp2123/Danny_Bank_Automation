@@ -10,11 +10,11 @@ This project is a local-first finance automation system built from two coupled b
 Future contributors should treat those surfaces differently when making changes.
 
 ## Core Files
-- [src/engine/main.py](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/main.py): sync entrypoint
-- [src/appscript/Code.gs](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Code.gs): analytics, dashboard, chat orchestration
-- [src/appscript/Sidebar.html](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Sidebar.html): sidebar UI
-- [README.md](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/README.md): operator-facing documentation
-- [sessions.md](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/sessions.md): handoff log
+- [src/engine/main.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/main.py): sync entrypoint
+- [src/appscript/Code.gs](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Code.gs): analytics, dashboard, chat orchestration
+- [src/appscript/Sidebar.html](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Sidebar.html): sidebar UI
+- [README.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/README.md): operator-facing documentation
+- [sessions.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/sessions.md): handoff log
 
 ## Non-Obvious Rules
 ### Apps Script is not auto-deployed
@@ -49,12 +49,13 @@ Do not commit:
 Run these before pushing:
 
 ```bash
-pytest -q
+.venv/bin/python -m pytest -q
 node --check --input-type=commonjs < src/appscript/Code.gs
+.venv/bin/python -m src.engine.doctor
 ```
 
 ## Recommended Change Flow
-1. Inspect the current session state in [sessions.md](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/sessions.md).
+1. Inspect the current session state in [sessions.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/sessions.md).
 2. Make the smallest coherent change that fixes the issue.
 3. Validate Python and Apps Script syntax.
 4. Commit only intentional files.
@@ -64,3 +65,4 @@ node --check --input-type=commonjs < src/appscript/Code.gs
 - possible future polish for chart value labels if Google Sheets embedded-chart role inference remains inconsistent
 - sidebar readability and more on-sheet explanatory text
 - optional account exclusion/filtering controls inside the sheet
+- U.S. Bank and other OAuth institutions remain blocked until Plaid Production/OAuth institution registration is complete

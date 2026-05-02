@@ -53,6 +53,7 @@ function onOpen() {
     .addSeparator()
     .addItem('📈 Refresh Dashboard & Visuals', 'refreshVisuals')
     .addItem('⚙️ Initial Setup / Repair', 'initialSetup')
+    .addItem('🔑 Reset Gemini Key Storage', 'resetGeminiKeyStorage')
     .addToUi();
 }
 
@@ -69,6 +70,7 @@ function initialSetup() {
     { name: 'Transactions', headers: ['Transaction ID', 'Date', 'Name', 'Amount', 'Category', 'Account', 'Pending'], color: '#0d1117', hidden: false },
     { name: 'AI Insights Log', headers: ['Date', 'Original Insight', 'Summary'], color: '#8957e5', hidden: false },
     { name: 'Settings', headers: ['Setting', 'Value'], color: '#30363d', hidden: false },
+    { name: 'Rules', headers: ['Rule ID', 'Enabled', 'Rule Type', 'Match Type', 'Match Value', 'Treatment', 'Notes'], color: '#0f766e', hidden: false },
     { name: 'Dashboard', headers: ['Dashboard'], color: '#0d1117', hidden: false },
     { name: 'Insights', headers: ['Insights'], color: '#1f2937', hidden: false },
     { name: 'Analytics', headers: ['Section', 'Value'], color: '#161b22', hidden: true }
@@ -94,6 +96,7 @@ function initialSetup() {
     setSetting_(GEMINI_SETTING_KEY, '');
   }
 
+  setupRulesSheet_(ss.getSheetByName('Rules'));
   setupDashboard_(ss.getSheetByName('Dashboard'));
   setupInsights_(ss.getSheetByName('Insights'));
   SpreadsheetApp.getUi().alert('Intelligence Engine v5.4 Ready!');
@@ -183,6 +186,11 @@ function chatWithData(query) {
     });
     return message;
   } catch (e) {
+    if (isGeminiApiKeyError_(e)) {
+      clearGeminiKeyStorage_();
+      return 'AI Error: Gemini rejected the stored API key. I cleared the stored key. Paste your current Gemini API key into Settings!B2, then run 🏦 Bank Automation -> 📈 Refresh Dashboard & Visuals or ask again from the sidebar.';
+    }
+
     if (groundedPacket) {
       const fallbackBody = groundedPacket.verifiedText +
         (groundedPacket.fallbackAdviceText ? '\n\n## ' + groundedPacket.fallbackSectionTitle + '\n' + groundedPacket.fallbackAdviceText : '');
@@ -213,20 +221,58 @@ function chatWithData(query) {
 }
 
 function summarizeInsight(text) {
+  if (shouldUseLocalSummary_(text)) {
+    return buildLocalInsightSummary_(text);
+  }
+
   const apiKey = getGeminiApiKey_();
   if (!apiKey) {
-    return 'Error: Gemini API key is not configured.';
+    return buildLocalInsightSummary_(text);
   }
-  return _callGemini(buildGeminiRequest_(
-    'Summarize the following financial insight into 2 punchy sentences. Preserve the main recommendation.',
-    text
-  ), apiKey);
+
+  try {
+    return _callGemini(buildGeminiRequest_(
+      'Summarize the following financial insight into 2 punchy sentences. Preserve the main recommendation.',
+      trimForSummary_(text)
+    ), apiKey);
+  } catch (e) {
+    return buildLocalInsightSummary_(text);
+  }
 }
 
 function logInsightToSheet(originalInsight, summary) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('AI Insights Log');
+  const sheet = ensureSheet_(SpreadsheetApp.getActiveSpreadsheet(), 'AI Insights Log');
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(['Date', 'Original Insight', 'Summary']);
+  }
   sheet.appendRow([new Date(), originalInsight, summary]);
   return 'Logged! ✅';
+}
+
+function shouldUseLocalSummary_(text) {
+  const value = String(text || '');
+  return value.length > 9000 || value.indexOf('## Verified Data') !== -1 || value.indexOf('Mode -> Verified Data Only') !== -1;
+}
+
+function trimForSummary_(text) {
+  const value = String(text || '');
+  if (value.length <= 9000) {
+    return value;
+  }
+  return value.slice(0, 8500) + '\n\n[Output truncated for summary. Full response is stored in AI Insights Log.]';
+}
+
+function buildLocalInsightSummary_(text) {
+  const value = String(text || '');
+  const modeMatch = value.match(/^Mode ->[^\n]+/m);
+  const monthMatches = value.match(/### [A-Z][a-z]{2} \d{4} Expenses by Category/g) || [];
+  const categoryMatches = value.match(/\| [^|\n]+ \| \$[\d,]+\.\d{2} \|/g) || [];
+  const accountMatches = value.match(/\| [^|\n]+ ending \d{2,4} \| \$[\d,]+\.\d{2} \|/g) || [];
+  const mode = modeMatch ? modeMatch[0].replace(/^Mode ->\s*/, '') : 'Verified finance response';
+  const months = monthMatches.length ? monthMatches.length + ' monthly period(s)' : 'the current transaction scope';
+  const accountNote = accountMatches.length ? ' Account-level totals were included with friendly card names.' : '';
+  const categoryNote = categoryMatches.length ? ' Category totals and example transactions were included.' : '';
+  return mode + ' logged for ' + months + '.' + accountNote + categoryNote;
 }
 
 function getChatHistory() {
@@ -244,6 +290,14 @@ function getGeminiConfigStatus() {
     return 'Gemini key stored securely in Script Properties.';
   }
   return 'Gemini key missing. Paste it into Settings!B2 once to enable AI.';
+}
+
+function isGeminiApiKeyError_(error) {
+  const message = String(error && error.message ? error.message : error || '').toLowerCase();
+  return message.indexOf('api key not found') !== -1 ||
+    message.indexOf('api_key_invalid') !== -1 ||
+    message.indexOf('invalid api key') !== -1 ||
+    message.indexOf('please pass a valid api key') !== -1;
 }
 
 function formatChatModeReply_(mode, detail, body) {
@@ -407,6 +461,10 @@ function buildGroundedAdviceSystemPrompt_(intent) {
   } else {
     lines.push('Return 2-4 compact bullets with the most important interpretation points.');
   }
+  if (intent.needsCashflow) {
+    lines.push('For savings-rate or cashflow questions, clearly distinguish real external income from excluded credit-card payments/transfers.');
+    lines.push('If verified external income is $0.00, say the true savings rate is not calculable from the current linked accounts instead of presenting 0% as a complete answer.');
+  }
 
   return lines.join('\n');
 }
@@ -477,6 +535,12 @@ function buildGroundedAdviceContext_(packet) {
   }
 
   if (packet.overview) {
+    lines.push('External Cashflow -> Income ' + formatCurrency_(packet.overview.total_income) + ' | Spend ' + formatCurrency_(packet.overview.total_spend) + ' | Net ' + formatCurrency_(packet.overview.net_cashflow));
+    lines.push('Savings Rate Status -> ' + packet.overview.savings_rate_status);
+    lines.push('Income Coverage Note -> ' + packet.overview.income_coverage_note);
+    lines.push('Review-only Flags -> ' + packet.overview.review_only_count + ' transaction(s), still included in totals');
+    lines.push('Excluded By Rules -> ' + packet.overview.excluded_by_rules_count + ' transaction(s), outflow ' + formatCurrency_(packet.overview.excluded_by_rules_outflow) + ', inflow ' + formatCurrency_(packet.overview.excluded_by_rules_inflow));
+    lines.push('Excluded Internal Payments/Transfers -> ' + packet.overview.excluded_internal_count + ' transaction(s), outflow ' + formatCurrency_(packet.overview.excluded_internal_outflow) + ', inflow ' + formatCurrency_(packet.overview.excluded_internal_inflow));
     lines.push('History Top Categories -> [' + formatNamedTotalList_(packet.overview.top_categories, 6) + ']');
     lines.push('History Top Merchants -> [' + formatNamedTotalList_(packet.overview.top_merchants, 6) + ']');
     lines.push('Recurring Merchants -> [' + formatMerchantContextList_(packet.overview.recurring_merchants, 6) + ']');
@@ -604,6 +668,28 @@ function renderGroundedVerifiedResponse_(packet) {
     groupedLines.push('');
     groupedLines.push('### Current Scope');
     groupedLines.push(buildGroupedTransactionsMarkdown_(packet.transactionSearch.transactions_by_category));
+  }
+
+  if (packet.overview && (!wroteSection || packet.intent.needsCashflow)) {
+    wroteSection = true;
+    verifiedLines.push('');
+    verifiedLines.push('### External Cashflow Summary');
+    verifiedLines.push(buildNamedTotalsMarkdownTable_('Metric', [
+      { name: 'External Income', total: packet.overview.total_income },
+      { name: 'External Spend', total: packet.overview.total_spend },
+      { name: 'Net Cashflow', total: packet.overview.net_cashflow },
+      { name: 'Daily Average Burn', total: packet.overview.daily_average_burn },
+      { name: 'Excluded Internal Payments/Transfers - Outflow', total: packet.overview.excluded_internal_outflow },
+      { name: 'Excluded Internal Payments/Transfers - Inflow', total: packet.overview.excluded_internal_inflow },
+      { name: 'Excluded By Rules - Outflow', total: packet.overview.excluded_by_rules_outflow },
+      { name: 'Excluded By Rules - Inflow', total: packet.overview.excluded_by_rules_inflow }
+    ]));
+    verifiedLines.push('');
+    verifiedLines.push('### Cashflow Interpretation');
+    verifiedLines.push('- Savings rate status: ' + packet.overview.savings_rate_status + '.');
+    verifiedLines.push('- ' + packet.overview.income_coverage_note);
+    verifiedLines.push('- Excluded internal payments/transfers: ' + packet.overview.excluded_internal_count + ' transaction(s). These remain in Transactions, but are removed from cashflow so card payments do not look like income.');
+    verifiedLines.push('- Review-only flags: ' + packet.overview.review_only_count + ' transaction(s). These remain included in totals.');
   }
 
   if (!wroteSection) {
@@ -787,6 +873,7 @@ function buildFinanceAssistantSystemPrompt_() {
     'If the user asks for examples, include examples from the raw ledger or tool results.',
     'If a month is ambiguous, say which resolved month(s) were used.',
     'Tool output is the source of truth when exact values are requested.',
+    'For savings-rate questions, verify that external income exists. Do not present 0% as a true savings rate when the only positive rows are excluded card payments/transfers.',
     'When a month breakdown is requested, list every non-zero category and every active account in scope, not just the top few.',
     'If the user asks for transactions by category, separate the full grouped breakdown from the example transaction list.',
     'Normalize raw Plaid category names into cleaner user-facing labels when possible.',
@@ -1009,7 +1096,7 @@ function setupDashboard_(sheet) {
     .setFontColor('#ffffff')
     .setHorizontalAlignment('center');
   sheet.getRange('A2:N2').merge()
-    .setValue('Executive view: external cashflow, categories, cadence, and merchant concentration (internal payments/transfers excluded)')
+    .setValue('Executive view: external cashflow, categories, cadence, and merchant concentration (internal payments/transfers and active Rules excluded)')
     .setBackground('#111827')
     .setFontColor('#93c5fd')
     .setHorizontalAlignment('center');
@@ -1055,19 +1142,18 @@ function renderDashboard_(sheet, model, sections) {
       .setChartType(Charts.ChartType.BAR)
       .addRange(getSectionRange_(analytics, sections.topCategoriesChart))
       .setNumHeaders(1)
-      .setPosition(6, 1, 0, 0)
+      .setPosition(8, 1, 0, 0)
       .setOption('title', 'Top External Spend Categories')
       .setOption('legend', { position: 'none' })
       .setOption('hAxis', { title: 'Spend ($)' })
       .setOption('vAxis', { title: 'Category' })
-      .setOption('annotations', buildSimpleAnnotationOptions_())
       .setOption('colors', ['#2563eb'])
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.COMBO)
       .addRange(getSectionRange_(analytics, sections.monthlyCashflowChart))
       .setNumHeaders(1)
-      .setPosition(6, 8, 0, 0)
+      .setPosition(8, 8, 0, 0)
       .setOption('title', hasIncomeSeries ? 'Monthly External Cashflow (Income vs Spend vs Net)' : 'Monthly External Spend vs Net Cashflow')
       .setOption('seriesType', 'bars')
       .setOption('hAxis', { title: 'Month', slantedText: true, slantedTextAngle: 35 })
@@ -1090,7 +1176,7 @@ function renderDashboard_(sheet, model, sections) {
       .setChartType(Charts.ChartType.LINE)
       .addRange(getSectionRange_(analytics, sections.weeklySummary, 1, 2))
       .setNumHeaders(1)
-      .setPosition(22, 1, 0, 0)
+      .setPosition(25, 1, 0, 0)
       .setOption('title', 'Weekly External Spend by Calendar Week')
       .setOption('curveType', 'function')
       .setOption('legend', { position: 'none' })
@@ -1103,19 +1189,18 @@ function renderDashboard_(sheet, model, sections) {
       .setChartType(Charts.ChartType.COLUMN)
       .addRange(getSectionRange_(analytics, sections.weekdayChart))
       .setNumHeaders(1)
-      .setPosition(22, 8, 0, 0)
+      .setPosition(25, 8, 0, 0)
       .setOption('title', 'Weekday External Spend Pattern')
       .setOption('legend', { position: 'none' })
       .setOption('hAxis', { title: 'Day of Week' })
       .setOption('vAxis', { title: 'Spend ($)' })
-      .setOption('annotations', buildSimpleAnnotationOptions_())
       .setOption('colors', ['#7c3aed'])
       .build(),
     sheet.newChart()
       .setChartType(Charts.ChartType.COLUMN)
       .addRange(getSectionRange_(analytics, sections.weekendMonthlyCompareChart))
       .setNumHeaders(1)
-      .setPosition(38, 1, 0, 0)
+      .setPosition(42, 1, 0, 0)
       .setOption('title', 'Weekend vs Weekday External Spend by Month')
       .setOption('hAxis', { title: 'Month', slantedText: true, slantedTextAngle: 35 })
       .setOption('vAxis', { title: 'Spend ($)' })
@@ -1126,12 +1211,11 @@ function renderDashboard_(sheet, model, sections) {
       .setChartType(Charts.ChartType.BAR)
       .addRange(getSectionRange_(analytics, sections.topMerchantsChart))
       .setNumHeaders(1)
-      .setPosition(38, 8, 0, 0)
+      .setPosition(42, 8, 0, 0)
       .setOption('title', 'Top External Spend Merchants')
       .setOption('legend', { position: 'none' })
       .setOption('hAxis', { title: 'Spend ($)' })
       .setOption('vAxis', { title: 'Merchant' })
-      .setOption('annotations', buildSimpleAnnotationOptions_())
       .setOption('colors', ['#0ea5e9'])
       .build()
   ];
@@ -1176,7 +1260,6 @@ function renderInsights_(sheet, model, sections) {
       .setOption('legend', { position: 'none' })
       .setOption('hAxis', { title: 'Spend ($)' })
       .setOption('vAxis', { title: 'Account' })
-      .setOption('annotations', buildSimpleAnnotationOptions_())
       .setOption('colors', ['#2563eb'])
       .build(),
     sheet.newChart()
@@ -1208,7 +1291,7 @@ function writeDashboardKpis_(sheet, model) {
     formatCurrency_(model.totalIncome),
     formatCurrency_(model.totalSpend),
     formatCurrency_(model.netCashflow),
-    formatPercent_(model.savingsRate),
+    formatSavingsRateForDisplay_(model),
     formatCurrency_(model.dailyAverageBurn),
     truncateLabel_(model.topMerchantName || 'N/A', 16),
     formatPercent_(weekendShare),
@@ -1219,12 +1302,86 @@ function writeDashboardKpis_(sheet, model) {
     .setBackground('#ffffff')
     .setFontWeight('bold')
     .setHorizontalAlignment('center');
+  sheet.getRange('A5:H5').merge()
+    .setValue('Analytics scope: outflow means money leaving accounts; inflow means money entering accounts. Rule exclusions remove rows from Dashboard/Insights/AI totals. Review-only rules only flag rows for attention and keep them included. Internal payment/transfer exclusions prevent credit-card payments from being double-counted as income.')
+    .setBackground('#f8fafc')
+    .setFontColor('#334155')
+    .setFontSize(10)
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle')
+    .setWrap(true);
+  sheet.setRowHeight(5, 42);
+  writeRuleImpactSummary_(sheet, model);
 }
 
-function buildAnalyticsModel_(records) {
+function writeRuleImpactSummary_(sheet, model) {
+  const internalCount = model.excludedTransactionCount || 0;
+  const reviewCount = model.reviewOnlyTransactionCount || 0;
+  const ruleCount = model.ruleExcludedTransactionCount || 0;
+  const values = [
+    ['RULE / EXCLUSION IMPACT', 'COUNT', 'OUTFLOW', 'INFLOW', 'DASHBOARD EFFECT', 'PLAIN ENGLISH'],
+    [
+      'Rules excluded',
+      ruleCount,
+      formatCurrency_(model.ruleExcludedCashOutflow || 0),
+      formatCurrency_(model.ruleExcludedCashInflow || 0),
+      'Removed from totals',
+      'Enabled exclude rules remove matching rows from Dashboard, Insights, Analytics, and AI totals.'
+    ],
+    [
+      'Review-only flags',
+      reviewCount,
+      'Included',
+      'Included',
+      'Still counted',
+      'Rows match review_only rules. They stay in totals but are called out for review and AI context.'
+    ],
+    [
+      'Internal payments/transfers',
+      internalCount,
+      formatCurrency_(model.excludedCashOutflow || 0),
+      formatCurrency_(model.excludedCashInflow || 0),
+      'Auto-excluded',
+      'Credit-card payments/transfers are raw ledger rows, but excluded from cashflow to avoid fake income.'
+    ]
+  ];
+  sheet.getRange('I3:N6')
+    .setValues(values)
+    .setWrap(true)
+    .setVerticalAlignment('middle')
+    .setBorder(true, true, true, true, true, true, '#374151', SpreadsheetApp.BorderStyle.SOLID);
+  sheet.getRange('I3:N3')
+    .setBackground('#0f766e')
+    .setFontColor('#ffffff')
+    .setFontWeight('bold')
+    .setHorizontalAlignment('center');
+  sheet.getRange('I4:N6')
+    .setBackground('#ffffff')
+    .setFontColor('#111827')
+    .setFontSize(9);
+  sheet.getRange('J4:J6').setHorizontalAlignment('center').setFontWeight('bold');
+  sheet.getRange('L4:L6').setHorizontalAlignment('center');
+  if (reviewCount > 0) {
+    sheet.getRange('I5:N5').setBackground('#fff7ed');
+  }
+  if (ruleCount > 0) {
+    sheet.getRange('I4:N4').setBackground('#fef2f2');
+  }
+  if (internalCount > 0) {
+    sheet.getRange('I6:N6').setBackground('#eff6ff');
+  }
+  sheet.setRowHeight(3, 24);
+  sheet.setRowHeight(4, 42);
+  sheet.setRowHeight(5, 46);
+  sheet.setRowHeight(6, 46);
+}
+
+function buildAnalyticsModel_(records, analyticsRules) {
   const timezone = getSpreadsheetTimeZone_();
+  const rules = analyticsRules || getAnalyticsRules_();
   const model = {
     timezone: timezone,
+    activeRules: rules,
     transactionCount: 0,
     expenseCount: 0,
     incomeCount: 0,
@@ -1232,6 +1389,10 @@ function buildAnalyticsModel_(records) {
     excludedTransactionCount: 0,
     excludedCashOutflow: 0,
     excludedCashInflow: 0,
+    ruleExcludedTransactionCount: 0,
+    ruleExcludedCashOutflow: 0,
+    ruleExcludedCashInflow: 0,
+    reviewOnlyTransactionCount: 0,
     totalSpend: 0,
     totalIncome: 0,
     netCashflow: 0,
@@ -1282,8 +1443,35 @@ function buildAnalyticsModel_(records) {
     const accountLabel = formatAccountLabel_(record.account);
     const categoryLabel = formatCategoryLabel_(record.category);
     const detailedCategoryLabel = formatDetailedCategoryLabel_(record.category);
+    const merchantLabel = truncateLabel_(record.name, 36);
     const monthBucket = getOrCreateMonthBucket_(model.months, monthKey);
     const weekBucket = getOrCreateWeekBucket_(model.weeks, weekKey);
+    const ruleDecision = classifyRecordByRules_(record, rules, {
+      account: accountLabel,
+      category: categoryLabel,
+      detailedCategory: detailedCategoryLabel,
+      merchant: merchantLabel
+    });
+
+    if (ruleDecision.treatment === 'review_only') {
+      model.reviewOnlyTransactionCount += 1;
+      monthBucket.reviewOnlyCount += 1;
+    }
+
+    if (ruleDecision.treatment === 'exclude_from_analytics' || ruleDecision.treatment === 'exclude_from_cashflow') {
+      model.ruleExcludedTransactionCount += 1;
+      monthBucket.ruleExcludedCount += 1;
+      if (record.amount > 0) {
+        model.ruleExcludedCashInflow += record.amount;
+        monthBucket.ruleExcludedInflow += record.amount;
+      } else if (record.amount < 0) {
+        const ruleMovedAmount = Math.abs(record.amount);
+        model.ruleExcludedCashOutflow += ruleMovedAmount;
+        monthBucket.ruleExcludedOutflow += ruleMovedAmount;
+      }
+      return;
+    }
+
     const cashflowClass = classifyCashflowRecord_(record, categoryLabel, detailedCategoryLabel);
 
     if (cashflowClass.excludeFromCashflow) {
@@ -1315,7 +1503,6 @@ function buildAnalyticsModel_(records) {
     }
 
     const spend = Math.abs(record.amount);
-    const merchantLabel = truncateLabel_(record.name, 36);
     const isWeekend = isWeekendDate_(record.date);
 
     model.expenseCount += 1;
@@ -1454,15 +1641,15 @@ function buildAnalyticsSections_(model) {
     monthlySummary: createSection_(ANALYTICS_LAYOUT.monthlySummary.row, ANALYTICS_LAYOUT.monthlySummary.col, buildMonthlySummaryTable_(model)),
     weekdaySummary: createSection_(ANALYTICS_LAYOUT.weekdaySummary.row, ANALYTICS_LAYOUT.weekdaySummary.col, buildWeekdaySummaryTable_(model)),
     weeklySummary: createSection_(ANALYTICS_LAYOUT.weeklySummary.row, ANALYTICS_LAYOUT.weeklySummary.col, buildWeeklySummaryTable_(model)),
-    weekdayChart: createSection_(ANALYTICS_LAYOUT.weekdayChart.row, ANALYTICS_LAYOUT.weekdayChart.col, buildAnnotatedWeekdayTable_(model)),
+    weekdayChart: createSection_(ANALYTICS_LAYOUT.weekdayChart.row, ANALYTICS_LAYOUT.weekdayChart.col, buildWeekdayChartTable_(model)),
     monthlyCashflowChart: createSection_(ANALYTICS_LAYOUT.monthlyCashflowChart.row, ANALYTICS_LAYOUT.monthlyCashflowChart.col, buildMonthlyCashflowChartTable_(model)),
     topCategories: createSection_(ANALYTICS_LAYOUT.topCategories.row, ANALYTICS_LAYOUT.topCategories.col, buildTopListTable_('Category', model.categoryList)),
     topAccounts: createSection_(ANALYTICS_LAYOUT.topAccounts.row, ANALYTICS_LAYOUT.topAccounts.col, buildTopListTable_('Account', model.accountList)),
     topMerchants: createSection_(ANALYTICS_LAYOUT.topMerchants.row, ANALYTICS_LAYOUT.topMerchants.col, buildTopListTable_('Merchant', model.merchantList)),
     weekendSummary: createSection_(ANALYTICS_LAYOUT.weekendSummary.row, ANALYTICS_LAYOUT.weekendSummary.col, buildWeekendSummaryTable_(model)),
-    topCategoriesChart: createSection_(ANALYTICS_LAYOUT.topCategoriesChart.row, ANALYTICS_LAYOUT.topCategoriesChart.col, buildAnnotatedTopListTable_('Category', model.categoryList, 22)),
-    topAccountsChart: createSection_(ANALYTICS_LAYOUT.topAccountsChart.row, ANALYTICS_LAYOUT.topAccountsChart.col, buildAnnotatedTopListTable_('Account', model.accountList, 18)),
-    topMerchantsChart: createSection_(ANALYTICS_LAYOUT.topMerchantsChart.row, ANALYTICS_LAYOUT.topMerchantsChart.col, buildAnnotatedTopListTable_('Merchant', model.merchantList, 20)),
+    topCategoriesChart: createSection_(ANALYTICS_LAYOUT.topCategoriesChart.row, ANALYTICS_LAYOUT.topCategoriesChart.col, buildChartTopListTable_('Category', model.categoryList, 22)),
+    topAccountsChart: createSection_(ANALYTICS_LAYOUT.topAccountsChart.row, ANALYTICS_LAYOUT.topAccountsChart.col, buildChartTopListTable_('Account', model.accountList, 18)),
+    topMerchantsChart: createSection_(ANALYTICS_LAYOUT.topMerchantsChart.row, ANALYTICS_LAYOUT.topMerchantsChart.col, buildChartTopListTable_('Merchant', model.merchantList, 20)),
     monthlyCategoryMatrix: createSection_(ANALYTICS_LAYOUT.monthlyCategoryMatrix.row, ANALYTICS_LAYOUT.monthlyCategoryMatrix.col, buildMonthlyMatrixTable_(model, model.topCategoryNames, 'categories')),
     monthlyAccountMatrix: createSection_(ANALYTICS_LAYOUT.monthlyAccountMatrix.row, ANALYTICS_LAYOUT.monthlyAccountMatrix.col, buildMonthlyMatrixTable_(model, model.topAccountNames, 'accounts')),
     weekendMonthlyCompare: createSection_(ANALYTICS_LAYOUT.weekendMonthlyCompare.row, ANALYTICS_LAYOUT.weekendMonthlyCompare.col, buildWeekendMonthlyCompareTable_(model)),
@@ -1495,11 +1682,15 @@ function buildOverviewTable_(model) {
     ['External Spend', roundCurrency_(model.totalSpend)],
     ['External Income', roundCurrency_(model.totalIncome)],
     ['Net Cashflow', roundCurrency_(model.netCashflow)],
-    ['Savings Rate', model.savingsRate],
+    ['Savings Rate', formatSavingsRateForDisplay_(model)],
     ['Daily Avg Burn', roundCurrency_(model.dailyAverageBurn)],
+    ['Excluded By Rules Outflow', roundCurrency_(model.ruleExcludedCashOutflow)],
+    ['Excluded By Rules Inflow', roundCurrency_(model.ruleExcludedCashInflow)],
+    ['Excluded By Rules Count', model.ruleExcludedTransactionCount],
     ['Excluded Internal Outflow', roundCurrency_(model.excludedCashOutflow)],
     ['Excluded Internal Inflow', roundCurrency_(model.excludedCashInflow)],
     ['Excluded Internal Count', model.excludedTransactionCount],
+    ['Review Only Count', model.reviewOnlyTransactionCount],
     ['Weekend Share', model.totalSpend > 0 ? model.weekendSpend / model.totalSpend : 0],
     ['Recurring Merchants', model.recurringCandidates.length]
   ];
@@ -1680,11 +1871,33 @@ function buildAnnotatedTopListTable_(label, list, truncateLimit) {
   return table;
 }
 
+function buildChartTopListTable_(label, list, truncateLimit) {
+  const table = [[label, 'Spend']];
+  list.slice(0, 8).forEach(function(item) {
+    table.push([
+      truncateLabel_(item.name, truncateLimit || 22),
+      roundCurrency_(item.total)
+    ]);
+  });
+  if (table.length === 1) {
+    table.push(['No data', 0]);
+  }
+  return table;
+}
+
 function buildAnnotatedWeekdayTable_(model) {
   const table = [['Day', 'Spend', 'annotation']];
   WEEKDAY_ORDER.forEach(function(day) {
     const spend = roundCurrency_(model.weekdays[day] || 0);
     table.push([day, spend, formatCurrency_(spend)]);
+  });
+  return table;
+}
+
+function buildWeekdayChartTable_(model) {
+  const table = [['Day', 'Spend']];
+  WEEKDAY_ORDER.forEach(function(day) {
+    table.push([day, roundCurrency_(model.weekdays[day] || 0)]);
   });
   return table;
 }
@@ -1767,8 +1980,15 @@ function buildAiContext_(model, records, query, intent, options) {
   lines.push('Period -> ' + formatDateForPrompt_(model.minDate) + ' to ' + formatDateForPrompt_(model.maxDate) + ' (' + model.dayCount + ' days / ' + model.monthCount + ' months)');
   lines.push('Transactions -> ' + model.transactionCount + ' total, ' + model.expenseCount + ' expenses, ' + model.pendingCount + ' pending');
   lines.push('Totals -> External Spend ' + formatCurrency_(model.totalSpend) + ', External Income ' + formatCurrency_(model.totalIncome) + ', Net ' + formatCurrency_(model.netCashflow));
+  lines.push('Excluded By Rules -> Outflow ' + formatCurrency_(model.ruleExcludedCashOutflow || 0) + ', Inflow ' + formatCurrency_(model.ruleExcludedCashInflow || 0) + ', Count ' + (model.ruleExcludedTransactionCount || 0));
+  lines.push('Review-only Rule Flags -> ' + (model.reviewOnlyTransactionCount || 0) + ' transaction(s), still included in totals');
   lines.push('Excluded Internal Cash Movements -> Outflow ' + formatCurrency_(model.excludedCashOutflow) + ', Inflow ' + formatCurrency_(model.excludedCashInflow) + ', Count ' + model.excludedTransactionCount);
-  lines.push('Savings Rate -> ' + formatPercent_(model.savingsRate));
+  if (model.activeRules && model.activeRules.length) {
+    lines.push('Active Analytics Rules -> ' + summarizeAnalyticsRules_(model.activeRules));
+  }
+  const savingsStatus = buildSavingsRateStatus_(model);
+  lines.push('Savings Rate -> ' + savingsStatus.status);
+  lines.push('Income Coverage -> ' + savingsStatus.note);
   lines.push('Daily Burn -> ' + formatCurrency_(model.dailyAverageBurn));
   lines.push('Top Accounts -> [' + formatBucketSummary_(model.accountList, MAX_TOP_ITEMS) + ']');
   lines.push('Top Categories -> [' + formatBucketSummary_(model.categoryList, MAX_TOP_ITEMS) + ']');
@@ -2036,6 +2256,10 @@ function buildResponseContract_(intent) {
   if (!intent.needsMonthly && !intent.needsWeekend && !intent.needsCategoryExamples) {
     lines.push('For overview questions, answer in 3-5 compact bullets or short paragraphs.');
   }
+  if (intent.needsCashflow) {
+    lines.push('For savings-rate questions, include the verified external income amount, excluded payment/transfer amount, and whether the savings rate is calculable.');
+    lines.push('Do not describe 0% as the true savings rate when verified external income is $0.00.');
+  }
 
   return lines.join('\n');
 }
@@ -2064,6 +2288,8 @@ function buildDirectAnswer_(model, query, intent, filters) {
       lines.push('Spend -> ' + formatCurrency_(bucket.spend));
       lines.push('Income -> ' + formatCurrency_(bucket.income));
       lines.push('Net -> ' + formatCurrency_(bucket.net));
+      lines.push('Excluded By Rules Outflow -> ' + formatCurrency_(bucket.ruleExcludedOutflow || 0));
+      lines.push('Excluded By Rules Inflow -> ' + formatCurrency_(bucket.ruleExcludedInflow || 0));
       lines.push('Excluded Internal Outflow -> ' + formatCurrency_(bucket.excludedOutflow || 0));
       lines.push('Excluded Internal Inflow -> ' + formatCurrency_(bucket.excludedInflow || 0));
       lines.push('Accounts -> [' + formatBucketSummary_(bucket.accountList, Math.max(bucket.accountList.length, MAX_TOP_ITEMS)) + ']');
@@ -2201,6 +2427,8 @@ function buildLatestMonthSnapshot_(model) {
     'Month -> ' + latestKey,
     'Spend -> ' + formatCurrency_(bucket.spend),
     'Income -> ' + formatCurrency_(bucket.income),
+    'Excluded By Rules Outflow -> ' + formatCurrency_(bucket.ruleExcludedOutflow || 0),
+    'Excluded By Rules Inflow -> ' + formatCurrency_(bucket.ruleExcludedInflow || 0),
     'Excluded Internal Outflow -> ' + formatCurrency_(bucket.excludedOutflow || 0),
     'Excluded Internal Inflow -> ' + formatCurrency_(bucket.excludedInflow || 0),
     'Accounts -> [' + formatBucketSummary_(bucket.accountList, Math.max(bucket.accountList.length, 6)) + ']',
@@ -2423,16 +2651,23 @@ function buildFilterLabel_(filters) {
 }
 
 function buildOverviewToolResult_(model) {
+  const savingsStatus = buildSavingsRateStatus_(model);
   return {
     period_start: formatDateForPrompt_(model.minDate),
     period_end: formatDateForPrompt_(model.maxDate),
     total_spend: roundCurrency_(model.totalSpend),
     total_income: roundCurrency_(model.totalIncome),
+    excluded_by_rules_outflow: roundCurrency_(model.ruleExcludedCashOutflow || 0),
+    excluded_by_rules_inflow: roundCurrency_(model.ruleExcludedCashInflow || 0),
+    excluded_by_rules_count: model.ruleExcludedTransactionCount || 0,
     excluded_internal_outflow: roundCurrency_(model.excludedCashOutflow),
     excluded_internal_inflow: roundCurrency_(model.excludedCashInflow),
     excluded_internal_count: model.excludedTransactionCount,
+    review_only_count: model.reviewOnlyTransactionCount || 0,
     net_cashflow: roundCurrency_(model.netCashflow),
     savings_rate: roundCurrency_(model.savingsRate * 100),
+    savings_rate_status: savingsStatus.status,
+    income_coverage_note: savingsStatus.note,
     daily_average_burn: roundCurrency_(model.dailyAverageBurn),
     top_accounts: serializeNamedTotals_(model.accountList, 6),
     top_categories: serializeNamedTotals_(model.categoryList, 6),
@@ -2441,6 +2676,26 @@ function buildOverviewToolResult_(model) {
     recurring_merchants: serializeMerchantItems_(model.recurringCandidates, 6),
     category_drift: model.categoryDrift.slice(0, 6)
   };
+}
+
+function buildSavingsRateStatus_(model) {
+  if (!model || Number(model.totalIncome || 0) <= 0) {
+    return {
+      status: 'Not calculable from current linked accounts',
+      note: 'Verified external income is $0.00 after excluding credit-card payments/transfers. Link a checking/payroll account or import income rows before treating savings rate as real.'
+    };
+  }
+  return {
+    status: formatPercent_(model.savingsRate),
+    note: 'Verified external income is present, so savings rate is calculated as net cashflow divided by external income.'
+  };
+}
+
+function formatSavingsRateForDisplay_(model) {
+  if (!model || Number(model.totalIncome || 0) <= 0) {
+    return 'N/A - no verified income';
+  }
+  return formatPercent_(model.savingsRate);
 }
 
 function buildMonthBreakdownToolResult_(records, model, args) {
@@ -2576,12 +2831,16 @@ function filterRecordsByToolArgs_(records, model, args) {
   const merchantQuery = normalizeQueryText_(args.merchant);
   const accountQuery = normalizeQueryText_(args.account);
   const expensesOnly = args.expensesOnly === true;
+  const rules = model && model.activeRules ? model.activeRules : [];
 
   return records.filter(function(record) {
     if (!record.date) {
       return false;
     }
     if (expensesOnly && Number(record.amount || 0) >= 0) {
+      return false;
+    }
+    if (isRecordExcludedByAnalyticsRules_(record, rules)) {
       return false;
     }
     if (monthMatches.length) {
@@ -2611,6 +2870,21 @@ function filterRecordsByToolArgs_(records, model, args) {
     }
     return true;
   });
+}
+
+function isRecordExcludedByAnalyticsRules_(record, rules) {
+  if (!rules || !rules.length) {
+    return false;
+  }
+
+  const labels = {
+    account: formatAccountLabel_(record.account),
+    category: formatCategoryLabel_(record.category),
+    detailedCategory: formatDetailedCategoryLabel_(record.category),
+    merchant: truncateLabel_(record.name, 36)
+  };
+  const decision = classifyRecordByRules_(record, rules, labels);
+  return decision.treatment === 'exclude_from_analytics' || decision.treatment === 'exclude_from_cashflow';
 }
 
 function serializeNamedTotals_(list, limit) {
@@ -2878,12 +3152,14 @@ function parseAiIntent_(query, filters) {
   const needsCategoryExamples = /((category|categories).*(breakdown|detail|details|example|examples|merchant|transaction id|transaction ids|sample|show me|include))|((breakdown|detail|details|example|examples|merchant|transaction id|transaction ids|sample|show me|include).*(category|categories))/.test(normalized);
   const needsAnomalies = /(largest|anomal|odd|unusual|biggest|outlier)/.test(normalized);
   const needsAdvice = /(optimi[sz]e|recommend|advice|should|plan|improve|cut|reduce|save money|save more|how can i|what should i do|help me)/.test(normalized);
+  const needsCashflow = /(savings rate|save rate|real savings|cashflow|cash flow|net cashflow|income|external income|paycheck|payroll|burn rate|daily burn)/.test(normalized);
   const needsSpendFocus = /(spend|spending|expense|expenses|budget|save|cut|reduce|leak|leaks)/.test(normalized) ||
     needsMonthly ||
     needsWeekend ||
     needsCategoryExamples ||
-    needsBreakdown;
-  const needsGroundedEvidence = needsWeekend || needsBreakdown || needsTransactions || needsGroupedTransactions || needsTabularOutput || needsCategoryExamples;
+    needsBreakdown ||
+    needsCashflow;
+  const needsGroundedEvidence = needsWeekend || needsBreakdown || needsTransactions || needsGroupedTransactions || needsTabularOutput || needsCategoryExamples || needsCashflow;
   return {
     needsMonthly: needsMonthly,
     needsWeekly: needsWeekly,
@@ -2897,18 +3173,39 @@ function parseAiIntent_(query, filters) {
     needsCategoryExamples: needsCategoryExamples,
     needsAnomalies: needsAnomalies,
     needsAdvice: needsAdvice,
+    needsCashflow: needsCashflow,
     needsGroundedEvidence: needsGroundedEvidence,
-    needsStructuredReport: needsMonthly || needsWeekend || needsCategoryExamples || needsAnomalies || needsBreakdown || needsTabularOutput
+    needsStructuredReport: needsMonthly || needsWeekend || needsCategoryExamples || needsAnomalies || needsBreakdown || needsTabularOutput || needsCashflow
   };
 }
 
 function ensureGeminiKeyStatus_() {
   const props = getGeminiPropertyStores_();
+  const sheetValue = sanitizeSettingValue_(getSetting_(GEMINI_SETTING_KEY));
+  if (sheetValue) {
+    props.script.setProperty(GEMINI_SETTING_KEY, sheetValue);
+    props.user.setProperty(GEMINI_SETTING_KEY, sheetValue);
+    setSetting_(GEMINI_SETTING_KEY, GEMINI_KEY_MIGRATED_MARKER);
+    return;
+  }
+
   const storedValue = sanitizeSettingValue_(props.script.getProperty(GEMINI_SETTING_KEY)) ||
     sanitizeSettingValue_(props.user.getProperty(GEMINI_SETTING_KEY));
   if (storedValue) {
     setSetting_(GEMINI_SETTING_KEY, GEMINI_KEY_MIGRATED_MARKER);
   }
+}
+
+function resetGeminiKeyStorage() {
+  clearGeminiKeyStorage_();
+  SpreadsheetApp.getUi().alert('Gemini key storage cleared. Paste your current Gemini API key into Settings!B2, save the cell, then open the sidebar or refresh visuals.');
+}
+
+function clearGeminiKeyStorage_() {
+  const props = getGeminiPropertyStores_();
+  props.script.deleteProperty(GEMINI_SETTING_KEY);
+  props.user.deleteProperty(GEMINI_SETTING_KEY);
+  setSetting_(GEMINI_SETTING_KEY, '');
 }
 
 function getGeminiApiKey_() {
@@ -3112,6 +3409,168 @@ function setSetting_(key, value) {
   }
 
   sheet.appendRow([key, value]);
+}
+
+function setupRulesSheet_(sheet) {
+  if (!sheet) {
+    return;
+  }
+
+  seedRulesSheet_(sheet);
+  writeRulesLegend_(sheet);
+}
+
+function seedRulesSheet_(sheet) {
+  if (!sheet || sheet.getLastRow() > 1) {
+    return;
+  }
+
+  sheet.getRange(2, 1, 4, 7).setValues([
+    ['rule_001', false, 'account', 'exact', 'Example Business Card ending 0000', 'exclude_from_analytics', 'Enable and edit to hide an account from Dashboard/Insights/AI analytics.'],
+    ['rule_002', false, 'category', 'contains', 'Internal Transfer', 'exclude_from_cashflow', 'Enable if Plaid categorizes a transfer pattern that hardcoded internal-transfer detection misses.'],
+    ['rule_003', false, 'merchant', 'contains', 'VENMO', 'review_only', 'Enable to keep spend included but flag mixed/reimbursement merchants for AI context.'],
+    ['rule_004', false, 'category', 'contains', 'Loan Payments Credit Card Payment', 'exclude_from_cashflow', 'Enable if a credit-card payment category is not already excluded automatically.']
+  ]);
+}
+
+function writeRulesLegend_(sheet) {
+  sheet.getRange('I1:K14').clearContent().clearFormat();
+  sheet.getRange('I1:K1').merge()
+    .setValue('Rules Legend')
+    .setBackground('#0f766e')
+    .setFontColor('#ffffff')
+    .setFontWeight('bold')
+    .setHorizontalAlignment('center');
+  sheet.getRange('I2:K14').setValues([
+    ['Field', 'Allowed Values', 'Meaning'],
+    ['Enabled', 'TRUE', 'Rule is active'],
+    ['Enabled', 'FALSE', 'Rule is ignored'],
+    ['Rule Type', 'account', 'Match the Account column / friendly card name'],
+    ['Rule Type', 'category', 'Match category or detailed category'],
+    ['Rule Type', 'merchant', 'Match transaction merchant/name'],
+    ['Match Type', 'exact', 'Must match the whole normalized value'],
+    ['Match Type', 'contains', 'Match Value may appear anywhere in the target'],
+    ['Treatment', 'include', 'Keep included; lowest priority if other rules match'],
+    ['Treatment', 'exclude_from_analytics', 'Remove from Dashboard, Insights, Analytics, and grounded AI totals'],
+    ['Treatment', 'exclude_from_cashflow', 'Remove from spend/income/cashflow totals but keep raw row'],
+    ['Treatment', 'review_only', 'Keep included but flag for AI/review context'],
+    ['Priority', 'exclude > cashflow > review > include', 'When multiple enabled rules match, strongest treatment wins']
+  ]);
+  sheet.getRange('I2:K2')
+    .setBackground('#134e4a')
+    .setFontColor('#ffffff')
+    .setFontWeight('bold');
+  sheet.getRange('I2:K14')
+    .setBorder(true, true, true, true, true, true, '#94a3b8', SpreadsheetApp.BorderStyle.SOLID)
+    .setWrap(true)
+    .setVerticalAlignment('top');
+  sheet.setColumnWidths(9, 3, 180);
+}
+
+function getAnalyticsRules_() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Rules');
+  if (!sheet || sheet.getLastRow() < 2) {
+    return [];
+  }
+
+  const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 7).getValues();
+  return rows.map(function(row) {
+    return {
+      id: String(row[0] || '').trim(),
+      enabled: isRuleEnabled_(row[1]),
+      ruleType: String(row[2] || '').trim().toLowerCase(),
+      matchType: String(row[3] || '').trim().toLowerCase(),
+      matchValue: String(row[4] || '').trim(),
+      treatment: String(row[5] || '').trim().toLowerCase(),
+      notes: String(row[6] || '').trim()
+    };
+  }).filter(function(rule) {
+    return rule.enabled &&
+      ['account', 'category', 'merchant'].indexOf(rule.ruleType) !== -1 &&
+      ['exact', 'contains'].indexOf(rule.matchType) !== -1 &&
+      ['include', 'exclude_from_analytics', 'exclude_from_cashflow', 'review_only'].indexOf(rule.treatment) !== -1 &&
+      rule.matchValue;
+  });
+}
+
+function isRuleEnabled_(value) {
+  if (value === true) {
+    return true;
+  }
+  const normalized = String(value || '').trim().toLowerCase();
+  return ['true', 'yes', 'y', '1', 'enabled'].indexOf(normalized) !== -1;
+}
+
+function classifyRecordByRules_(record, rules, labels) {
+  const precedence = {
+    include: 0,
+    review_only: 1,
+    exclude_from_cashflow: 2,
+    exclude_from_analytics: 3
+  };
+  let selected = { treatment: 'include', precedence: 0, matchedRules: [] };
+
+  (rules || []).forEach(function(rule) {
+    if (!doesRuleMatchRecord_(rule, record, labels)) {
+      return;
+    }
+
+    const rank = precedence[rule.treatment] || 0;
+    selected.matchedRules.push(rule.id || rule.matchValue);
+    if (rank > selected.precedence) {
+      selected = {
+        treatment: rule.treatment,
+        precedence: rank,
+        matchedRules: selected.matchedRules
+      };
+    }
+  });
+
+  return selected;
+}
+
+function doesRuleMatchRecord_(rule, record, labels) {
+  const value = normalizeRuleComparable_(rule.matchValue);
+  if (!value) {
+    return false;
+  }
+
+  const targets = getRuleTargets_(rule.ruleType, record, labels).map(normalizeRuleComparable_);
+  if (rule.matchType === 'exact') {
+    return targets.some(function(target) {
+      return target === value;
+    });
+  }
+
+  return targets.some(function(target) {
+    return target.indexOf(value) !== -1;
+  });
+}
+
+function getRuleTargets_(ruleType, record, labels) {
+  if (ruleType === 'account') {
+    return [labels.account, record.account];
+  }
+  if (ruleType === 'category') {
+    return [labels.category, labels.detailedCategory, record.category];
+  }
+  if (ruleType === 'merchant') {
+    return [labels.merchant, record.name];
+  }
+  return [];
+}
+
+function normalizeRuleComparable_(value) {
+  return String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function summarizeAnalyticsRules_(rules) {
+  if (!rules || !rules.length) {
+    return 'None';
+  }
+  return rules.slice(0, 8).map(function(rule) {
+    return rule.ruleType + ' ' + rule.matchType + ' "' + rule.matchValue + '" -> ' + rule.treatment;
+  }).join('; ');
 }
 
 function getTransactionRecords_() {
@@ -3325,6 +3784,10 @@ function getOrCreateMonthBucket_(months, key) {
       excludedOutflow: 0,
       excludedInflow: 0,
       excludedCount: 0,
+      ruleExcludedOutflow: 0,
+      ruleExcludedInflow: 0,
+      ruleExcludedCount: 0,
+      reviewOnlyCount: 0,
       accounts: {},
       categories: {},
       merchants: {},
@@ -3479,7 +3942,10 @@ function buildExampleList_(examples, limit) {
 
 function formatAccountLabel_(accountId) {
   const text = String(accountId || 'Unknown Account');
-  if (text.length <= 8) {
+  if (text.indexOf(' - ') !== -1 || /\bending\s+\d{2,4}$/i.test(text)) {
+    return text;
+  }
+  if (text.length <= 12) {
     return text;
   }
   return 'Acct ...' + text.slice(-6);

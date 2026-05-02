@@ -9,24 +9,36 @@ This repository exists to run a local-first personal finance workflow:
 - support a Gemini sidebar that mixes verified local analytics with model-generated advice
 
 ## Current Status Snapshot
-Current working state: `v5.4`
-
+Current working state: `v5.4.1`
 What is working now:
 - Python sync engine for Plaid -> Google Sheets
-- Desktop sync shortcut via [run_sync.command](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/run_sync.command)
+- Friendly account labels resolved during sync
+- Native bank connection helper: [connect_bank.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/connect_bank.py)
+- Setup health check helper: [doctor.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/doctor.py)
+- Rules-based analytics exclusion system (Analytics, Dashboard, AI)
 - Hidden `Analytics` data mart powering the visible sheets
 - `Dashboard` and `Insights` rendering from Apps Script
-- Gemini sidebar with:
-  - conversation carry-forward
-  - raw transaction context up to the configured threshold
-  - grounded verified-data responses for evidence-heavy prompts
-  - deterministic fallback when Gemini is unavailable
-- internal credit-card payment / transfer exclusion from verified spend and cashflow analytics
+- Gemini sidebar with logging, verified data, and fallback support
+- Fixed duplicate chart bars and improved dashboard exclusion transparency
+
+### Session 6 - 2026-04-25
+Objective:
+- improve account naming, add a native bank connector, and implement a flexible rules-based exclusion system
+
+Completed:
+- implemented friendly account labels (e.g., "AmEx Gold Card ending 2003") in sync and migration
+- added [connect_bank.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/connect_bank.py) for repo-native bank linking
+- added [Rules](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Code.gs) sheet support for excluding accounts/categories/merchants from analytics
+- fixed chart rendering bugs (duplicate bars) and improved dashboard exclusion transparency
+- patched sidebar logging to handle large verified-data responses
+- identified U.S. Bank `INSTITUTION_REGISTRATION_REQUIRED` blocker; user submitted Plaid Security Questionnaire
+- added setup doctor checks and repo-local launchers for linked-account listing and bank connection
 
 ## Important Operational Truths
 - The repo and the live Google Sheet are separate deployment surfaces.
-- Editing [Code.gs](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Code.gs) or [Sidebar.html](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Sidebar.html) does not automatically update the bound Apps Script project.
+- Editing [Code.gs](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Code.gs) or [Sidebar.html](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Sidebar.html) does not automatically update the bound Apps Script project.
 - Raw payment/transfer rows remain in `Transactions`, but verified analytics exclude them from spend/income metrics to avoid double counting.
+- U.S. Bank and similar OAuth institutions are blocked until Plaid completes the required Production/OAuth institution registration.
 - Local artifacts such as `.env`, `credentials.json`, `token.json`, `.DS_Store`, and screen recordings should stay out of commits.
 
 ## Session History
@@ -63,7 +75,7 @@ Objective:
 - implement the v5.4 grounded-evidence recovery pass
 
 Completed:
-- added a grounded evidence packet path in [Code.gs](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Code.gs)
+- added a grounded evidence packet path in [Code.gs](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Code.gs)
 - routed evidence-heavy prompts through verified local tools before Gemini narrative
 - added clearer mode labeling around verified vs Gemini-assisted answers
 - improved chart readability with helper tables, adaptive monthly cashflow rendering, and safer label handling
@@ -76,21 +88,22 @@ Objective:
 - clean up documentation and repo handoff quality before ending the session
 
 Completed:
-- rewrote [README.md](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/README.md)
-- added [AGENTS.md](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/AGENTS.md) for future contributors/agents
-- refreshed [GEMINI.md](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/GEMINI.md) to reflect the current architecture
+- rewrote [README.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/README.md)
+- added [AGENTS.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/AGENTS.md) for future contributors/agents
+- refreshed [GEMINI.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/GEMINI.md) to reflect the current architecture
 - updated ignore rules for local screen recordings and similar noise
 
 ## Next Session Priorities
 Highest-value next steps:
-1. Re-test the live Google Sheet after redeploying the newest Apps Script files and confirm the visible charts match the repo logic.
-2. Continue tightening the grounded chat path if any remaining mismatch appears between verified transactions and Gemini narrative.
-3. Decide whether account-level exclusion/filter controls should be added inside the spreadsheet instead of only via Plaid relinking.
-4. Polish sidebar readability and on-sheet explanatory text if you want a more executive presentation layer.
+1. Resume U.S. Bank connection via `.venv/bin/python -m src.engine.connect_bank` once Plaid approves Production access.
+2. Consider adding a checking/payroll account to enable verified savings rate calculations.
+3. Polish Rules UI or add more automated rules for common transfer types.
+4. Revisit Capital One and other OAuth institutions after U.S. Bank/Plaid registration is verified.
 
 ## Recommended Restart Checklist
 When resuming later:
 1. Pull `main`.
-2. Review [README.md](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/README.md), [sessions.md](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/sessions.md), and [AGENTS.md](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/AGENTS.md).
-3. Open the live Google Sheet and confirm whether the bound Apps Script is at the same revision as the repo.
-4. If Apps Script changed locally, redeploy [Code.gs](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Code.gs) and [Sidebar.html](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Sidebar.html), then run `🏦 Bank Automation -> 📈 Refresh Dashboard & Visuals`.
+2. Review [README.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/README.md), [sessions.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/sessions.md), and [AGENTS.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/AGENTS.md).
+3. Run `.venv/bin/python -m src.engine.doctor`.
+4. Open the live Google Sheet and confirm whether the bound Apps Script is at the same revision as the repo.
+5. If Apps Script changed locally, redeploy [Code.gs](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Code.gs) and [Sidebar.html](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Sidebar.html), then run `🏦 Bank Automation -> 📈 Refresh Dashboard & Visuals`.

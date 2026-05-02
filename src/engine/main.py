@@ -94,6 +94,8 @@ def main():
     total_tokens = len(access_tokens)
     for index, token in enumerate(access_tokens, start=1):
         logger.info(f"Retrieving transactions for institution {index} of {total_tokens}...")
+        account_labels = plaid_client.get_account_label_map(token)
+        logger.info("Resolved %s account label(s) for institution %s.", len(account_labels), index)
         transactions = plaid_client.get_transactions(token, start_date, end_date)
 
         if transactions is None:
@@ -102,7 +104,7 @@ def main():
 
         # 7. Parse Transactions
         logger.info("Parsing data for institution...")
-        parsed_data = processor.parse_plaid_transactions(transactions, existing_ids)
+        parsed_data = processor.parse_plaid_transactions(transactions, existing_ids, account_labels)
         all_new_data.extend(parsed_data)
         existing_ids.update(row[0] for row in parsed_data)
 

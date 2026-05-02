@@ -7,10 +7,11 @@ class TransactionProcessor:
         # Default headers: TransactionID, Date, Name, Amount, Category, Account, Pending
         self.headers = headers or ['Transaction ID', 'Date', 'Name', 'Amount', 'Category', 'Account', 'Pending']
 
-    def parse_plaid_transactions(self, transactions, existing_ids=None):
+    def parse_plaid_transactions(self, transactions, existing_ids=None, account_labels=None):
         """Parses Plaid transaction objects into a list of lists for Google Sheets."""
         parsed_data = []
         existing_ids = existing_ids or set()
+        account_labels = account_labels or {}
         
         if not transactions:
             return parsed_data
@@ -36,11 +37,12 @@ class TransactionProcessor:
             else:
                 category = ', '.join(t['category']) if t['category'] else 'Uncategorized' 
             
-            account_id = t['account_id'] 
+            account_id = t['account_id']
+            account_label = account_labels.get(account_id, account_id)
             pending = t['pending']
             
             # Match headers order
-            row = [transaction_id, date, name, amount, category, account_id, pending]
+            row = [transaction_id, date, name, amount, category, account_label, pending]
             parsed_data.append(row)
             existing_ids.add(transaction_id)
 

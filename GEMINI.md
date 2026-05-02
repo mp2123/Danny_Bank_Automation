@@ -22,18 +22,20 @@ The model should not be relied on for exact accounting math when verified local 
 - Evidence-heavy prompts should be grounded in local tool output before Gemini writes the narrative section.
 
 ## Key Files
-- [src/appscript/Code.gs](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Code.gs)
-- [src/appscript/Sidebar.html](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Sidebar.html)
-- [src/engine/main.py](/Users/michael_s_panico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/main.py)
+- [src/appscript/Code.gs](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Code.gs)
+- [src/appscript/Sidebar.html](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Sidebar.html)
+- [src/engine/main.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/main.py)
 
 ## Current Status
-Current recovery version: `v5.4`
+Current recovery version: `v5.4.1`
 
 Recent focus areas:
 - grounded evidence responses
 - chart stability and readability
 - quota fallback behavior
 - payment/transfer exclusion from verified spend analytics
+- friendly account labels, Rules sheet filtering, and setup diagnostics
+- U.S. Bank remains blocked pending Plaid Production/OAuth institution registration
 
 ## Deployment Reminder
 Repo changes under `src/appscript/` are not live until they are manually copied into the bound Apps Script project in Google Sheets.
