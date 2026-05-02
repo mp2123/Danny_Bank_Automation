@@ -276,11 +276,23 @@ Then refresh the live Sheet.
 ## Apps Script Deployment
 Repo changes do not deploy themselves into the live Google Sheet.
 
-After changing the Apps Script layer:
+Preferred helper path:
+
+```bash
+cd /Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation
+.venv/bin/python -m src.engine.appscript_deploy --dry-run
+.venv/bin/python -m src.engine.appscript_deploy --push
+```
+
+The helper uses the Google Apps Script API and only manages:
+- [Code.gs](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Code.gs)
+- [Sidebar.html](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Sidebar.html)
+
+Set `GOOGLE_APPS_SCRIPT_ID` in `.env` to the bound Apps Script project ID. The first run may create `token_appscript.json` with the deploy-only `script.projects` OAuth scope; keep that file local and uncommitted. The helper preserves the remote `appsscript` manifest unless a repo-local manifest is added later, and it refuses unexpected remote files unless `--allow-unmanaged` is used explicitly.
+
+Manual fallback:
 1. Open the bound Apps Script project from the sheet.
-2. Replace the live contents with:
-   - [Code.gs](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Code.gs)
-   - [Sidebar.html](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Sidebar.html)
+2. Replace the live contents with `src/appscript/Code.gs` and `src/appscript/Sidebar.html`.
 3. Save.
 4. Reload the Google Sheet.
 5. Run `🏦 Bank Automation -> 📈 Refresh Dashboard & Visuals`.
@@ -316,7 +328,8 @@ Use these before pushing changes:
 cd /Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation
 .venv/bin/python -m pytest -q
 node --check --input-type=commonjs < src/appscript/Code.gs
-.venv/bin/python -m py_compile src/engine/connect_bank.py src/engine/doctor.py
+.venv/bin/python -m py_compile src/engine/appscript_deploy.py src/engine/connect_bank.py src/engine/doctor.py
+.venv/bin/python -m src.engine.appscript_deploy --dry-run
 .venv/bin/python -m src.engine.list_linked_accounts
 .venv/bin/python -m src.engine.doctor
 ```
@@ -324,11 +337,11 @@ node --check --input-type=commonjs < src/appscript/Code.gs
 ## Operational Notes
 - Gemini key status may show `Stored in Script Properties`; that is healthy and expected.
 - The Python sync engine and the Apps Script dashboard/chat layer are separate deployment surfaces.
-- Local artifacts such as `.env`, `credentials.json`, `token.json`, Finder files, logs, and screen recordings should not be committed.
+- Local artifacts such as `.env`, `credentials.json`, `token.json`, `token_appscript.json`, Finder files, logs, and screen recordings should not be committed.
 - The current repo intentionally keeps research/history material under `research/` and historical handoff context in `PROJECT_TRANSITION_V5.md`.
 
 ## Next Improvement Themes
-- Add an Apps Script deployment helper or `clasp` workflow
+- Continue improving the Apps Script deployment helper and later add optional `clasp` power-user support
 - Add CSV/manual import coverage for verified income and unsupported banks
 - Package/polish the local control center into the first sellable Mac-friendly surface
 - Resume U.S. Bank connection after Plaid Production registration approval

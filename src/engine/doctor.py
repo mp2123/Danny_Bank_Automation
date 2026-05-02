@@ -120,6 +120,16 @@ def check_appscript_syntax(root):
     return CheckResult('Apps Script syntax', 'PASS', 'Code.gs passes node syntax check.')
 
 
+def check_appscript_deploy_config(env):
+    if env.get('GOOGLE_APPS_SCRIPT_ID'):
+        return CheckResult('Apps Script deploy config', 'PASS', 'GOOGLE_APPS_SCRIPT_ID is configured for API-based deploy checks.')
+    return CheckResult(
+        'Apps Script deploy config',
+        'WARN',
+        'GOOGLE_APPS_SCRIPT_ID is missing. Use manual paste deploy fallback, or add the bound Apps Script project ID to enable the deploy helper.',
+    )
+
+
 def check_plaid_accounts(env):
     tokens = split_access_tokens(env.get('PLAID_ACCESS_TOKEN'))
     if not tokens:
@@ -174,6 +184,7 @@ def collect_checks(root, env, quickstart_python_dir, skip_network=False):
         env_check,
         check_python_imports(),
         check_appscript_syntax(root),
+        check_appscript_deploy_config(env),
         check_quickstart_venv(quickstart_python_dir),
         plaid_oauth_blocker_note(),
     ]

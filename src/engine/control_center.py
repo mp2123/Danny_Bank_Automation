@@ -13,6 +13,11 @@ from datetime import datetime
 
 from dotenv import load_dotenv
 
+from .appscript_deploy import (
+    AppScriptDeployError,
+    format_deploy_report,
+    run_deploy_plan,
+)
 from .doctor import (
     PLAID_OAUTH_STATUS_URL,
     QUICKSTART_PYTHON_DIR,
@@ -28,6 +33,7 @@ DEFAULT_PORT = 8790
 RUNTIME_STATE = {
     'last_sync': None,
     'last_doctor': None,
+    'last_appscript_deploy': None,
 }
 
 
@@ -50,6 +56,7 @@ def build_config_status(env):
         'token_count': len(tokens),
         'required_keys_present': not missing,
         'missing_keys': missing,
+        'apps_script_deploy_configured': bool(env.get('GOOGLE_APPS_SCRIPT_ID')),
     }
 
 
@@ -129,6 +136,7 @@ def mask_sensitive_text(text, env=None):
         'PLAID_SECRET',
         'GOOGLE_SPREADSHEET_ID',
         'GEMINI_API_KEY',
+        'GOOGLE_APPS_SCRIPT_ID',
     ]:
         value = env.get(key)
         if value:
@@ -247,6 +255,12 @@ def build_next_actions(doctor_payload=None, accounts_payload=None, sync_result=N
                 'title': 'Wait for Plaid OAuth registration',
                 'detail': 'Plaid OAuth institutions such as U.S. Bank stay blocked until Plaid registration is approved.',
             })
+        if name == 'Apps Script deploy config' and check.get('status') == 'WARN':
+            actions.append({
+                'priority': 'medium',
+                'title': 'Apps Script deploy helper not configured',
+                'detail': 'Add GOOGLE_APPS_SCRIPT_ID to .env for Apps Script deploy checks, or keep using the manual redeploy checklist.',
+            })
 
     guidance = build_account_guidance(accounts_payload)
     if guidance['income_status'] == 'no_verified_income_source':
@@ -292,7 +306,8 @@ def build_status_payload(root=None, env=None, runtime_state=None):
             sync_result=runtime_state.get('last_sync'),
         ),
         'appscript': {
-            'manual_deploy_required': True,
+            'deploy_helper_configured': bool(env.get('GOOGLE_APPS_SCRIPT_ID')),
+            'manual_deploy_required': not bool(env.get('GOOGLE_APPS_SCRIPT_ID')),
             'checklist': build_appscript_redeploy_checklist(),
         },
         'blockers': [{
@@ -333,6 +348,49 @@ def run_doctor_command(root=None, env=None, skip_network=True):
     root = Path(root or repo_root())
     env = env or load_control_env(root)
     return build_doctor_payload(root, env, skip_network=skip_network)
+
+
+def run_appscript_dry_run(root=None, env=None, deploy_runner=run_deploy_plan):
+    root = Path(root or repo_root())
+    env = env or load_control_env(root)
+    try:
+        report = deploy_runner(env, dry_run=True, root=root)
+        output = format_deploy_report(report, env)
+        return {
+            'ok': bool(report.get('ok')),
+            'report': report,
+            'output': mask_sensitive_text(output, env),
+        }
+    except AppScriptDeployError as exc:
+        output = str(exc) + '\n\n' + build_appscript_redeploy_checklist()
+        return {
+            'ok': False,
+            'error': str(exc),
+            'output': mask_sensitive_text(output, env),
+        }
+
+
+def run_appscript_deploy(confirm=False, root=None, env=None, deploy_runner=run_deploy_plan):
+    if not confirm:
+        raise ControlCenterError('Apps Script deploy requires explicit browser confirmation because it overwrites the bound script project.')
+
+    root = Path(root or repo_root())
+    env = env or load_control_env(root)
+    try:
+        report = deploy_runner(env, dry_run=False, root=root, confirmed=True)
+        output = format_deploy_report(report, env)
+        return {
+            'ok': bool(report.get('ok')),
+            'report': report,
+            'output': mask_sensitive_text(output, env),
+        }
+    except AppScriptDeployError as exc:
+        output = str(exc) + '\n\n' + build_appscript_redeploy_checklist()
+        return {
+            'ok': False,
+            'error': str(exc),
+            'output': mask_sensitive_text(output, env),
+        }
 
 
 def render_control_center_html():
@@ -494,7 +552,9 @@ def render_control_center_html():
       <button onclick="listAccounts()">List Linked Accounts</button>
       <button class="warning" onclick="runSync()">Run Sync Now</button>
       <button class="secondary" onclick="openSheet()">Open Google Sheet</button>
-      <button class="secondary" onclick="showText(`{escaped_guidance}`)">U.S. Bank / New Bank Instructions</button>
+      <button class="secondary" onclick="checkAppsScriptDeploy()">Check Apps Script Deploy Status</button>
+      <button class="secondary" onclick="deployAppsScript()">Deploy Apps Script</button>
+      <button class="secondary" onclick="showText(`{escaped_guidance}`)">Connect a Bank / OAuth Help</button>
       <button class="secondary" onclick="showText(`{escaped_quickstart}`)">Quickstart Repair Command</button>
       <button class="secondary" onclick="copyChecklist()">Copy Apps Script Redeploy Checklist</button>
     </section>
@@ -639,6 +699,9 @@ def render_control_center_html():
       if (runtime.last_doctor) {{
         rows.push(`<div class="row"><div class="row-title">Last doctor</div><div class="row-detail">${{runtime.last_doctor.timestamp}} · ${{runtime.last_doctor.ok ? 'No failures' : 'Needs attention'}}</div></div>`);
       }}
+      if (runtime.last_appscript_deploy) {{
+        rows.push(`<div class="row"><div class="row-title">Last Apps Script deploy check</div><div class="row-detail">${{runtime.last_appscript_deploy.timestamp}} · ${{runtime.last_appscript_deploy.ok ? 'Ready' : 'Needs setup'}}</div></div>`);
+      }}
       document.getElementById('activity').innerHTML = rows.length ? rows.join('') : '<div class="empty">No actions yet this session.</div>';
     }}
 
@@ -711,6 +774,27 @@ def render_control_center_html():
     async function openSheet() {{
       const result = await api('/api/open-sheet', {{ method: 'POST' }});
       setOutput(result.message);
+    }}
+
+    async function checkAppsScriptDeploy() {{
+      setOutput('Checking Apps Script deploy status...');
+      const result = await api('/api/appscript/dry-run', {{ method: 'POST' }});
+      setOutput(result.output || result);
+      await loadStatus();
+    }}
+
+    async function deployAppsScript() {{
+      if (!confirm('Deploy local Code.gs and Sidebar.html to the bound Apps Script project? Reload the Sheet and refresh visuals after this finishes.')) {{
+        return;
+      }}
+      setOutput('Deploying Apps Script...');
+      const result = await api('/api/appscript/deploy', {{
+        method: 'POST',
+        headers: {{ 'Content-Type': 'application/json' }},
+        body: JSON.stringify({{ confirm: true }})
+      }});
+      setOutput(result.output || result);
+      await loadStatus();
     }}
 
     async function copyChecklist() {{
@@ -801,6 +885,21 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
             if path == '/api/open-sheet':
                 webbrowser.open(build_sheet_open_url(self._env()))
                 self._send_json({'ok': True, 'message': 'Google Sheet open request sent to the local browser.'})
+                return
+            if path == '/api/appscript/dry-run':
+                result = run_appscript_dry_run(root=self.root, env=self._env())
+                record_runtime_event(RUNTIME_STATE, 'appscript_deploy', result)
+                self._send_json(result)
+                return
+            if path == '/api/appscript/deploy':
+                payload = self._read_json()
+                result = run_appscript_deploy(
+                    confirm=payload.get('confirm') is True,
+                    root=self.root,
+                    env=self._env(),
+                )
+                record_runtime_event(RUNTIME_STATE, 'appscript_deploy', result)
+                self._send_json(result)
                 return
             self._send_json({'error': 'Not found'}, status=404)
         except ControlCenterError as exc:

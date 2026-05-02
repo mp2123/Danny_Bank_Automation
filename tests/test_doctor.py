@@ -1,5 +1,6 @@
 from src.engine.doctor import (
     CheckResult,
+    check_appscript_deploy_config,
     check_required_env,
     format_result,
     quickstart_venv_findings,
@@ -27,6 +28,21 @@ def test_check_required_env_reports_missing_keys():
     assert result.status == 'FAIL'
     assert 'PLAID_SECRET' in result.detail
     assert 'GOOGLE_SPREADSHEET_ID' in result.detail
+
+
+def test_check_appscript_deploy_config_warns_without_script_id():
+    result = check_appscript_deploy_config({})
+
+    assert result.status == 'WARN'
+    assert 'GOOGLE_APPS_SCRIPT_ID' in result.detail
+    assert 'manual paste' in result.detail
+
+
+def test_check_appscript_deploy_config_passes_with_script_id_without_exposing_it():
+    result = check_appscript_deploy_config({'GOOGLE_APPS_SCRIPT_ID': 'script_secret_123'})
+
+    assert result.status == 'PASS'
+    assert 'script_secret_123' not in result.detail
 
 
 def test_quickstart_venv_findings_detects_old_mac_pro_path(tmp_path):

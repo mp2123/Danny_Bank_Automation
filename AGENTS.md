@@ -20,7 +20,14 @@ Future contributors should treat those surfaces differently when making changes.
 
 ## Non-Obvious Rules
 ### Apps Script is not auto-deployed
-Changing repo files under `src/appscript/` does not update the live Google Sheet. After Apps Script changes:
+Changing repo files under `src/appscript/` does not update the live Google Sheet. Preferred deploy check:
+
+```bash
+.venv/bin/python -m src.engine.appscript_deploy --dry-run
+.venv/bin/python -m src.engine.appscript_deploy --push
+```
+
+This requires `GOOGLE_APPS_SCRIPT_ID` in `.env` and may create local `token_appscript.json`; do not commit either file. If deploy auth or config is missing, use the manual fallback:
 1. paste the newest `Code.gs` and `Sidebar.html` into the bound Apps Script project
 2. save
 3. reload the sheet
@@ -43,6 +50,7 @@ Do not commit:
 - `.env`
 - `credentials.json`
 - `token.json`
+- `token_appscript.json`
 - local logs
 - `.DS_Store`
 - screen recordings and local debugging media
@@ -67,6 +75,6 @@ node --check --input-type=commonjs < src/appscript/Code.gs
 - possible future polish for chart value labels if Google Sheets embedded-chart role inference remains inconsistent
 - sidebar readability and more on-sheet explanatory text
 - optional account exclusion/filtering controls inside the sheet
-- Apps Script deployment helper or `clasp` workflow to reduce manual paste steps
+- further Apps Script deployment-helper polish or optional `clasp` workflow
 - CSV/manual import coverage for income and unsupported banks
 - U.S. Bank and other OAuth institutions remain blocked until Plaid Production/OAuth institution registration is complete

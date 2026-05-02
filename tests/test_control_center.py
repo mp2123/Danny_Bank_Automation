@@ -14,6 +14,8 @@ from src.engine.control_center import (
     record_runtime_event,
     build_us_bank_guidance,
     mask_sensitive_text,
+    run_appscript_deploy,
+    run_appscript_dry_run,
     run_sync_command,
 )
 
@@ -33,17 +35,19 @@ def test_build_config_status_counts_tokens_without_exposing_secrets():
     assert status['plaid_env'] == 'production'
     assert status['token_count'] == 2
     assert status['required_keys_present'] is True
+    assert status['apps_script_deploy_configured'] is False
     assert 'access-one' not in serialized
     assert 'access-two' not in serialized
     assert 'secret_abc' not in serialized
 
 
 def test_mask_sensitive_text_removes_known_secret_values():
-    text = 'secret=secret_abc token=access-one sheet=sheet_123'
+    text = 'secret=secret_abc token=access-one sheet=sheet_123 script=script_123'
     env = {
         'PLAID_SECRET': 'secret_abc',
         'PLAID_ACCESS_TOKEN': 'access-one',
         'GOOGLE_SPREADSHEET_ID': 'sheet_123',
+        'GOOGLE_APPS_SCRIPT_ID': 'script_123',
     }
 
     masked = mask_sensitive_text(text, env)
@@ -51,6 +55,7 @@ def test_mask_sensitive_text_removes_known_secret_values():
     assert 'secret_abc' not in masked
     assert 'access-one' not in masked
     assert 'sheet_123' not in masked
+    assert 'script_123' not in masked
     assert '[masked]' in masked
 
 
@@ -123,6 +128,7 @@ def test_build_next_actions_flags_quickstart_and_oauth_warnings():
         doctor_payload={
             'checks': [
                 {'name': 'quickstart venv', 'status': 'WARN', 'detail': 'old Mac Pro path'},
+                {'name': 'Apps Script deploy config', 'status': 'WARN', 'detail': 'missing id'},
                 {'name': 'Plaid OAuth blockers', 'status': 'WARN', 'detail': 'registration required'},
             ]
         },
@@ -132,6 +138,7 @@ def test_build_next_actions_flags_quickstart_and_oauth_warnings():
     details = ' '.join(action['detail'] for action in actions)
 
     assert 'Quickstart' in details
+    assert 'Apps Script' in details
     assert 'Plaid OAuth' in details
 
 
@@ -179,6 +186,55 @@ def test_appscript_redeploy_checklist_is_explicit():
     assert 'Code.gs' in checklist
     assert 'Sidebar.html' in checklist
     assert 'Refresh Dashboard & Visuals' in checklist
+
+
+def test_appscript_dry_run_uses_manual_fallback_when_script_id_missing():
+    result = run_appscript_dry_run(env={}, deploy_runner=lambda env, **kwargs: {
+        'ok': False,
+        'reason': 'missing_script_id',
+        'message': 'GOOGLE_APPS_SCRIPT_ID is missing.',
+        'fallback': build_appscript_redeploy_checklist(),
+    })
+
+    assert result['ok'] is False
+    assert 'GOOGLE_APPS_SCRIPT_ID' in result['output']
+    assert 'Code.gs' in result['output']
+
+
+def test_appscript_deploy_requires_browser_confirmation():
+    try:
+        run_appscript_deploy(confirm=False, env={}, deploy_runner=lambda env, **kwargs: {'ok': True})
+    except ControlCenterError as exc:
+        assert 'confirmation' in str(exc).lower()
+    else:
+        raise AssertionError('Apps Script deploy should require confirmation')
+
+
+def test_appscript_deploy_returns_next_step_when_confirmed():
+    def fake_runner(env, **kwargs):
+        assert kwargs['dry_run'] is False
+        assert kwargs['confirmed'] is True
+        return {
+            'ok': True,
+            'script_id': 'script_secret_123',
+            'dry_run': False,
+            'comparison': {
+                'Code': {'status': 'changed', 'local_hash': 'aaa', 'remote_hash': 'bbb'},
+                'Sidebar': {'status': 'unchanged', 'local_hash': 'ccc', 'remote_hash': 'ccc'},
+            },
+            'unmanaged_remote_files': [],
+            'next_step': 'Reload the Google Sheet, then run Bank Automation -> Refresh Dashboard & Visuals.',
+        }
+
+    result = run_appscript_deploy(
+        confirm=True,
+        env={'GOOGLE_APPS_SCRIPT_ID': 'script_secret_123'},
+        deploy_runner=fake_runner,
+    )
+
+    assert result['ok'] is True
+    assert 'Refresh Dashboard & Visuals' in result['output']
+    assert 'script_secret_123' not in result['output']
 
 
 def test_sheet_status_masks_spreadsheet_id():

@@ -1,6 +1,7 @@
 .env
 credentials.json
 token.json
+token_appscript.json
 automation.log
 .DS_Store
 venv/

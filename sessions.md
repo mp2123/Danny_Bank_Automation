@@ -9,18 +9,29 @@ This repository exists to run a local-first personal finance workflow:
 - support a Gemini sidebar that mixes verified local analytics with model-generated advice
 
 ## Current Status Snapshot
-Current working state: `v5.6`
+Current working state: `v5.7`
 What is working now:
 - Python sync engine for Plaid -> Google Sheets
 - Friendly account labels resolved during sync
 - Native bank connection helper: [connect_bank.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/connect_bank.py)
 - Setup health check helper: [doctor.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/doctor.py)
 - Local browser control center: [control_center.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/control_center.py)
+- Apps Script API deployment helper: [appscript_deploy.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/appscript_deploy.py)
 - Rules-based analytics exclusion system (Analytics, Dashboard, AI)
 - Hidden `Analytics` data mart powering the visible sheets
 - `Dashboard` and `Insights` rendering from Apps Script
 - Gemini sidebar with logging, verified data, and fallback support
 - Fixed duplicate chart bars and improved dashboard exclusion transparency
+
+### Session 9 - 2026-05-02
+Objective:
+- reduce manual Apps Script deployment friction while preserving the live Sheet as a separate deployment surface
+
+Completed:
+- added [appscript_deploy.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/appscript_deploy.py), a Google Apps Script API helper for dry-run comparison and confirmed deploys
+- added `GOOGLE_APPS_SCRIPT_ID` configuration and a deploy-only local token path
+- wired Apps Script deploy checks and deploy actions into the local control center
+- added doctor visibility for missing deploy-helper configuration while keeping the manual paste checklist as fallback
 
 ### Session 8 - 2026-05-02
 Objective:
@@ -62,7 +73,7 @@ Completed:
 - Editing [Code.gs](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Code.gs) or [Sidebar.html](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Sidebar.html) does not automatically update the bound Apps Script project.
 - Raw payment/transfer rows remain in `Transactions`, but verified analytics exclude them from spend/income metrics to avoid double counting.
 - U.S. Bank and similar OAuth institutions are blocked until Plaid completes the required Production/OAuth institution registration.
-- Local artifacts such as `.env`, `credentials.json`, `token.json`, `.DS_Store`, and screen recordings should stay out of commits.
+- Local artifacts such as `.env`, `credentials.json`, `token.json`, `token_appscript.json`, `.DS_Store`, and screen recordings should stay out of commits.
 
 ## Session History
 ### Session 1 - 2026-03-30
@@ -118,9 +129,9 @@ Completed:
 
 ## Next Session Priorities
 Highest-value next steps:
-1. Add an Apps Script deployment helper or `clasp` workflow.
-2. Add CSV/manual import coverage for verified income and unsupported banks.
-3. Package/polish the local control center into the first sellable Mac-friendly surface.
+1. Add CSV/manual import coverage for verified income and unsupported banks.
+2. Package/polish the local control center into the first sellable Mac-friendly surface.
+3. Add optional `clasp` or release packaging later if the API deploy helper is not enough.
 4. Resume U.S. Bank via `.venv/bin/python -m src.engine.connect_bank` once Plaid approves OAuth institution registration.
 5. Revisit Capital One and other OAuth institutions after U.S. Bank/Plaid registration is verified.
 
@@ -130,4 +141,4 @@ When resuming later:
 2. Review [README.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/README.md), [sessions.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/sessions.md), and [AGENTS.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/AGENTS.md).
 3. Run `.venv/bin/python -m src.engine.doctor`.
 4. Open the live Google Sheet and confirm whether the bound Apps Script is at the same revision as the repo.
-5. If Apps Script changed locally, redeploy [Code.gs](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Code.gs) and [Sidebar.html](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Sidebar.html), then run `🏦 Bank Automation -> 📈 Refresh Dashboard & Visuals`.
+5. If Apps Script changed locally, run `.venv/bin/python -m src.engine.appscript_deploy --dry-run`, deploy or use manual paste fallback, then run `🏦 Bank Automation -> 📈 Refresh Dashboard & Visuals`.
