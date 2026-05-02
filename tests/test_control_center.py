@@ -218,6 +218,17 @@ def test_appscript_dry_run_uses_manual_fallback_when_script_id_missing():
     assert 'Code.gs' in result['output']
 
 
+def test_appscript_dry_run_masks_unexpected_errors():
+    result = run_appscript_dry_run(
+        env={'GOOGLE_APPS_SCRIPT_ID': 'script_secret_123'},
+        deploy_runner=lambda env, **kwargs: (_ for _ in ()).throw(Exception('failed for script_secret_123')),
+    )
+
+    assert result['ok'] is False
+    assert 'script_secret_123' not in json.dumps(result)
+    assert '[masked]' in result['output']
+
+
 def test_appscript_deploy_requires_browser_confirmation():
     try:
         run_appscript_deploy(confirm=False, env={}, deploy_runner=lambda env, **kwargs: {'ok': True})
@@ -252,6 +263,18 @@ def test_appscript_deploy_returns_next_step_when_confirmed():
     assert result['ok'] is True
     assert 'Refresh Dashboard & Visuals' in result['output']
     assert 'script_secret_123' not in result['output']
+
+
+def test_appscript_deploy_masks_unexpected_errors():
+    result = run_appscript_deploy(
+        confirm=True,
+        env={'GOOGLE_APPS_SCRIPT_ID': 'script_secret_123'},
+        deploy_runner=lambda env, **kwargs: (_ for _ in ()).throw(Exception('failed for script_secret_123')),
+    )
+
+    assert result['ok'] is False
+    assert 'script_secret_123' not in json.dumps(result)
+    assert '[masked]' in result['output']
 
 
 def test_sheet_status_masks_spreadsheet_id():

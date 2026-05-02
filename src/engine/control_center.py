@@ -649,6 +649,14 @@ def run_appscript_dry_run(root=None, env=None, deploy_runner=run_deploy_plan):
             'error': str(exc),
             'output': mask_sensitive_text(output, env),
         }
+    except Exception as exc:
+        masked_error = mask_sensitive_text(str(exc), env)
+        output = masked_error + '\n\n' + build_appscript_redeploy_checklist()
+        return {
+            'ok': False,
+            'error': masked_error,
+            'output': mask_sensitive_text(output, env),
+        }
 
 
 def run_appscript_deploy(confirm=False, root=None, env=None, deploy_runner=run_deploy_plan):
@@ -670,6 +678,14 @@ def run_appscript_deploy(confirm=False, root=None, env=None, deploy_runner=run_d
         return {
             'ok': False,
             'error': str(exc),
+            'output': mask_sensitive_text(output, env),
+        }
+    except Exception as exc:
+        masked_error = mask_sensitive_text(str(exc), env)
+        output = masked_error + '\n\n' + build_appscript_redeploy_checklist()
+        return {
+            'ok': False,
+            'error': masked_error,
             'output': mask_sensitive_text(output, env),
         }
 
