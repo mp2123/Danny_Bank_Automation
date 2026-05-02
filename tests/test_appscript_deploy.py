@@ -5,6 +5,7 @@ from src.engine.appscript_deploy import (
     AppScriptDeployError,
     build_update_payload,
     compare_managed_files,
+    format_deploy_error,
     format_deploy_report,
     load_local_sources,
     run_deploy_plan,
@@ -207,3 +208,14 @@ def test_format_deploy_report_masks_script_id_and_mentions_scope():
     assert 'script_123456' not in output
     assert '[masked]' in output
     assert APPS_SCRIPT_SCOPE in output
+
+
+def test_format_deploy_error_masks_script_id():
+    output = format_deploy_error(
+        Exception('Google error for script_123456'),
+        env={'GOOGLE_APPS_SCRIPT_ID': 'script_123456'},
+    )
+
+    assert 'script_123456' not in output
+    assert '[masked]' in output
+    assert 'Manual Apps Script fallback' in output

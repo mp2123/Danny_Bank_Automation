@@ -237,6 +237,16 @@ def format_deploy_report(report, env=None):
     return mask_report_text('\n'.join(lines), env)
 
 
+def format_deploy_error(error, env=None):
+    env = env or {}
+    lines = [
+        'Apps Script deployment failed: ' + mask_report_text(str(error), env),
+        '',
+        manual_deploy_fallback_message(),
+    ]
+    return mask_report_text('\n'.join(lines), env)
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Deploy local Apps Script files to the bound Apps Script project.')
     mode = parser.add_mutually_exclusive_group()
@@ -271,9 +281,10 @@ def main():
         print(format_deploy_report(report, env))
         return 0 if report.get('ok') or report.get('reason') == 'missing_script_id' else 1
     except AppScriptDeployError as exc:
-        print(f'Apps Script deployment failed: {exc}')
-        print('')
-        print(manual_deploy_fallback_message())
+        print(format_deploy_error(exc, env))
+        return 1
+    except Exception as exc:
+        print(format_deploy_error(exc, env))
         return 1
 
 
