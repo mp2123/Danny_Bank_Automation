@@ -9,6 +9,9 @@ from src.engine.control_center import (
     build_appscript_redeploy_checklist,
     build_config_status,
     build_demo_payload,
+    build_redacted_diagnostics,
+    build_self_serve_setup_commands,
+    build_trusted_tester_checklist,
     build_manual_income_import_guidance,
     build_next_actions,
     build_readiness,
@@ -225,6 +228,76 @@ def test_manual_income_import_guidance_is_cli_confirmed():
     assert '--dry-run' in guidance
     assert '--confirm' in guidance
     assert 'positive' in guidance
+
+
+def test_self_serve_setup_commands_are_copyable_and_safe():
+    commands = build_self_serve_setup_commands()
+    serialized = json.dumps(commands)
+
+    assert any(command['label'] == 'Start Control Center' for command in commands)
+    assert any('src.engine.control_center' in command['command'] for command in commands)
+    assert any('release_smoke_check.sh' in command['command'] for command in commands)
+    assert '.env' not in serialized
+    assert 'PLAID_SECRET' not in serialized
+
+
+def test_trusted_tester_checklist_frames_self_serve_beta_without_hands_on_setup():
+    checklist = build_trusted_tester_checklist()
+
+    assert 'Trusted Tester Checklist' in checklist
+    assert 'self-serve local beta' in checklist
+    assert 'Do not share bank credentials' in checklist
+    assert 'hands-on setup' not in checklist.lower()
+
+
+def test_redacted_diagnostics_omits_project_root_and_secrets(tmp_path):
+    payload = build_redacted_diagnostics(
+        status_payload={
+            'project_root': '/Users/example/private/path',
+            'config': {
+                'plaid_env': 'production',
+                'token_count': 2,
+                'required_keys_present': True,
+                'missing_keys': [],
+                'apps_script_deploy_configured': True,
+            },
+            'sheet': {
+                'configured': True,
+                'sheet_name': 'Transactions',
+                'masked_spreadsheet_id': '...abcd',
+            },
+            'readiness': {
+                'can_sync': True,
+                'has_blocking_items': False,
+                'recommended_next_step': {'title': 'Savings rate needs income'},
+            },
+            'doctor': {'checks': [{'name': 'env', 'status': 'PASS', 'detail': 'secret_abc configured'}]},
+            'accounts': {'item_count': 1, 'items': [{'institution_name': 'Demo Bank', 'accounts': [{'label': 'Demo Card ending 1234'}]}]},
+            'next_actions': [{'title': 'Savings rate needs income', 'detail': 'Import income'}],
+        },
+        env={'PLAID_SECRET': 'secret_abc', 'GOOGLE_SPREADSHEET_ID': 'sheet_secret_123'},
+    )
+    serialized = json.dumps(payload)
+
+    assert payload['project_root'] == '[local path redacted]'
+    assert payload['accounts']['institution_count'] == 1
+    assert payload['accounts']['account_count'] == 1
+    assert 'secret_abc' not in serialized
+    assert 'sheet_secret_123' not in serialized
+    assert '/Users/example/private/path' not in serialized
+
+
+def test_redacted_diagnostics_removes_local_paths_from_check_details():
+    payload = build_redacted_diagnostics(
+        status_payload={
+            'doctor': {'checks': [{'name': 'quickstart venv', 'status': 'WARN', 'detail': '/Users/person/private/venv has old path'}]},
+        },
+        env={},
+    )
+    serialized = json.dumps(payload)
+
+    assert '/Users/person/private/venv' not in serialized
+    assert '[local path redacted]' in serialized
 
 
 def test_appscript_dry_run_uses_manual_fallback_when_script_id_missing():
@@ -561,6 +634,21 @@ def test_manual_income_import_routes_and_buttons_are_wired():
     assert '/api/import/manual-income/confirm' in source
     assert 'Dry Run Manual Income Import' in html
     assert 'Confirm Manual Income Import' in html
+
+
+def test_self_serve_onboarding_routes_and_panel_are_wired():
+    get_source = inspect.getsource(ControlCenterHandler.do_GET)
+    html = render_control_center_html()
+
+    assert '/api/trusted-tester/checklist' in get_source
+    assert '/api/diagnostics/redacted' in get_source
+    assert 'Start Here' in html
+    assert 'Trusted Tester Checklist' in html
+    assert 'Copy Redacted Diagnostics' in html
+    assert 'Copy Setup Commands' in html
+    assert 'hands-on setup' not in html.lower()
+    assert 'const setupCommands = [{' in html
+    assert 'JSON.parse(`[{&quot;' not in html
 
 
 def test_demo_status_route_and_panel_are_read_only():

@@ -23,6 +23,8 @@ The control center opens at:
 http://127.0.0.1:8790
 ```
 
+For trusted-user testing, use [docs/trusted_tester_install.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/trusted_tester_install.md). The control center has a `Start Here` panel with a trusted-tester checklist, copyable setup commands, and a redacted diagnostics export.
+
 ## Setup Readiness
 
 The first panel is `Setup Readiness`. It shows exactly one recommended next step and blocks sync until required local setup exists.

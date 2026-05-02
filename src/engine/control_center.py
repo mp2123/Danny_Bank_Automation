@@ -145,6 +145,85 @@ def build_manual_income_import_guidance():
     ])
 
 
+def build_self_serve_setup_commands():
+    return [
+        {
+            'label': 'Start Control Center',
+            'command': 'cd /Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation\n.venv/bin/python -m src.engine.control_center',
+            'detail': 'Open the local control center at 127.0.0.1:8790.',
+        },
+        {
+            'label': 'Run Release Smoke Check',
+            'command': 'scripts/release_smoke_check.sh',
+            'detail': 'Validate tests, Apps Script syntax, demo data, packaging preflights, and secret-safe output.',
+        },
+        {
+            'label': 'Check Apps Script Deploy',
+            'command': '.venv/bin/python -m src.engine.appscript_deploy --dry-run',
+            'detail': 'Compare repo Apps Script files with the bound Google Sheet project.',
+        },
+        {
+            'label': 'Dry Run Manual Income',
+            'command': '.venv/bin/python -m src.engine.csv_importer --type manual-income --file src/imports/income.csv --account "Manual Income" --dry-run',
+            'detail': 'Preview local income CSV rows without appending to Google Sheets.',
+        },
+    ]
+
+
+def build_trusted_tester_checklist():
+    return '\n'.join([
+        'Trusted Tester Checklist - self-serve local beta',
+        '',
+        'Before sharing:',
+        '1. Run scripts/release_smoke_check.sh.',
+        '2. Verify Demo Mode is visibly synthetic.',
+        '3. Verify Setup Readiness has no blocking items on your machine.',
+        '4. Verify Apps Script deploy dry-run is clean.',
+        '5. Confirm manual income import is dry-run only unless real positive income is reviewed.',
+        '',
+        'Tester expectations:',
+        '1. This is a local beta, not App Store-style software.',
+        '2. Data stays on the tester machine and in the tester Google account.',
+        '3. Do not share bank credentials, one-time codes, tokens, keys, or raw .env files.',
+        '4. Bank coverage depends on Plaid and OAuth institution availability.',
+        '5. Outputs are personal finance analytics, not tax, legal, investment, credit, or regulated financial advice.',
+        '',
+        'After testing:',
+        '1. Ask what setup step was confusing.',
+        '2. Ask what warning felt scary or unclear.',
+        '3. Ask whether the control center made the next action obvious.',
+        '4. Record issues in docs/beta_rehearsal_report_template.md.',
+    ])
+
+
+def build_redacted_diagnostics(status_payload=None, env=None):
+    status_payload = status_payload or {}
+    env = env or {}
+    accounts = status_payload.get('accounts') or {}
+    account_items = accounts.get('items') or []
+    account_count = sum(len(item.get('accounts') or []) for item in account_items)
+    payload = {
+        'product': 'Danny Bank local beta',
+        'generated_at': datetime.now().isoformat(timespec='seconds'),
+        'project_root': '[local path redacted]',
+        'config': status_payload.get('config') or {},
+        'sheet': status_payload.get('sheet') or {},
+        'readiness': {
+            'can_sync': (status_payload.get('readiness') or {}).get('can_sync'),
+            'has_blocking_items': (status_payload.get('readiness') or {}).get('has_blocking_items'),
+            'recommended_next_step': (status_payload.get('readiness') or {}).get('recommended_next_step'),
+        },
+        'doctor': status_payload.get('doctor') or {'checks': []},
+        'accounts': {
+            'institution_count': len(account_items),
+            'account_count': account_count,
+            'errors': accounts.get('errors') or [],
+        },
+        'next_actions': status_payload.get('next_actions') or [],
+    }
+    return redact_local_paths_payload(mask_sensitive_payload(payload, env))
+
+
 def build_demo_payload(root=None):
     try:
         return summarize_demo_data(Path(root or repo_root()) / 'sample_data' / 'demo_transactions.csv')
@@ -200,6 +279,25 @@ def mask_sensitive_payload(value, env=None):
         return tuple(mask_sensitive_payload(item, env) for item in value)
     if isinstance(value, str):
         return mask_sensitive_text(value, env)
+    return value
+
+
+def redact_local_paths(value):
+    text = str(value or '')
+    text = re.sub(r'/Users/[^\s,;:]+', '[local path redacted]', text)
+    text = re.sub(r'/private/var/[^\s,;:]+', '[local path redacted]', text)
+    return text
+
+
+def redact_local_paths_payload(value):
+    if isinstance(value, dict):
+        return {key: redact_local_paths_payload(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [redact_local_paths_payload(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(redact_local_paths_payload(item) for item in value)
+    if isinstance(value, str):
+        return redact_local_paths(value)
     return value
 
 
@@ -728,6 +826,8 @@ def render_control_center_html():
     escaped_guidance = html.escape(build_us_bank_guidance())
     escaped_quickstart = html.escape(build_quickstart_repair_command())
     escaped_income_import = html.escape(build_manual_income_import_guidance())
+    escaped_tester_checklist = html.escape(build_trusted_tester_checklist())
+    setup_commands_json = json.dumps(build_self_serve_setup_commands()).replace('`', '\\`').replace('</', '<\\/')
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -782,6 +882,11 @@ def render_control_center_html():
     .pill.warn {{ color: var(--amber); border-color: #fde68a; background: #fffbeb; }}
     .pill.fail {{ color: var(--red); border-color: #fecaca; background: #fef2f2; }}
     .layout {{ display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; align-items: start; }}
+    .start-here {{
+      border: 1px solid #bae6fd;
+      border-left: 5px solid var(--cyan);
+      background: #f0f9ff;
+    }}
     .grid {{ display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }}
     .card {{
       background: var(--panel);
@@ -925,6 +1030,15 @@ def render_control_center_html():
     <div class="topline" id="headerBadges"></div>
   </header>
   <main>
+    <section class="panel start-here" id="startHerePanel">
+      <h2>Start Here</h2>
+      <div class="muted">Use this local beta as a self-serve control center. Follow readiness, run dry checks before write actions, and share only redacted diagnostics when asking for help.</div>
+      <div class="actions" style="margin:12px 0 0;">
+        <button class="secondary" onclick="showText(`{escaped_tester_checklist}`)">Trusted Tester Checklist</button>
+        <button class="secondary" onclick="copySetupCommands()">Copy Setup Commands</button>
+        <button class="secondary" onclick="copyRedactedDiagnostics()">Copy Redacted Diagnostics</button>
+      </div>
+    </section>
     <section id="readinessPanel"></section>
     <section class="grid" id="cards"></section>
     <section class="panel demo-banner" id="demoModePanel"></section>
@@ -991,6 +1105,7 @@ def render_control_center_html():
   </main>
   <script>
     const checklist = `{escaped_checklist}`;
+    const setupCommands = {setup_commands_json};
     let latestStatus = null;
 
     function setOutput(value) {{
@@ -1332,6 +1447,19 @@ def render_control_center_html():
       setOutput(text + '\\n\\nCopied to clipboard.');
     }}
 
+    async function copySetupCommands() {{
+      const text = setupCommands.map(item => `${{item.label}}\\n${{item.command}}\\n${{item.detail}}`).join('\\n\\n');
+      await navigator.clipboard.writeText(text);
+      setOutput(text + '\\n\\nCopied to clipboard.');
+    }}
+
+    async function copyRedactedDiagnostics() {{
+      const result = await api('/api/diagnostics/redacted');
+      const text = JSON.stringify(result, null, 2);
+      await navigator.clipboard.writeText(text);
+      setOutput(text + '\\n\\nCopied redacted diagnostics to clipboard.');
+    }}
+
     loadStatus().catch(error => setOutput(error.message));
   </script>
 </body>
@@ -1380,6 +1508,13 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
             return
         if path == '/api/demo/status':
             self._send_json(build_demo_payload(self.root))
+            return
+        if path == '/api/trusted-tester/checklist':
+            self._send_json({'text': build_trusted_tester_checklist()})
+            return
+        if path == '/api/diagnostics/redacted':
+            env = self._env()
+            self._send_json(build_redacted_diagnostics(build_status_payload(self.root, env), env))
             return
         if path == '/api/linked-accounts':
             self._send_json(collect_linked_accounts(self._env()))

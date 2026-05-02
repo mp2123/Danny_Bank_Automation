@@ -92,7 +92,7 @@ See [PACKAGING_PLAN.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Dan
 - v6.4: PyInstaller app and DMG packaging scaffold for outside-App-Store Mac distribution.
 - v6.5: Lemon Squeezy distribution plan for digital download variants.
 - v6.6: signed-DMG readiness checks and Apple setup documentation.
-- v6.7: trusted-tester self-serve beta docs, walkthrough plan, and onboarding friction reduction.
+- v6.7: trusted-tester self-serve beta docs, walkthrough plan, redacted diagnostics, and onboarding friction reduction.
 - v6.8: prove manual income import with a real local payroll/checking CSV and verify savings-rate analytics.
 - v6.9: revisit Apple Developer Program enrollment and signed/notarized release artifact when self-serve onboarding is ready.
 

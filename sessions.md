@@ -29,6 +29,7 @@ What is working now:
 - macOS signing readiness check: [scripts/check_macos_signing_ready.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/check_macos_signing_ready.sh)
 - release artifact verification: [scripts/verify_release_artifact.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/verify_release_artifact.sh)
 - trusted-tester/self-serve walkthrough plan: [docs/walkthrough_video_plan.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/walkthrough_video_plan.md)
+- trusted-tester install guide: [docs/trusted_tester_install.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/trusted_tester_install.md)
 - Rules-based analytics exclusion system (Analytics, Dashboard, AI)
 - Hidden `Analytics` data mart powering the visible sheets
 - `Dashboard` and `Insights` rendering from Apps Script
@@ -68,6 +69,22 @@ Still intentionally not done:
 - did not enroll in Apple Developer Program
 - did not create a signed/notarized release DMG
 - did not offer hands-on setup as the next commercial path
+
+### Session 19 - 2026-05-02
+Objective:
+- make the control center and docs more useful for self-serve trusted testers
+
+Completed:
+- added a `Start Here` panel to the control center
+- added a trusted-tester checklist, copyable setup commands, and redacted diagnostics export
+- added `/api/trusted-tester/checklist` and `/api/diagnostics/redacted`
+- added [docs/trusted_tester_install.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/trusted_tester_install.md)
+- updated local setup and roadmap docs to point testers toward self-serve onboarding
+
+Still intentionally not done:
+- did not add hosted support tooling or remote diagnostics
+- did not add Apple Developer Program signing as an immediate requirement
+- did not add hands-on setup service positioning
 
 ### Session 16 - 2026-05-02
 Objective:
@@ -286,8 +303,8 @@ Completed:
 
 ## Next Session Priorities
 Highest-value next steps:
-1. Create self-serve walkthrough material using [docs/walkthrough_video_plan.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/walkthrough_video_plan.md).
-2. Run a trusted-tester rehearsal with someone comfortable using a local beta and document friction in [docs/beta_rehearsal_report_template.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/beta_rehearsal_report_template.md).
+1. Run a trusted-tester rehearsal using [docs/trusted_tester_install.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/trusted_tester_install.md) and document friction in [docs/beta_rehearsal_report_template.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/beta_rehearsal_report_template.md).
+2. Create self-serve walkthrough material using [docs/walkthrough_video_plan.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/walkthrough_video_plan.md).
 3. Replace the ignored example `src/imports/income.csv` with real positive income when income data is available, run manual-income dry run, then confirm append only after review.
 4. Review privacy/terms/support/known-limitations docs before any Lemon Squeezy or Gumroad listing.
 5. Decide later whether Apple Developer Program enrollment is worth it for a broad signed DMG download.
