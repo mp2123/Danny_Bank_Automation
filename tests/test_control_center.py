@@ -20,6 +20,7 @@ from src.engine.control_center import (
     record_runtime_event,
     render_control_center_html,
     build_us_bank_guidance,
+    mask_sensitive_payload,
     mask_sensitive_text,
     run_appscript_deploy,
     run_appscript_dry_run,
@@ -65,6 +66,26 @@ def test_mask_sensitive_text_removes_known_secret_values():
     assert 'sheet_123' not in masked
     assert 'script_123' not in masked
     assert '[masked]' in masked
+
+
+def test_mask_sensitive_payload_removes_known_secret_values_recursively():
+    payload = {
+        'script_id': 'script_123',
+        'nested': [{'url': 'https://example.test/script_123/access-one'}],
+        'count': 2,
+    }
+    env = {
+        'GOOGLE_APPS_SCRIPT_ID': 'script_123',
+        'PLAID_ACCESS_TOKEN': 'access-one',
+    }
+
+    masked = mask_sensitive_payload(payload, env)
+    serialized = json.dumps(masked)
+
+    assert 'script_123' not in serialized
+    assert 'access-one' not in serialized
+    assert masked['script_id'] == '[masked]'
+    assert masked['count'] == 2
 
 
 def test_run_sync_command_requires_explicit_confirmation():
@@ -263,6 +284,7 @@ def test_appscript_deploy_returns_next_step_when_confirmed():
     assert result['ok'] is True
     assert 'Refresh Dashboard & Visuals' in result['output']
     assert 'script_secret_123' not in result['output']
+    assert 'script_secret_123' not in json.dumps(result)
 
 
 def test_appscript_deploy_masks_unexpected_errors():

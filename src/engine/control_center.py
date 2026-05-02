@@ -174,6 +174,18 @@ def mask_sensitive_text(text, env=None):
     return masked
 
 
+def mask_sensitive_payload(value, env=None):
+    if isinstance(value, dict):
+        return {key: mask_sensitive_payload(item, env) for key, item in value.items()}
+    if isinstance(value, list):
+        return [mask_sensitive_payload(item, env) for item in value]
+    if isinstance(value, tuple):
+        return tuple(mask_sensitive_payload(item, env) for item in value)
+    if isinstance(value, str):
+        return mask_sensitive_text(value, env)
+    return value
+
+
 def check_results_to_dicts(checks):
     return [
         {
@@ -639,14 +651,15 @@ def run_appscript_dry_run(root=None, env=None, deploy_runner=run_deploy_plan):
         output = format_deploy_report(report, env)
         return {
             'ok': bool(report.get('ok')),
-            'report': report,
+            'report': mask_sensitive_payload(report, env),
             'output': mask_sensitive_text(output, env),
         }
     except AppScriptDeployError as exc:
-        output = str(exc) + '\n\n' + build_appscript_redeploy_checklist()
+        masked_error = mask_sensitive_text(str(exc), env)
+        output = masked_error + '\n\n' + build_appscript_redeploy_checklist()
         return {
             'ok': False,
-            'error': str(exc),
+            'error': masked_error,
             'output': mask_sensitive_text(output, env),
         }
     except Exception as exc:
@@ -670,14 +683,15 @@ def run_appscript_deploy(confirm=False, root=None, env=None, deploy_runner=run_d
         output = format_deploy_report(report, env)
         return {
             'ok': bool(report.get('ok')),
-            'report': report,
+            'report': mask_sensitive_payload(report, env),
             'output': mask_sensitive_text(output, env),
         }
     except AppScriptDeployError as exc:
-        output = str(exc) + '\n\n' + build_appscript_redeploy_checklist()
+        masked_error = mask_sensitive_text(str(exc), env)
+        output = masked_error + '\n\n' + build_appscript_redeploy_checklist()
         return {
             'ok': False,
-            'error': str(exc),
+            'error': masked_error,
             'output': mask_sensitive_text(output, env),
         }
     except Exception as exc:
