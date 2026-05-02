@@ -3,10 +3,15 @@ import json
 from src.engine.control_center import (
     PLAID_OAUTH_STATUS_URL,
     ControlCenterError,
+    build_account_guidance,
     build_appscript_redeploy_checklist,
     build_config_status,
+    build_next_actions,
+    build_quickstart_repair_command,
     build_sheet_open_url,
     build_sheet_status,
+    parse_sync_summary,
+    record_runtime_event,
     build_us_bank_guidance,
     mask_sensitive_text,
     run_sync_command,
@@ -74,6 +79,90 @@ def test_run_sync_command_returns_masked_process_output():
     assert result['ok'] is True
     assert 'access-one' not in result['output']
     assert 'sheet_123' not in result['output']
+    assert result['summary']['status'] == 'completed'
+
+
+def test_parse_sync_summary_identifies_appended_rows_and_steps():
+    output = '\n'.join([
+        'Authenticating with Google Sheets...',
+        'Retrieving transactions for institution 1 of 3...',
+        'Retrieving transactions for institution 2 of 3...',
+        'Appending 2 total new transactions to Google Sheet...',
+        '14 cells appended to sheet.',
+        'Google Sheet update successful.',
+    ])
+
+    summary = parse_sync_summary(output, ok=True)
+
+    assert summary['status'] == 'completed'
+    assert summary['new_transactions'] == 2
+    assert summary['cells_appended'] == 14
+    assert summary['steps'][0]['label'] == 'Google Sheets authentication'
+    assert any(step['label'] == 'Plaid transaction retrieval' for step in summary['steps'])
+
+
+def test_parse_sync_summary_identifies_no_new_rows():
+    summary = parse_sync_summary('No new transactions found across all institutions. Sheet is up to date.', ok=True)
+
+    assert summary['status'] == 'up_to_date'
+    assert summary['new_transactions'] == 0
+
+
+def test_build_next_actions_includes_dashboard_refresh_after_append():
+    actions = build_next_actions(
+        doctor_payload={'checks': []},
+        accounts_payload={'items': []},
+        sync_result={'summary': {'new_transactions': 1}},
+    )
+
+    assert any('Refresh Dashboard & Visuals' in action['detail'] for action in actions)
+
+
+def test_build_next_actions_flags_quickstart_and_oauth_warnings():
+    actions = build_next_actions(
+        doctor_payload={
+            'checks': [
+                {'name': 'quickstart venv', 'status': 'WARN', 'detail': 'old Mac Pro path'},
+                {'name': 'Plaid OAuth blockers', 'status': 'WARN', 'detail': 'registration required'},
+            ]
+        },
+        accounts_payload={'items': []},
+    )
+
+    details = ' '.join(action['detail'] for action in actions)
+
+    assert 'Quickstart' in details
+    assert 'Plaid OAuth' in details
+
+
+def test_build_account_guidance_notes_credit_only_income_gap():
+    guidance = build_account_guidance({
+        'items': [{
+            'accounts': [
+                {'type': 'credit', 'subtype': 'credit card'},
+                {'type': 'credit', 'subtype': 'credit card'},
+            ]
+        }]
+    })
+
+    assert guidance['income_status'] == 'no_verified_income_source'
+    assert 'Savings rate' in guidance['detail']
+
+
+def test_quickstart_repair_command_uses_safe_rm_pattern():
+    command = build_quickstart_repair_command()
+
+    assert '/bin/rm -rf -- ./venv' in command
+    assert 'source venv/bin/activate' not in command
+
+
+def test_record_runtime_event_stores_timestamped_summary():
+    state = {}
+
+    record_runtime_event(state, 'sync', {'summary': {'status': 'completed'}})
+
+    assert state['last_sync']['summary']['status'] == 'completed'
+    assert state['last_sync']['timestamp']
 
 
 def test_us_bank_guidance_mentions_plaid_registration_blocker():

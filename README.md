@@ -16,7 +16,7 @@ This repository syncs transaction data from Plaid-linked institutions into Googl
   - fall back to deterministic local output when Gemini is unavailable or quota-limited
 
 ## Current State
-The repository is currently at the `v5.5` local-first productization stage.
+The repository is currently at the `v5.6` control-center product polish stage.
 
 Key capabilities now in place:
 - Shared analytics model across visuals and AI
@@ -25,7 +25,7 @@ Key capabilities now in place:
 - Internal payment/transfer exclusion from spend and cashflow analytics while retaining those rows in the raw ledger
 - Multi-model Gemini fallback in the Apps Script layer
 - A desktop-friendly `run_sync.command` launcher for manual sync runs
-- A local-only browser control center for setup checks, linked accounts, sync, and Sheet launch
+- A local-only browser control center for setup checks, linked accounts, confirmed sync, Sheet launch, warnings, and next-action guidance
 
 ## Architecture
 ### 1. Python Sync Engine
@@ -163,9 +163,10 @@ It binds to `127.0.0.1:8790` by default and provides buttons for:
 - running a confirmed live sync
 - opening the configured Google Sheet
 - viewing U.S. Bank / OAuth-blocked bank guidance
+- viewing the Quickstart repair command
 - copying the Apps Script redeploy checklist
 
-The sync button requires explicit browser confirmation because it can append rows to Google Sheets. Secrets and Plaid access tokens are not displayed.
+The sync button requires explicit browser confirmation because it can append rows to Google Sheets. The control center also summarizes sync progress, stores last-run status for the current local session, and shows next actions such as refreshing the dashboard after new rows are appended. Secrets and Plaid access tokens are not displayed.
 
 For a manual launcher:
 
@@ -327,9 +328,9 @@ node --check --input-type=commonjs < src/appscript/Code.gs
 - The current repo intentionally keeps research/history material under `research/` and historical handoff context in `PROJECT_TRANSITION_V5.md`.
 
 ## Next Improvement Themes
-- Polish the local control center into the first sellable Mac-friendly surface
 - Add an Apps Script deployment helper or `clasp` workflow
 - Add CSV/manual import coverage for verified income and unsupported banks
+- Package/polish the local control center into the first sellable Mac-friendly surface
 - Resume U.S. Bank connection after Plaid Production registration approval
 - Connect Capital One and other OAuth institutions
 - Expand Rules sheet with more automated pattern matching for transfers

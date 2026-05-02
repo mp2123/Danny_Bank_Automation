@@ -67,5 +67,6 @@ node --check --input-type=commonjs < src/appscript/Code.gs
 - possible future polish for chart value labels if Google Sheets embedded-chart role inference remains inconsistent
 - sidebar readability and more on-sheet explanatory text
 - optional account exclusion/filtering controls inside the sheet
-- local control center polish before packaging a sellable Mac-friendly version
+- Apps Script deployment helper or `clasp` workflow to reduce manual paste steps
+- CSV/manual import coverage for income and unsupported banks
 - U.S. Bank and other OAuth institutions remain blocked until Plaid Production/OAuth institution registration is complete

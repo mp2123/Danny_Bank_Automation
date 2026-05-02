@@ -29,7 +29,7 @@ The model should not be relied on for exact accounting math when verified local 
 - [PRODUCT_ROADMAP.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/PRODUCT_ROADMAP.md)
 
 ## Current Status
-Current productization version: `v5.5`
+Current productization version: `v5.6`
 
 Recent focus areas:
 - grounded evidence responses
@@ -38,6 +38,7 @@ Recent focus areas:
 - payment/transfer exclusion from verified spend analytics
 - friendly account labels, Rules sheet filtering, and setup diagnostics
 - local-only control center for sync, doctor, account listing, and setup guidance
+- control center next-action guidance, warning panels, sync summaries, and last-run state
 - local-first paid app/service roadmap
 - U.S. Bank remains blocked pending Plaid Production/OAuth institution registration
 

@@ -9,7 +9,7 @@ This repository exists to run a local-first personal finance workflow:
 - support a Gemini sidebar that mixes verified local analytics with model-generated advice
 
 ## Current Status Snapshot
-Current working state: `v5.5`
+Current working state: `v5.6`
 What is working now:
 - Python sync engine for Plaid -> Google Sheets
 - Friendly account labels resolved during sync
@@ -21,6 +21,17 @@ What is working now:
 - `Dashboard` and `Insights` rendering from Apps Script
 - Gemini sidebar with logging, verified data, and fallback support
 - Fixed duplicate chart bars and improved dashboard exclusion transparency
+
+### Session 8 - 2026-05-02
+Objective:
+- polish the local control center so it feels closer to a product workflow instead of a raw developer panel
+
+Completed:
+- improved the control center UI with status badges, grouped panels, account cards, warning panels, next actions, and last-activity state
+- added sync summary parsing for authentication, dedupe, Plaid retrieval, append, and up-to-date outcomes
+- added dashboard-refresh next-action guidance after syncs append rows
+- added Quickstart repair command guidance inside the control center
+- kept sync confirmation mandatory before any operation that can append rows to Google Sheets
 
 ### Session 7 - 2026-05-02
 Objective:
@@ -107,9 +118,9 @@ Completed:
 
 ## Next Session Priorities
 Highest-value next steps:
-1. Polish the local control center into the first sellable Mac-friendly surface.
-2. Add an Apps Script deployment helper or `clasp` workflow.
-3. Add CSV/manual import coverage for verified income and unsupported banks.
+1. Add an Apps Script deployment helper or `clasp` workflow.
+2. Add CSV/manual import coverage for verified income and unsupported banks.
+3. Package/polish the local control center into the first sellable Mac-friendly surface.
 4. Resume U.S. Bank via `.venv/bin/python -m src.engine.connect_bank` once Plaid approves OAuth institution registration.
 5. Revisit Capital One and other OAuth institutions after U.S. Bank/Plaid registration is verified.
 

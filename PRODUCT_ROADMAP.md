@@ -70,9 +70,10 @@ Before selling a packaged Mac app:
 
 ## Near-Term Product Milestones
 - v5.5: local control center.
-- v5.6: Apps Script deployment helper or `clasp` workflow.
-- v5.7: CSV/manual import path for income and unsupported banks.
-- v5.8: first-user setup checklist, sample privacy policy draft, and packaged Mac app investigation.
+- v5.6: control center product polish, next actions, last-run state, and safer repair guidance.
+- v5.7: Apps Script deployment helper or `clasp` workflow.
+- v5.8: CSV/manual import path for income and unsupported banks.
+- v5.9: first-user setup checklist, sample privacy policy draft, and packaged Mac app investigation.
 
 ## Reference Links
 - Plaid OAuth guide: https://plaid.com/docs/link/oauth/
