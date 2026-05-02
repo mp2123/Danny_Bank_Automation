@@ -9,17 +9,29 @@ This repository exists to run a local-first personal finance workflow:
 - support a Gemini sidebar that mixes verified local analytics with model-generated advice
 
 ## Current Status Snapshot
-Current working state: `v5.4.1`
+Current working state: `v5.5`
 What is working now:
 - Python sync engine for Plaid -> Google Sheets
 - Friendly account labels resolved during sync
 - Native bank connection helper: [connect_bank.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/connect_bank.py)
 - Setup health check helper: [doctor.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/doctor.py)
+- Local browser control center: [control_center.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/control_center.py)
 - Rules-based analytics exclusion system (Analytics, Dashboard, AI)
 - Hidden `Analytics` data mart powering the visible sheets
 - `Dashboard` and `Insights` rendering from Apps Script
 - Gemini sidebar with logging, verified data, and fallback support
 - Fixed duplicate chart bars and improved dashboard exclusion transparency
+
+### Session 7 - 2026-05-02
+Objective:
+- start local-first productization around a Mac-friendly control center while keeping U.S. Bank/OAuth banks deferred
+
+Completed:
+- pushed the v5.4.1 stabilization checkpoint to GitHub
+- added [control_center.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/control_center.py), a local-only browser UI for Doctor, linked accounts, confirmed sync, Sheet launch, and setup guidance
+- added [control_center.command](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/control_center.command)
+- added [PRODUCT_ROADMAP.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/PRODUCT_ROADMAP.md) for the local-first paid-app/service path
+- kept U.S. Bank and Capital One out of scope until Plaid OAuth institution registration is ready
 
 ### Session 6 - 2026-04-25
 Objective:
@@ -95,10 +107,11 @@ Completed:
 
 ## Next Session Priorities
 Highest-value next steps:
-1. Resume U.S. Bank connection via `.venv/bin/python -m src.engine.connect_bank` once Plaid approves Production access.
-2. Consider adding a checking/payroll account to enable verified savings rate calculations.
-3. Polish Rules UI or add more automated rules for common transfer types.
-4. Revisit Capital One and other OAuth institutions after U.S. Bank/Plaid registration is verified.
+1. Polish the local control center into the first sellable Mac-friendly surface.
+2. Add an Apps Script deployment helper or `clasp` workflow.
+3. Add CSV/manual import coverage for verified income and unsupported banks.
+4. Resume U.S. Bank via `.venv/bin/python -m src.engine.connect_bank` once Plaid approves OAuth institution registration.
+5. Revisit Capital One and other OAuth institutions after U.S. Bank/Plaid registration is verified.
 
 ## Recommended Restart Checklist
 When resuming later:

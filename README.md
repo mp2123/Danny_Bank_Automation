@@ -16,7 +16,7 @@ This repository syncs transaction data from Plaid-linked institutions into Googl
   - fall back to deterministic local output when Gemini is unavailable or quota-limited
 
 ## Current State
-The repository is currently at the `v5.4` recovery stage.
+The repository is currently at the `v5.5` local-first productization stage.
 
 Key capabilities now in place:
 - Shared analytics model across visuals and AI
@@ -25,6 +25,7 @@ Key capabilities now in place:
 - Internal payment/transfer exclusion from spend and cashflow analytics while retaining those rows in the raw ledger
 - Multi-model Gemini fallback in the Apps Script layer
 - A desktop-friendly `run_sync.command` launcher for manual sync runs
+- A local-only browser control center for setup checks, linked accounts, sync, and Sheet launch
 
 ## Architecture
 ### 1. Python Sync Engine
@@ -129,6 +130,7 @@ Repo-local convenience launchers are also available:
 ```bash
 ./list_linked_accounts.command
 ./connect_bank.command
+./control_center.command
 ```
 
 The Desktop wrapper at `/Users/michaelpanico/Desktop/run_sync.command` should point into this repo and execute `./run_sync.command`. The repo launcher keeps both Mac mini and old Mac Pro fallback paths for portability.
@@ -145,6 +147,30 @@ For an offline/local-only check:
 
 ```bash
 .venv/bin/python -m src.engine.doctor --skip-network
+```
+
+### Local Control Center
+Start the local-only browser control center:
+
+```bash
+cd /Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation
+.venv/bin/python -m src.engine.control_center
+```
+
+It binds to `127.0.0.1:8790` by default and provides buttons for:
+- running the setup doctor
+- listing linked Plaid accounts
+- running a confirmed live sync
+- opening the configured Google Sheet
+- viewing U.S. Bank / OAuth-blocked bank guidance
+- copying the Apps Script redeploy checklist
+
+The sync button requires explicit browser confirmation because it can append rows to Google Sheets. Secrets and Plaid access tokens are not displayed.
+
+For a manual launcher:
+
+```bash
+./control_center.command
 ```
 
 ### Adding U.S. Bank Credit Card
@@ -301,11 +327,16 @@ node --check --input-type=commonjs < src/appscript/Code.gs
 - The current repo intentionally keeps research/history material under `research/` and historical handoff context in `PROJECT_TRANSITION_V5.md`.
 
 ## Next Improvement Themes
+- Polish the local control center into the first sellable Mac-friendly surface
+- Add an Apps Script deployment helper or `clasp` workflow
+- Add CSV/manual import coverage for verified income and unsupported banks
 - Resume U.S. Bank connection after Plaid Production registration approval
 - Connect Capital One and other OAuth institutions
 - Expand Rules sheet with more automated pattern matching for transfers
 - Add a checking/payroll account for verified income and savings rate analytics
 - Polish sidebar and dashboard aesthetics
+
+See [PRODUCT_ROADMAP.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/PRODUCT_ROADMAP.md) for the local-first productization and monetization path.
 
 ## License
 MIT

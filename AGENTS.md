@@ -11,9 +11,11 @@ Future contributors should treat those surfaces differently when making changes.
 
 ## Core Files
 - [src/engine/main.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/main.py): sync entrypoint
+- [src/engine/control_center.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/control_center.py): local-only browser control center
 - [src/appscript/Code.gs](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Code.gs): analytics, dashboard, chat orchestration
 - [src/appscript/Sidebar.html](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Sidebar.html): sidebar UI
 - [README.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/README.md): operator-facing documentation
+- [PRODUCT_ROADMAP.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/PRODUCT_ROADMAP.md): productization and monetization roadmap
 - [sessions.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/sessions.md): handoff log
 
 ## Non-Obvious Rules
@@ -65,4 +67,5 @@ node --check --input-type=commonjs < src/appscript/Code.gs
 - possible future polish for chart value labels if Google Sheets embedded-chart role inference remains inconsistent
 - sidebar readability and more on-sheet explanatory text
 - optional account exclusion/filtering controls inside the sheet
+- local control center polish before packaging a sellable Mac-friendly version
 - U.S. Bank and other OAuth institutions remain blocked until Plaid Production/OAuth institution registration is complete

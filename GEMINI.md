@@ -25,9 +25,11 @@ The model should not be relied on for exact accounting math when verified local 
 - [src/appscript/Code.gs](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Code.gs)
 - [src/appscript/Sidebar.html](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/appscript/Sidebar.html)
 - [src/engine/main.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/main.py)
+- [src/engine/control_center.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/control_center.py)
+- [PRODUCT_ROADMAP.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/PRODUCT_ROADMAP.md)
 
 ## Current Status
-Current recovery version: `v5.4.1`
+Current productization version: `v5.5`
 
 Recent focus areas:
 - grounded evidence responses
@@ -35,6 +37,8 @@ Recent focus areas:
 - quota fallback behavior
 - payment/transfer exclusion from verified spend analytics
 - friendly account labels, Rules sheet filtering, and setup diagnostics
+- local-only control center for sync, doctor, account listing, and setup guidance
+- local-first paid app/service roadmap
 - U.S. Bank remains blocked pending Plaid Production/OAuth institution registration
 
 ## Deployment Reminder
