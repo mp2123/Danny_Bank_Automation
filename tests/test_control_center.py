@@ -6,6 +6,7 @@ from src.engine.control_center import (
     build_account_guidance,
     build_appscript_redeploy_checklist,
     build_config_status,
+    build_manual_income_import_guidance,
     build_next_actions,
     build_quickstart_repair_command,
     build_sheet_open_url,
@@ -186,6 +187,15 @@ def test_appscript_redeploy_checklist_is_explicit():
     assert 'Code.gs' in checklist
     assert 'Sidebar.html' in checklist
     assert 'Refresh Dashboard & Visuals' in checklist
+
+
+def test_manual_income_import_guidance_is_cli_confirmed():
+    guidance = build_manual_income_import_guidance()
+
+    assert '--type manual-income' in guidance
+    assert '--dry-run' in guidance
+    assert '--confirm' in guidance
+    assert 'positive' in guidance
 
 
 def test_appscript_dry_run_uses_manual_fallback_when_script_id_missing():

@@ -51,6 +51,7 @@ Do not commit:
 - `credentials.json`
 - `token.json`
 - `token_appscript.json`
+- local import CSVs such as `src/imports/income.csv`
 - local logs
 - `.DS_Store`
 - screen recordings and local debugging media

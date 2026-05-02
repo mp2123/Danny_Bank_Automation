@@ -119,6 +119,25 @@ def build_us_bank_guidance():
     ])
 
 
+def build_manual_income_import_guidance():
+    return '\n'.join([
+        'Manual income import:',
+        'Use this when payroll/checking income is not available through Plaid yet, but you want savings rate to become real.',
+        '',
+        'Supported CSV columns:',
+        'date,name,amount,category,account,notes',
+        '',
+        'Dry run:',
+        '.venv/bin/python -m src.engine.csv_importer --type manual-income --file src/imports/income.csv --account "Manual Income" --dry-run',
+        '',
+        'Confirmed append:',
+        '.venv/bin/python -m src.engine.csv_importer --type manual-income --file src/imports/income.csv --account "Manual Income" --confirm',
+        '',
+        'Manual income rows must be positive. They append to Transactions!A:G and use the default category Income > Manual Income when category is blank.',
+        'After confirming an import, reload the Google Sheet and run Bank Automation -> Refresh Dashboard & Visuals.',
+    ])
+
+
 def record_runtime_event(state, event_type, payload):
     state[f'last_{event_type}'] = {
         'timestamp': datetime.now().isoformat(timespec='seconds'),
@@ -398,6 +417,7 @@ def render_control_center_html():
     escaped_checklist = html.escape(build_appscript_redeploy_checklist())
     escaped_guidance = html.escape(build_us_bank_guidance())
     escaped_quickstart = html.escape(build_quickstart_repair_command())
+    escaped_income_import = html.escape(build_manual_income_import_guidance())
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -554,6 +574,7 @@ def render_control_center_html():
       <button class="secondary" onclick="openSheet()">Open Google Sheet</button>
       <button class="secondary" onclick="checkAppsScriptDeploy()">Check Apps Script Deploy Status</button>
       <button class="secondary" onclick="deployAppsScript()">Deploy Apps Script</button>
+      <button class="secondary" onclick="showText(`{escaped_income_import}`)">Manual Income Import Guide</button>
       <button class="secondary" onclick="showText(`{escaped_guidance}`)">Connect a Bank / OAuth Help</button>
       <button class="secondary" onclick="showText(`{escaped_quickstart}`)">Quickstart Repair Command</button>
       <button class="secondary" onclick="copyChecklist()">Copy Apps Script Redeploy Checklist</button>
@@ -861,6 +882,9 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
             return
         if path == '/api/instructions/quickstart':
             self._send_json({'text': build_quickstart_repair_command()})
+            return
+        if path == '/api/instructions/manual-income':
+            self._send_json({'text': build_manual_income_import_guidance()})
             return
         self._send_json({'error': 'Not found'}, status=404)
 

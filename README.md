@@ -321,6 +321,32 @@ For the current ledger size, Gemini can be given full or near-full raw transacti
 ### Payment and Transfer Handling
 Credit-card payments and internal transfers remain in the raw `Transactions` sheet, but they are excluded from verified spend, income, cashflow, savings-rate, and dashboard analytics so they are not double-counted as lifestyle spending.
 
+## Manual Income Import
+Use this when a checking/payroll account is not linked yet and savings-rate analytics need verified external income rows.
+
+Supported CSV shape:
+
+```csv
+date,name,amount,category,account,notes
+2026-04-30,ACME Payroll,2500.00,Income > Payroll,Manual Income,April paycheck
+```
+
+Required columns are `date`, `name`, and `amount`. Blank categories default to `Income > Manual Income`; blank accounts default to `Manual Income`; pending is always written as `FALSE`.
+
+Dry run first:
+
+```bash
+.venv/bin/python -m src.engine.csv_importer --type manual-income --file src/imports/income.csv --account "Manual Income" --dry-run
+```
+
+Append only after reviewing the dry run:
+
+```bash
+.venv/bin/python -m src.engine.csv_importer --type manual-income --file src/imports/income.csv --account "Manual Income" --confirm
+```
+
+The importer rejects negative income rows by default, deduplicates stable manual IDs against the existing Sheet and the current batch, and writes only to the existing `Transactions!A:G` schema.
+
 ## Validation Commands
 Use these before pushing changes:
 
@@ -328,7 +354,7 @@ Use these before pushing changes:
 cd /Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation
 .venv/bin/python -m pytest -q
 node --check --input-type=commonjs < src/appscript/Code.gs
-.venv/bin/python -m py_compile src/engine/appscript_deploy.py src/engine/connect_bank.py src/engine/doctor.py
+.venv/bin/python -m py_compile src/engine/appscript_deploy.py src/engine/connect_bank.py src/engine/csv_importer.py src/engine/doctor.py
 .venv/bin/python -m src.engine.appscript_deploy --dry-run
 .venv/bin/python -m src.engine.list_linked_accounts
 .venv/bin/python -m src.engine.doctor
@@ -342,7 +368,7 @@ node --check --input-type=commonjs < src/appscript/Code.gs
 
 ## Next Improvement Themes
 - Continue improving the Apps Script deployment helper and later add optional `clasp` power-user support
-- Add CSV/manual import coverage for verified income and unsupported banks
+- Add control-center browser confirmation for manual income import after more live testing
 - Package/polish the local control center into the first sellable Mac-friendly surface
 - Resume U.S. Bank connection after Plaid Production registration approval
 - Connect Capital One and other OAuth institutions

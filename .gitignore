@@ -8,3 +8,4 @@ venv/
 .venv/
 __pycache__/
 Screen Recording*.mov
+src/imports/*.csv

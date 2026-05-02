@@ -9,7 +9,7 @@ This repository exists to run a local-first personal finance workflow:
 - support a Gemini sidebar that mixes verified local analytics with model-generated advice
 
 ## Current Status Snapshot
-Current working state: `v5.7`
+Current working state: `v5.8`
 What is working now:
 - Python sync engine for Plaid -> Google Sheets
 - Friendly account labels resolved during sync
@@ -17,11 +17,22 @@ What is working now:
 - Setup health check helper: [doctor.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/doctor.py)
 - Local browser control center: [control_center.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/control_center.py)
 - Apps Script API deployment helper: [appscript_deploy.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/appscript_deploy.py)
+- Manual income CSV importer: [csv_importer.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/csv_importer.py)
 - Rules-based analytics exclusion system (Analytics, Dashboard, AI)
 - Hidden `Analytics` data mart powering the visible sheets
 - `Dashboard` and `Insights` rendering from Apps Script
 - Gemini sidebar with logging, verified data, and fallback support
 - Fixed duplicate chart bars and improved dashboard exclusion transparency
+
+### Session 10 - 2026-05-02
+Objective:
+- add a safe manual-income path so savings-rate analytics can become real before more Plaid institutions are approved
+
+Completed:
+- reworked [csv_importer.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/csv_importer.py) into an explicit `manual-income` importer
+- added dry-run and confirmed CLI modes with stable IDs, positive-income validation, transfer/payment category rejection, and Sheet/batch dedupe
+- kept writes within the existing `Transactions!A:G` schema
+- added control-center guidance while leaving browser appends deferred behind the CLI confirmation flow
 
 ### Session 9 - 2026-05-02
 Objective:
@@ -129,8 +140,8 @@ Completed:
 
 ## Next Session Priorities
 Highest-value next steps:
-1. Add CSV/manual import coverage for verified income and unsupported banks.
-2. Package/polish the local control center into the first sellable Mac-friendly surface.
+1. Package/polish the local control center into the first sellable Mac-friendly surface.
+2. Add browser-confirmed manual income import only after more live testing.
 3. Add optional `clasp` or release packaging later if the API deploy helper is not enough.
 4. Resume U.S. Bank via `.venv/bin/python -m src.engine.connect_bank` once Plaid approves OAuth institution registration.
 5. Revisit Capital One and other OAuth institutions after U.S. Bank/Plaid registration is verified.

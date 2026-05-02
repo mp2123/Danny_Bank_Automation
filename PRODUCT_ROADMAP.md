@@ -72,7 +72,7 @@ Before selling a packaged Mac app:
 - v5.5: local control center.
 - v5.6: control center product polish, next actions, last-run state, and safer repair guidance.
 - v5.7: Apps Script API deployment helper with control-center actions and manual fallback.
-- v5.8: CSV/manual import path for income and unsupported banks.
+- v5.8: safe manual-income CSV import path for verified savings-rate income.
 - v5.9: first-user setup checklist, sample privacy policy draft, and packaged Mac app investigation.
 
 ## Reference Links
