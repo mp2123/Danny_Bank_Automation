@@ -21,7 +21,7 @@ PYTHON="$ROOT/.venv/bin/python"
 SPEC="$ROOT/packaging/pyinstaller/danny_bank_control_center.spec"
 
 if [[ "$MODE" == "release" ]]; then
-  "$ROOT/scripts/sign_and_notarize.sh" --check-env
+  "$ROOT/scripts/check_macos_signing_ready.sh"
 fi
 
 if [[ ! -x "$PYTHON" ]]; then

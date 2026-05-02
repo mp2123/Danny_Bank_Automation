@@ -109,20 +109,43 @@ Use this checklist before a personal install, paid setup session, or packaged lo
   ```bash
   scripts/release_smoke_check.sh
   ```
+- Check macOS signing readiness. Release builds are blocked until a real Developer ID Application identity and notarization auth are configured:
+  ```bash
+  scripts/check_macos_signing_ready.sh
+  ```
 - Build unsigned local artifacts for internal testing:
   ```bash
   scripts/build_mac_app.sh --dev
   scripts/build_dmg.sh --dev
   ```
-- Release builds require Developer ID signing and notarization variables:
+- Verify development artifacts as internal-only:
+  ```bash
+  scripts/verify_release_artifact.sh --dev
+  ```
+- Release builds require Developer ID signing and notarization. Prefer a stored notarytool keychain profile when possible:
+  ```bash
+  xcrun notarytool store-credentials danny-bank-notary
+  export NOTARYTOOL_PROFILE=danny-bank-notary
+  export DEVELOPER_ID_APPLICATION="Developer ID Application: ..."
+  ```
+- The Apple ID/app-specific-password path remains supported when a keychain profile is not used:
   ```bash
   scripts/sign_and_notarize.sh --check-env
   ```
+- Build and verify release artifacts only after signing readiness passes:
+  ```bash
+  scripts/build_mac_app.sh --release
+  scripts/build_dmg.sh --release
+  scripts/verify_release_artifact.sh --release
+  ```
+- Rehearse the signed and notarized DMG on a clean macOS user account before any broad Lemon Squeezy listing.
 - Confirm generated `.app` and `.dmg` artifacts remain ignored by git.
 - Review `docs/lemon_squeezy_distribution.md` before listing any digital download.
+- Complete `docs/beta_rehearsal_report_template.md` for each guided setup beta or release-candidate build.
+- Optional quality gate: run CodeRabbit review after CLI/auth setup. Do not install or authenticate CodeRabbit inside a customer setup session.
 - Keep SwiftUI out of scope until a beta setup rehearsal proves the browser-control-center wrapper is a blocker. If native work is needed later, prefer a thin launcher/settings wrapper over a full app rewrite.
 
 ## Known Blockers
 - U.S. Bank, Capital One, and other OAuth-gated institutions may remain blocked until Plaid Production/OAuth institution registration is approved.
 - Do not keep retrying blocked institutions when Plaid reports `INSTITUTION_REGISTRATION_REQUIRED`.
-- Broad distribution still needs Apple Developer ID signing, notarization, privacy policy, terms, support process, and uninstall/token removal instructions.
+- Broad distribution still needs Apple Developer ID signing, notarization, final privacy/terms review, support process, and uninstall/token removal rehearsal.

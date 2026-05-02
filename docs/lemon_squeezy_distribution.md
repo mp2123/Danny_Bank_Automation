@@ -25,7 +25,18 @@ If license keys are implemented later:
 - do not add a hosted billing backend or customer auth backend
 
 ## Download File
-Distribute only a signed and notarized `.dmg` for broad customers. Development DMGs are for internal testing only.
+Distribute only a signed, notarized, stapled, and release-verified `.dmg` for broad customers. Development DMGs are for internal testing only.
+
+Pre-listing gate:
+```bash
+scripts/release_smoke_check.sh
+scripts/check_macos_signing_ready.sh
+scripts/build_mac_app.sh --release
+scripts/build_dmg.sh --release
+scripts/verify_release_artifact.sh --release
+```
+
+Guided setup beta can be sold before a full self-serve marketplace launch only when it is clearly positioned as guided setup. A self-serve downloadable beta should wait until the release DMG passes signing, notarization, Gatekeeper, privacy/terms, support, and uninstall checks.
 
 ## Product Page Disclosures
 The page should clearly state:
@@ -45,3 +56,6 @@ Publish a support email/process and explain what is included:
 - known Plaid blocker explanation
 
 Explicitly exclude guaranteed support for unavailable Plaid institutions, bank-side outages, unsupported macOS versions, and custom financial advice.
+
+## Current Policy
+License keys are optional/advisory until beta support and refund policy are finalized. Do not block local data access offline during the early beta without a separate product-policy decision.

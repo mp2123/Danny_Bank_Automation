@@ -1,6 +1,6 @@
 # Danny Bank Privacy Policy Draft
 
-Status: draft for local-first beta review. This is not legal advice.
+Status: beta-review draft for local-first paid setup and signed-DMG beta preparation. This is not legal advice and must be reviewed before broad sale.
 
 ## Product Shape
 Danny Bank is local-first personal finance analytics software. In the current beta, it runs on the user's Mac, syncs transactions through the user's Plaid configuration, writes to the user's Google Sheet, and optionally uses the user's Gemini API key for narrative analysis.

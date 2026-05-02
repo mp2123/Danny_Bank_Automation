@@ -23,7 +23,20 @@ The build should create:
 Generated artifacts are ignored by git.
 
 ## Release Signing Requirements
-Release mode requires:
+Release mode requires an Apple-issued Developer ID Application certificate and notarization auth.
+
+Recommended notarization auth:
+- `DEVELOPER_ID_APPLICATION`
+- `NOTARYTOOL_PROFILE`
+
+Create the profile manually before release automation:
+```bash
+xcrun notarytool store-credentials danny-bank-notary
+export NOTARYTOOL_PROFILE=danny-bank-notary
+export DEVELOPER_ID_APPLICATION="Developer ID Application: ..."
+```
+
+Apple ID fallback auth is also supported:
 - `DEVELOPER_ID_APPLICATION`
 - `APPLE_ID`
 - `APPLE_TEAM_ID`
@@ -31,16 +44,17 @@ Release mode requires:
 
 Check release environment:
 ```bash
-scripts/sign_and_notarize.sh --check-env
+scripts/check_macos_signing_ready.sh
 ```
 
 Build and notarize release artifacts:
 ```bash
 scripts/build_mac_app.sh --release
 scripts/build_dmg.sh --release
+scripts/verify_release_artifact.sh --release
 ```
 
-Release mode fails closed when signing or notarization credentials are missing.
+Release mode fails closed when the Developer ID identity, notarization credentials, Gatekeeper assessment, or stapled ticket verification is missing.
 
 ## Bundle Data Boundary
 The app bundle may include source code, Apps Script templates, and committed synthetic sample data. It must not include:
@@ -63,14 +77,17 @@ On first launch it prepares sample data, Apps Script templates, `.env.example`, 
 
 ## Pre-Release Verification
 1. Run `scripts/release_smoke_check.sh`.
-2. Build the app.
-3. Build the DMG.
-4. Launch `Danny Bank.app`.
-5. Confirm the local browser opens the control center.
-6. Confirm Demo Mode is visibly synthetic.
-7. Confirm Setup Readiness works with no secrets visible.
-8. Confirm no private `.env`, Google tokens, Plaid tokens, Gemini keys, or import CSVs are bundled.
-9. Verify Gatekeeper behavior on a clean Mac account before broad distribution.
+2. Run `scripts/check_macos_signing_ready.sh`.
+3. Build the signed release app.
+4. Build, notarize, and staple the release DMG.
+5. Run `scripts/verify_release_artifact.sh --release`.
+6. Launch `Danny Bank.app`.
+7. Confirm the local browser opens the control center.
+8. Confirm Demo Mode is visibly synthetic.
+9. Confirm Setup Readiness works with no secrets visible.
+10. Confirm no private `.env`, Google tokens, Plaid tokens, Gemini keys, or import CSVs are bundled.
+11. Verify Gatekeeper behavior on a clean Mac account before broad distribution.
+12. Fill out `docs/beta_rehearsal_report_template.md` for the release candidate.
 
 ## Native App Decision
 

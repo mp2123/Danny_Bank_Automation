@@ -45,7 +45,7 @@ check_signing_preflight() {
   echo "==> Signing/notarization preflight"
   set +e
   local output
-  output="$("$ROOT/scripts/sign_and_notarize.sh" --check-env 2>&1)"
+  output="$("$ROOT/scripts/check_macos_signing_ready.sh" 2>&1)"
   local status=$?
   set -e
   printf '%s\n' "$output" | tee -a "$LOG_FILE"
@@ -55,12 +55,35 @@ check_signing_preflight() {
     return 0
   fi
 
-  if [[ "$status" -eq 2 && "$output" == *"Release signing/notarization requires:"* ]]; then
+  if [[ "$status" -eq 2 && "$output" == *"Developer ID Application signing identity"* ]]; then
     echo "Signing/notarization is not configured; release builds correctly fail closed."
     return 0
   fi
 
   echo "Unexpected signing/notarization preflight result." >&2
+  return "$status"
+}
+
+check_development_artifacts() {
+  echo
+  echo "==> Development artifact verification"
+  set +e
+  local output
+  output="$("$ROOT/scripts/verify_release_artifact.sh" --dev 2>&1)"
+  local status=$?
+  set -e
+  printf '%s\n' "$output" | tee -a "$LOG_FILE"
+
+  if [[ "$status" -eq 0 ]]; then
+    return 0
+  fi
+
+  if [[ "$status" -eq 2 && "$output" == *"Development artifacts are missing"* ]]; then
+    echo "Development artifacts are absent; build them with scripts/build_mac_app.sh --dev and scripts/build_dmg.sh --dev before artifact inspection."
+    return 0
+  fi
+
+  echo "Unexpected development artifact verification result." >&2
   return "$status"
 }
 
@@ -125,6 +148,7 @@ print('Demo data OK: rows={rows} savings_rate={rate}%'.format(
 PY"
 run_step "Mac app packaging preflight" "$ROOT/scripts/build_mac_app.sh" --dev --check
 run_step "DMG packaging preflight" "$ROOT/scripts/build_dmg.sh" --dev --check
+check_development_artifacts
 check_signing_preflight
 
 echo

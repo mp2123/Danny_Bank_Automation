@@ -29,11 +29,13 @@ Repo-managed packaging files:
 - [packaging/pyinstaller/danny_bank_control_center.spec](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/packaging/pyinstaller/danny_bank_control_center.spec)
 - [scripts/build_mac_app.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/build_mac_app.sh)
 - [scripts/build_dmg.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/build_dmg.sh)
+- [scripts/check_macos_signing_ready.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/check_macos_signing_ready.sh)
 - [scripts/sign_and_notarize.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/sign_and_notarize.sh)
+- [scripts/verify_release_artifact.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/verify_release_artifact.sh)
 - [scripts/release_smoke_check.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/release_smoke_check.sh)
 - [docs/release_build_runbook.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/release_build_runbook.md)
 
-Development builds are unsigned. Release builds fail closed unless Developer ID and notarization environment variables are present.
+Development builds are unsigned and must be treated as internal-only. Release builds fail closed unless a Developer ID Application identity and notarization auth are present. The preferred notarization setup is a `notarytool` keychain profile; Apple ID/app-specific-password auth remains supported as a fallback.
 
 ## Distribution Requirements
 
@@ -69,8 +71,10 @@ Do not add these until demand is proven and compliance/security foundations are 
 1. Completed: prove Apps Script API deploy with `GOOGLE_APPS_SCRIPT_ID`.
 2. Completed: add read-only synthetic Demo Mode for screenshots and onboarding without polluting the live Sheet.
 3. Completed: add PyInstaller/DMG packaging scaffold and Lemon Squeezy distribution plan.
-4. Next: prove real manual income import with a user-provided local CSV.
-5. Rehearse the release flow with [RELEASE_CHECKLIST.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/RELEASE_CHECKLIST.md).
-6. Run a small paid setup/service beta with local-first framing.
-7. Build, sign, notarize, and test a release DMG on a clean Mac account.
-8. Add billing, SaaS, or remote support tooling only after support burden and demand are clear.
+4. Completed: add signing-readiness and release-artifact verification scripts for the DMG beta path.
+5. Next: configure Apple Developer ID signing and notarization auth.
+6. Prove real manual income import with a user-provided local CSV.
+7. Rehearse the release flow with [RELEASE_CHECKLIST.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/RELEASE_CHECKLIST.md).
+8. Run a small paid setup/service beta with local-first framing.
+9. Build, sign, notarize, and test a release DMG on a clean Mac account.
+10. Add billing, SaaS, or remote support tooling only after support burden and demand are clear.

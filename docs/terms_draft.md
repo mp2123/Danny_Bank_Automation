@@ -1,6 +1,6 @@
 # Danny Bank Terms Draft
 
-Status: draft for beta review. This is not legal advice.
+Status: beta-review draft for guided setup and signed-DMG beta preparation. This is not legal advice and must be reviewed before broad sale.
 
 ## Service Description
 Danny Bank is local-first personal finance analytics software for syncing transaction data into a user-owned Google Sheet and reviewing that data through a local control center and Apps Script dashboard.

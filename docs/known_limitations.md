@@ -1,5 +1,7 @@
 # Danny Bank Known Limitations
 
+Status: beta-review disclosure draft. Review this before any Lemon Squeezy listing or guided paid setup.
+
 ## Local-First Beta
 Danny Bank currently runs as local software plus a user-owned Google Sheet. It is not a hosted SaaS product and does not include hosted customer auth, remote telemetry, or remote diagnostics.
 

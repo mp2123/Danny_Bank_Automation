@@ -27,7 +27,7 @@ if ! command -v hdiutil >/dev/null 2>&1; then
 fi
 
 if [[ "$MODE" == "release" ]]; then
-  "$ROOT/scripts/sign_and_notarize.sh" --check-env
+  "$ROOT/scripts/check_macos_signing_ready.sh"
 fi
 
 if [[ "$CHECK_ONLY" == "true" ]]; then

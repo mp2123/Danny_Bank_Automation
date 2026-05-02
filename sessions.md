@@ -9,7 +9,7 @@ This repository exists to run a local-first personal finance workflow:
 - support a Gemini sidebar that mixes verified local analytics with model-generated advice
 
 ## Current Status Snapshot
-Current working state: `v6.5 local-app productization scaffold`
+Current working state: `v6.6 signed-DMG readiness scaffold`
 What is working now:
 - Python sync engine for Plaid -> Google Sheets
 - Friendly account labels resolved during sync
@@ -26,11 +26,30 @@ What is working now:
 - Draft privacy, terms, support, uninstall, known-limitations, release-build, and Lemon Squeezy distribution docs under [docs](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs)
 - PyInstaller/DMG packaging scaffold under [packaging](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/packaging) and [scripts](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts)
 - Release-candidate smoke check: [scripts/release_smoke_check.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/release_smoke_check.sh)
+- macOS signing readiness check: [scripts/check_macos_signing_ready.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/check_macos_signing_ready.sh)
+- release artifact verification: [scripts/verify_release_artifact.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/verify_release_artifact.sh)
 - Rules-based analytics exclusion system (Analytics, Dashboard, AI)
 - Hidden `Analytics` data mart powering the visible sheets
 - `Dashboard` and `Insights` rendering from Apps Script
 - Gemini sidebar with logging, verified data, and fallback support
 - Fixed duplicate chart bars and improved dashboard exclusion transparency
+
+### Session 17 - 2026-05-02
+Objective:
+- harden the signed/notarized DMG release path before any Lemon Squeezy paid beta
+
+Completed:
+- added [scripts/check_macos_signing_ready.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/check_macos_signing_ready.sh) to verify Xcode tools, Developer ID Application identity, exact identity matching, and notarization auth without printing secrets
+- added support for both `NOTARYTOOL_PROFILE` and Apple ID/app-specific-password notarization paths
+- added [scripts/verify_release_artifact.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/verify_release_artifact.sh) for dev-only artifact inspection and strict release checks with codesign, Gatekeeper, and stapler validation
+- wired release smoke checks to tolerate missing dev artifacts while still verifying existing artifacts when present
+- updated release checklist, packaging plan, release runbook, Lemon Squeezy plan, and beta trust docs around the signed-DMG gate
+- added [docs/beta_rehearsal_report_template.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/beta_rehearsal_report_template.md)
+
+Still intentionally not done:
+- did not create Apple Developer Program certificates or notarization credentials
+- did not produce a distributable release DMG because no local Developer ID identity is installed yet
+- did not add SwiftUI, SaaS auth, telemetry, billing backend, hosted transaction storage, or remote diagnostics
 
 ### Session 16 - 2026-05-02
 Objective:
@@ -249,13 +268,14 @@ Completed:
 
 ## Next Session Priorities
 Highest-value next steps:
-1. Run browser validation for the read-only Demo Mode panel at `http://127.0.0.1:8790`.
-2. Build unsigned local artifacts with `scripts/build_mac_app.sh --dev` and `scripts/build_dmg.sh --dev` once PyInstaller is intentionally installed in `.venv`.
-3. Replace the ignored example `src/imports/income.csv` with real positive income when income data is available, run manual-income dry run, then confirm append only after review.
-4. Refresh Dashboard & Visuals after confirmed income import and verify savings-rate behavior.
-5. Use [RELEASE_CHECKLIST.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/RELEASE_CHECKLIST.md) to rehearse a first paid setup/beta install.
-6. Review privacy/terms/support docs before any Lemon Squeezy listing.
-7. Resume U.S. Bank and Capital One only after Plaid approves OAuth institution registration.
+1. Install/configure an Apple Developer ID Application certificate and private key.
+2. Configure notarization auth, preferably with `xcrun notarytool store-credentials danny-bank-notary` and `NOTARYTOOL_PROFILE=danny-bank-notary`.
+3. Run `scripts/check_macos_signing_ready.sh` and resolve any missing signing/notarization prerequisites.
+4. Build and verify a signed release candidate with `scripts/build_mac_app.sh --release`, `scripts/build_dmg.sh --release`, and `scripts/verify_release_artifact.sh --release`.
+5. Rehearse a clean macOS install using [RELEASE_CHECKLIST.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/RELEASE_CHECKLIST.md) and record results in [docs/beta_rehearsal_report_template.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/beta_rehearsal_report_template.md).
+6. Review privacy/terms/support/known-limitations docs before any Lemon Squeezy listing.
+7. Replace the ignored example `src/imports/income.csv` with real positive income when income data is available, run manual-income dry run, then confirm append only after review.
+8. Resume U.S. Bank and Capital One only after Plaid approves OAuth institution registration.
 
 ## Recommended Restart Checklist
 When resuming later:

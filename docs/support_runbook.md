@@ -1,6 +1,6 @@
 # Danny Bank Support Runbook
 
-Use this runbook for controlled beta support and paid setup sessions.
+Status: beta support draft. Use this runbook for controlled beta support and paid setup sessions before any broad self-serve listing.
 
 ## First Triage
 1. Ask the user to open the local control center.

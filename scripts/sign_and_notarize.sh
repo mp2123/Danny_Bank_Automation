@@ -19,20 +19,9 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-missing=()
-for name in DEVELOPER_ID_APPLICATION APPLE_ID APPLE_TEAM_ID APPLE_APP_SPECIFIC_PASSWORD; do
-  if [[ -z "${!name:-}" ]]; then
-    missing+=("$name")
-  fi
-done
-
-if [[ ${#missing[@]} -gt 0 ]]; then
-  echo "Release signing/notarization requires: ${missing[*]}" >&2
-  exit 2
-fi
+"$ROOT/scripts/check_macos_signing_ready.sh"
 
 if [[ "$MODE" == "check" ]]; then
-  echo "Signing and notarization environment is configured."
   exit 0
 fi
 
@@ -54,11 +43,17 @@ if [[ -n "$DMG_PATH" ]]; then
     echo "DMG not found: $DMG_PATH" >&2
     exit 1
   fi
-  xcrun notarytool submit "$DMG_PATH" \
-    --apple-id "$APPLE_ID" \
-    --team-id "$APPLE_TEAM_ID" \
-    --password "$APPLE_APP_SPECIFIC_PASSWORD" \
-    --wait
+  if [[ -n "${NOTARYTOOL_PROFILE:-}" ]]; then
+    xcrun notarytool submit "$DMG_PATH" \
+      --keychain-profile "$NOTARYTOOL_PROFILE" \
+      --wait
+  else
+    xcrun notarytool submit "$DMG_PATH" \
+      --apple-id "$APPLE_ID" \
+      --team-id "$APPLE_TEAM_ID" \
+      --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+      --wait
+  fi
   xcrun stapler staple "$DMG_PATH"
   echo "Notarized and stapled DMG: $DMG_PATH"
 fi
