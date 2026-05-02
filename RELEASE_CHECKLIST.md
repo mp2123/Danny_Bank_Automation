@@ -113,6 +113,7 @@ Use this checklist before a personal install, paid setup session, or packaged lo
   ```bash
   scripts/check_macos_signing_ready.sh
   ```
+- Follow `docs/apple_signing_setup.md` when configuring Apple Developer ID and notarization for the first time.
 - Build unsigned local artifacts for internal testing:
   ```bash
   scripts/build_mac_app.sh --dev

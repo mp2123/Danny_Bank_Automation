@@ -25,6 +25,8 @@ Generated artifacts are ignored by git.
 ## Release Signing Requirements
 Release mode requires an Apple-issued Developer ID Application certificate and notarization auth.
 
+For the full operator setup flow, use `docs/apple_signing_setup.md`.
+
 Recommended notarization auth:
 - `DEVELOPER_ID_APPLICATION`
 - `NOTARYTOOL_PROFILE`

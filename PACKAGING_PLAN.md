@@ -33,6 +33,7 @@ Repo-managed packaging files:
 - [scripts/sign_and_notarize.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/sign_and_notarize.sh)
 - [scripts/verify_release_artifact.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/verify_release_artifact.sh)
 - [scripts/release_smoke_check.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/release_smoke_check.sh)
+- [docs/apple_signing_setup.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/apple_signing_setup.md)
 - [docs/release_build_runbook.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/release_build_runbook.md)
 
 Development builds are unsigned and must be treated as internal-only. Release builds fail closed unless a Developer ID Application identity and notarization auth are present. The preferred notarization setup is a `notarytool` keychain profile; Apple ID/app-specific-password auth remains supported as a fallback.

@@ -45,6 +45,7 @@ Completed:
 - wired release smoke checks to tolerate missing dev artifacts while still verifying existing artifacts when present
 - updated release checklist, packaging plan, release runbook, Lemon Squeezy plan, and beta trust docs around the signed-DMG gate
 - added [docs/beta_rehearsal_report_template.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/beta_rehearsal_report_template.md)
+- added [docs/apple_signing_setup.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/apple_signing_setup.md) as the credential-safe operator guide for the external Apple setup gate
 
 Still intentionally not done:
 - did not create Apple Developer Program certificates or notarization credentials
@@ -269,7 +270,7 @@ Completed:
 ## Next Session Priorities
 Highest-value next steps:
 1. Install/configure an Apple Developer ID Application certificate and private key.
-2. Configure notarization auth, preferably with `xcrun notarytool store-credentials danny-bank-notary` and `NOTARYTOOL_PROFILE=danny-bank-notary`.
+2. Follow [docs/apple_signing_setup.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/apple_signing_setup.md) to configure notarization auth, preferably with `xcrun notarytool store-credentials danny-bank-notary` and `NOTARYTOOL_PROFILE=danny-bank-notary`.
 3. Run `scripts/check_macos_signing_ready.sh` and resolve any missing signing/notarization prerequisites.
 4. Build and verify a signed release candidate with `scripts/build_mac_app.sh --release`, `scripts/build_dmg.sh --release`, and `scripts/verify_release_artifact.sh --release`.
 5. Rehearse a clean macOS install using [RELEASE_CHECKLIST.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/RELEASE_CHECKLIST.md) and record results in [docs/beta_rehearsal_report_template.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/beta_rehearsal_report_template.md).
