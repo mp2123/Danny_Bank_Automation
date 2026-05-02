@@ -31,6 +31,27 @@ What is working now:
 - Gemini sidebar with logging, verified data, and fallback support
 - Fixed duplicate chart bars and improved dashboard exclusion transparency
 
+### Session 15 - 2026-05-02
+Objective:
+- reclaim local repo storage without touching source, secrets, tokens, imports, or live product state
+
+Completed:
+- removed ignored/generated packaging artifacts: `build/` and `dist/`
+- removed ignored Python/browser test caches: `.pytest_cache/`, `.playwright-mcp/`, and `__pycache__/` folders
+- removed the old duplicate ignored `venv/` while preserving the active `.venv/`
+- removed ignored local debugging artifacts: `automation.log` and the old local screen recording
+- reduced repo-local disk usage from roughly `985M` to roughly `222M`
+- verified the active `.venv/` remains present, tests can still run, git has no tracked source changes from cleanup, and the control center remains available on `127.0.0.1:8790`
+
+Intentionally preserved:
+- `.env`
+- `.venv/`
+- `credentials.json`
+- `token.json`
+- `token_appscript.json`
+- `src/imports/`
+- all source files, docs, tests, packaging scripts, and committed sample data
+
 ### Session 14 - 2026-05-02
 Objective:
 - move from internal/beta readiness toward outside-App-Store DMG distribution and Lemon Squeezy preparation
