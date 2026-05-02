@@ -74,6 +74,7 @@ Before selling a packaged Mac app:
 - v5.7: Apps Script API deployment helper with control-center actions and manual fallback.
 - v5.8: safe manual-income CSV import path for verified savings-rate income.
 - v5.9: first-user setup readiness cockpit and local app setup guide.
+- v6.0: browser-confirmed manual-income import from repo-local CSV files.
 
 ## Reference Links
 - Plaid OAuth guide: https://plaid.com/docs/link/oauth/

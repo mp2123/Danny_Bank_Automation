@@ -165,12 +165,12 @@ It binds to `127.0.0.1:8790` by default and provides buttons for:
 - running a confirmed live sync
 - opening the configured Google Sheet
 - checking/deploying Apps Script when `GOOGLE_APPS_SCRIPT_ID` is configured
-- viewing manual-income import guidance
+- running browser-confirmed manual-income dry runs and imports from repo-local CSV files
 - viewing bank-link / OAuth-blocked bank guidance
 - viewing the Quickstart repair command
 - copying the Apps Script redeploy checklist
 
-The sync button is blocked until required readiness items are present, then requires explicit browser confirmation because it can append rows to Google Sheets. The control center also summarizes sync progress, stores last-run status for the current local session, and shows next actions such as refreshing the dashboard after new rows are appended. Secrets and Plaid access tokens are not displayed.
+The sync and confirmed import buttons require explicit browser confirmation because they can append rows to Google Sheets. The control center also summarizes sync/import progress, stores last-run status for the current local session, and shows next actions such as refreshing the dashboard after new rows are appended. Secrets and Plaid access tokens are not displayed.
 
 For a manual launcher:
 
@@ -351,6 +351,8 @@ Append only after reviewing the dry run:
 .venv/bin/python -m src.engine.csv_importer --type manual-income --file src/imports/income.csv --account "Manual Income" --confirm
 ```
 
+The control center exposes the same flow through the `Manual Income Import` panel. It only accepts repo-local CSV paths under `src/imports/`, requires a dry run/review before confirmed import, and requires explicit browser confirmation before appending rows.
+
 The importer rejects negative income rows by default, deduplicates stable manual IDs against the existing Sheet and the current batch, and writes only to the existing `Transactions!A:G` schema.
 
 ## Validation Commands
@@ -374,7 +376,7 @@ node --check --input-type=commonjs < src/appscript/Code.gs
 
 ## Next Improvement Themes
 - Continue improving the Apps Script deployment helper and later add optional `clasp` power-user support
-- Add control-center browser confirmation for manual income import after more live testing
+- Prove manual income import with a real local `src/imports/income.csv`
 - Package/polish the local control center into the first sellable Mac-friendly surface
 - Resume U.S. Bank connection after Plaid Production registration approval
 - Connect Capital One and other OAuth institutions

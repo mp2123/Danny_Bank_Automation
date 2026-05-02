@@ -96,11 +96,13 @@ Dry run:
 .venv/bin/python -m src.engine.csv_importer --type manual-income --file src/imports/income.csv --account "Manual Income" --dry-run
 ```
 
-Confirmed append:
+Confirmed append from the CLI:
 
 ```bash
 .venv/bin/python -m src.engine.csv_importer --type manual-income --file src/imports/income.csv --account "Manual Income" --confirm
 ```
+
+The control center also has a `Manual Income Import` panel with the same file path and account defaults. Use `Dry Run Manual Income Import` first, review the output, then use `Confirm Manual Income Import` only when the rows are correct. Browser imports are restricted to repo-local CSV files under `src/imports/`.
 
 The importer writes only to `Transactions!A:G`, rejects negative rows by default, and skips duplicates.
 

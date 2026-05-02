@@ -18,6 +18,11 @@ from .appscript_deploy import (
     format_deploy_report,
     run_deploy_plan,
 )
+from .csv_importer import (
+    DEFAULT_MANUAL_INCOME_ACCOUNT,
+    ManualIncomeImportError,
+    run_manual_income_import,
+)
 from .doctor import (
     PLAID_OAUTH_STATUS_URL,
     QUICKSTART_PYTHON_DIR,
@@ -34,6 +39,7 @@ RUNTIME_STATE = {
     'last_sync': None,
     'last_doctor': None,
     'last_appscript_deploy': None,
+    'last_import': None,
 }
 
 
@@ -388,7 +394,7 @@ def parse_sync_summary(output, ok):
     }
 
 
-def build_next_actions(doctor_payload=None, accounts_payload=None, sync_result=None):
+def build_next_actions(doctor_payload=None, accounts_payload=None, sync_result=None, import_result=None):
     doctor_payload = doctor_payload or {'checks': []}
     accounts_payload = accounts_payload or {'items': []}
     actions = []
@@ -399,6 +405,14 @@ def build_next_actions(doctor_payload=None, accounts_payload=None, sync_result=N
             'priority': 'high',
             'title': 'Refresh the Dashboard',
             'detail': 'A sync appended new rows. In Google Sheets, run Bank Automation -> Refresh Dashboard & Visuals.',
+        })
+
+    import_summary = (import_result or {}).get('summary') or {}
+    if import_result and import_result.get('appended') and number_like(import_summary.get('new_rows')) > 0:
+        actions.append({
+            'priority': 'high',
+            'title': 'Refresh the Dashboard',
+            'detail': 'Manual income rows were appended. Refresh Dashboard & Visuals in Google Sheets.',
         })
 
     for check in doctor_payload.get('checks', []):
@@ -466,6 +480,7 @@ def build_status_payload(root=None, env=None, runtime_state=None):
             doctor_payload=doctor_payload,
             accounts_payload=accounts_payload,
             sync_result=runtime_state.get('last_sync'),
+            import_result=runtime_state.get('last_import'),
         ),
         'appscript': {
             'deploy_helper_configured': bool(env.get('GOOGLE_APPS_SCRIPT_ID')),
@@ -510,6 +525,110 @@ def run_doctor_command(root=None, env=None, skip_network=True):
     root = Path(root or repo_root())
     env = env or load_control_env(root)
     return build_doctor_payload(root, env, skip_network=skip_network)
+
+
+def normalize_import_path(root, requested_path):
+    root = Path(root or repo_root()).resolve()
+    imports_dir = (root / 'src' / 'imports').resolve()
+    raw_path = str(requested_path or '').strip() or 'src/imports/income.csv'
+    candidate = Path(raw_path)
+    path = candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()
+
+    try:
+        path.relative_to(imports_dir)
+    except ValueError as exc:
+        raise ControlCenterError('Manual income import files must be under src/imports/.') from exc
+
+    if path.suffix.lower() != '.csv':
+        raise ControlCenterError('Manual income import file must be a .csv file under src/imports/.')
+
+    return path
+
+
+def serialize_import_row(row):
+    return {
+        'transaction_id': row[0],
+        'date': row[1],
+        'name': row[2],
+        'amount': row[3],
+        'category': row[4],
+        'account': row[5],
+        'pending': row[6],
+    }
+
+
+def format_manual_income_import_output(result):
+    summary = result.get('summary') or {}
+    lines = [
+        'Manual Income Import',
+        'Mode: dry run' if summary.get('dry_run') else 'Mode: confirmed append',
+        f"Parsed rows: {summary.get('total_rows', 0)}",
+        f"New rows: {summary.get('new_rows', 0)}",
+        f"Skipped existing IDs: {summary.get('skipped_existing', 0)}",
+        f"Skipped batch duplicates: {summary.get('skipped_batch_duplicates', 0)}",
+    ]
+    rows = result.get('rows') or []
+    if rows:
+        lines.append('')
+        lines.append('Rows:')
+        for row in rows[:12]:
+            item = serialize_import_row(row)
+            lines.append(
+                f"- {item['date']} | {item['name']} | ${float(item['amount']):.2f} | "
+                f"{item['category']} | {item['account']} | {item['transaction_id']}"
+            )
+    if summary.get('dry_run'):
+        lines.append('')
+        lines.append('No rows were appended. Review the rows, then use Confirm Manual Income Import if they are correct.')
+    elif result.get('appended'):
+        lines.append('')
+        lines.append('Append complete. Refresh Dashboard & Visuals in Google Sheets.')
+    else:
+        lines.append('')
+        lines.append('No rows appended.')
+    return '\n'.join(lines)
+
+
+def run_manual_income_import_command(
+    root=None,
+    env=None,
+    file_path='src/imports/income.csv',
+    account=DEFAULT_MANUAL_INCOME_ACCOUNT,
+    dry_run=True,
+    confirm=False,
+    import_runner=run_manual_income_import,
+):
+    if not dry_run and not confirm:
+        raise ControlCenterError('Manual income import requires explicit browser confirmation before appending rows.')
+
+    root = Path(root or repo_root())
+    env = env or load_control_env(root)
+    path = normalize_import_path(root, file_path)
+    try:
+        result = import_runner(
+            file_path=path,
+            account=account or DEFAULT_MANUAL_INCOME_ACCOUNT,
+            spreadsheet_id=env.get('GOOGLE_SPREADSHEET_ID'),
+            sheet_name=(env.get('GOOGLE_SHEET_NAME') or 'Transactions').strip("'"),
+            dry_run=dry_run,
+            confirm=confirm,
+        )
+    except ManualIncomeImportError as exc:
+        return {
+            'ok': False,
+            'error': str(exc),
+            'output': mask_sensitive_text('Manual income import failed: ' + str(exc), env),
+        }
+
+    output = format_manual_income_import_output(result)
+    return {
+        'ok': True,
+        'appended': bool(result.get('appended')),
+        'summary': result.get('summary') or {},
+        'rows': [serialize_import_row(row) for row in (result.get('rows') or [])],
+        'output': mask_sensitive_text(output, env),
+        'next_action': 'Refresh Dashboard & Visuals in Google Sheets.' if result.get('appended') else '',
+    }
 
 
 def run_appscript_dry_run(root=None, env=None, deploy_runner=run_deploy_plan):
@@ -649,6 +768,28 @@ def render_control_center_html():
     button.secondary {{ background: #fff; color: var(--blue); }}
     button.warning {{ background: var(--amber); border-color: var(--amber); }}
     button:disabled {{ opacity: 0.65; cursor: not-allowed; }}
+    input[type="text"] {{
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 9px 10px;
+      font-size: 13px;
+      color: var(--text);
+      background: #fff;
+    }}
+    label {{
+      display: block;
+      font-size: 11px;
+      font-weight: 800;
+      color: #334155;
+      margin-bottom: 5px;
+    }}
+    .form-grid {{
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(180px, 0.5fr);
+      gap: 10px;
+      align-items: end;
+    }}
     pre {{
       background: var(--navy);
       color: #e2e8f0;
@@ -702,6 +843,7 @@ def render_control_center_html():
     @media (max-width: 900px) {{
       .layout {{ grid-template-columns: 1fr; }}
       .grid {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+      .form-grid {{ grid-template-columns: 1fr; }}
       header {{ align-items: flex-start; flex-direction: column; }}
     }}
     @media (max-width: 560px) {{
@@ -733,6 +875,24 @@ def render_control_center_html():
       <button class="secondary" onclick="showText(`{escaped_guidance}`)">Connect a Bank / OAuth Help</button>
       <button class="secondary" onclick="showText(`{escaped_quickstart}`)">Quickstart Repair Command</button>
       <button class="secondary" onclick="copyChecklist()">Copy Apps Script Redeploy Checklist</button>
+    </section>
+    <section class="panel">
+      <h2>Manual Income Import</h2>
+      <div class="form-grid">
+        <div>
+          <label for="manualIncomePath">CSV path</label>
+          <input type="text" id="manualIncomePath" value="src/imports/income.csv">
+        </div>
+        <div>
+          <label for="manualIncomeAccount">Account</label>
+          <input type="text" id="manualIncomeAccount" value="Manual Income">
+        </div>
+      </div>
+      <div class="actions" style="margin:12px 0 0;">
+        <button class="secondary" onclick="dryRunManualIncomeImport()">Dry Run Manual Income Import</button>
+        <button class="warning" onclick="confirmManualIncomeImport()">Confirm Manual Income Import</button>
+      </div>
+      <div class="muted">Imports are restricted to repo-local CSV files under src/imports/. Dry run first; confirmed import can append rows to Google Sheets.</div>
     </section>
     <section class="layout">
       <div>
@@ -905,6 +1065,9 @@ def render_control_center_html():
       if (runtime.last_appscript_deploy) {{
         rows.push(`<div class="row"><div class="row-title">Last Apps Script deploy check</div><div class="row-detail">${{runtime.last_appscript_deploy.timestamp}} · ${{runtime.last_appscript_deploy.ok ? 'Ready' : 'Needs setup'}}</div></div>`);
       }}
+      if (runtime.last_import) {{
+        rows.push(`<div class="row"><div class="row-title">Last manual income import</div><div class="row-detail">${{runtime.last_import.timestamp}} · ${{runtime.last_import.appended ? 'Rows appended' : 'Dry run / no append'}}</div></div>`);
+      }}
       document.getElementById('activity').innerHTML = rows.length ? rows.join('') : '<div class="empty">No actions yet this session.</div>';
     }}
 
@@ -1002,6 +1165,39 @@ def render_control_center_html():
         method: 'POST',
         headers: {{ 'Content-Type': 'application/json' }},
         body: JSON.stringify({{ confirm: true }})
+      }});
+      setOutput(result.output || result);
+      await loadStatus(false);
+    }}
+
+    function manualIncomePayload(confirmValue) {{
+      return {{
+        file_path: document.getElementById('manualIncomePath').value,
+        account: document.getElementById('manualIncomeAccount').value,
+        confirm: confirmValue === true
+      }};
+    }}
+
+    async function dryRunManualIncomeImport() {{
+      setOutput('Running manual income dry run...');
+      const result = await api('/api/import/manual-income/dry-run', {{
+        method: 'POST',
+        headers: {{ 'Content-Type': 'application/json' }},
+        body: JSON.stringify(manualIncomePayload(false))
+      }});
+      setOutput(result.output || result);
+      await loadStatus(false);
+    }}
+
+    async function confirmManualIncomeImport() {{
+      if (!confirm('Append reviewed manual income rows to Google Sheets? Run a dry run first.')) {{
+        return;
+      }}
+      setOutput('Appending manual income rows...');
+      const result = await api('/api/import/manual-income/confirm', {{
+        method: 'POST',
+        headers: {{ 'Content-Type': 'application/json' }},
+        body: JSON.stringify(manualIncomePayload(true))
       }});
       setOutput(result.output || result);
       await loadStatus(false);
@@ -1116,6 +1312,32 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
                     env=self._env(),
                 )
                 record_runtime_event(RUNTIME_STATE, 'appscript_deploy', result)
+                self._send_json(result)
+                return
+            if path == '/api/import/manual-income/dry-run':
+                payload = self._read_json()
+                result = run_manual_income_import_command(
+                    root=self.root,
+                    env=self._env(),
+                    file_path=payload.get('file_path') or 'src/imports/income.csv',
+                    account=payload.get('account') or DEFAULT_MANUAL_INCOME_ACCOUNT,
+                    dry_run=True,
+                    confirm=False,
+                )
+                record_runtime_event(RUNTIME_STATE, 'import', result)
+                self._send_json(result)
+                return
+            if path == '/api/import/manual-income/confirm':
+                payload = self._read_json()
+                result = run_manual_income_import_command(
+                    root=self.root,
+                    env=self._env(),
+                    file_path=payload.get('file_path') or 'src/imports/income.csv',
+                    account=payload.get('account') or DEFAULT_MANUAL_INCOME_ACCOUNT,
+                    dry_run=False,
+                    confirm=payload.get('confirm') is True,
+                )
+                record_runtime_event(RUNTIME_STATE, 'import', result)
                 self._send_json(result)
                 return
             self._send_json({'error': 'Not found'}, status=404)

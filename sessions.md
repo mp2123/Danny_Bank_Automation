@@ -9,7 +9,7 @@ This repository exists to run a local-first personal finance workflow:
 - support a Gemini sidebar that mixes verified local analytics with model-generated advice
 
 ## Current Status Snapshot
-Current working state: `v5.9`
+Current working state: `v6.0`
 What is working now:
 - Python sync engine for Plaid -> Google Sheets
 - Friendly account labels resolved during sync
@@ -24,6 +24,17 @@ What is working now:
 - `Dashboard` and `Insights` rendering from Apps Script
 - Gemini sidebar with logging, verified data, and fallback support
 - Fixed duplicate chart bars and improved dashboard exclusion transparency
+
+### Session 12 - 2026-05-02
+Objective:
+- turn the manual-income import path into a browser-confirmed control-center workflow
+
+Completed:
+- added a `Manual Income Import` control-center panel with repo-local CSV path and account inputs
+- added dry-run and confirmed-import API routes restricted to `src/imports/*.csv`
+- kept confirmed import behind explicit browser confirmation because it can append rows to Google Sheets
+- added import result rendering, row review output, last-import activity state, and dashboard-refresh next action after successful append
+- kept real live import blocked until a user-provided `src/imports/income.csv` exists
 
 ### Session 11 - 2026-05-02
 Objective:
@@ -153,8 +164,8 @@ Completed:
 
 ## Next Session Priorities
 Highest-value next steps:
-1. Browser-validate the readiness cockpit and deploy/import guidance after live config is updated.
-2. Add browser-confirmed manual income import only after more live testing.
+1. Add `GOOGLE_APPS_SCRIPT_ID` to `.env`, dry-run Apps Script deploy, then deploy after review.
+2. Add a real `src/imports/income.csv`, run manual-income dry run, then confirm append only after review.
 3. Add optional `clasp`, signing/notarization investigation, or release packaging.
 4. Resume U.S. Bank via `.venv/bin/python -m src.engine.connect_bank` once Plaid approves OAuth institution registration.
 5. Revisit Capital One and other OAuth institutions after U.S. Bank/Plaid registration is verified.

@@ -1,6 +1,8 @@
 import json
+import inspect
 
 from src.engine.control_center import (
+    ControlCenterHandler,
     PLAID_OAUTH_STATUS_URL,
     ControlCenterError,
     build_account_guidance,
@@ -13,12 +15,15 @@ from src.engine.control_center import (
     build_sheet_open_url,
     build_sheet_status,
     build_status_payload,
+    normalize_import_path,
     parse_sync_summary,
     record_runtime_event,
+    render_control_center_html,
     build_us_bank_guidance,
     mask_sensitive_text,
     run_appscript_deploy,
     run_appscript_dry_run,
+    run_manual_income_import_command,
     run_sync_command,
 )
 
@@ -361,3 +366,131 @@ def test_status_payload_exposes_readiness_without_secrets(tmp_path):
     assert 'readiness' in payload
     assert 'secret_abc' not in serialized
     assert 'access-one' not in serialized
+
+
+def test_manual_income_import_path_must_stay_under_imports(tmp_path):
+    imports_dir = tmp_path / 'src' / 'imports'
+    imports_dir.mkdir(parents=True)
+    safe_path = imports_dir / 'income.csv'
+    safe_path.write_text('date,name,amount\n')
+
+    assert normalize_import_path(tmp_path, 'src/imports/income.csv') == safe_path
+
+    try:
+        normalize_import_path(tmp_path, '../income.csv')
+    except ControlCenterError as exc:
+        assert 'src/imports' in str(exc)
+    else:
+        raise AssertionError('path outside imports should be rejected')
+
+
+def test_manual_income_import_dry_run_route_shape_without_append(tmp_path):
+    imports_dir = tmp_path / 'src' / 'imports'
+    imports_dir.mkdir(parents=True)
+    (imports_dir / 'income.csv').write_text('date,name,amount\n')
+    calls = []
+
+    def fake_runner(**kwargs):
+        calls.append(kwargs)
+        return {
+            'appended': False,
+            'rows': [['manual_income_1', '2026-04-30', 'ACME Payroll', 2500.0, 'Income > Payroll', 'Manual Income', 'FALSE']],
+            'summary': {
+                'total_rows': 1,
+                'new_rows': 1,
+                'skipped_existing': 0,
+                'skipped_batch_duplicates': 0,
+                'dry_run': True,
+            },
+        }
+
+    result = run_manual_income_import_command(
+        root=tmp_path,
+        env={'GOOGLE_SPREADSHEET_ID': 'sheet_123', 'PLAID_SECRET': 'secret_abc'},
+        file_path='src/imports/income.csv',
+        account='Manual Income',
+        dry_run=True,
+        confirm=False,
+        import_runner=fake_runner,
+    )
+
+    assert result['ok'] is True
+    assert result['appended'] is False
+    assert result['rows'][0]['transaction_id'] == 'manual_income_1'
+    assert calls[0]['dry_run'] is True
+    assert calls[0]['confirm'] is False
+    assert 'secret_abc' not in json.dumps(result)
+
+
+def test_manual_income_confirm_requires_confirmation(tmp_path):
+    imports_dir = tmp_path / 'src' / 'imports'
+    imports_dir.mkdir(parents=True)
+    (imports_dir / 'income.csv').write_text('date,name,amount\n')
+
+    try:
+        run_manual_income_import_command(
+            root=tmp_path,
+            env={'GOOGLE_SPREADSHEET_ID': 'sheet_123'},
+            file_path='src/imports/income.csv',
+            dry_run=False,
+            confirm=False,
+            import_runner=lambda **kwargs: {},
+        )
+    except ControlCenterError as exc:
+        assert 'confirmation' in str(exc).lower()
+    else:
+        raise AssertionError('confirmed import should require explicit confirmation')
+
+
+def test_manual_income_confirm_appends_and_sets_next_action(tmp_path):
+    imports_dir = tmp_path / 'src' / 'imports'
+    imports_dir.mkdir(parents=True)
+    (imports_dir / 'income.csv').write_text('date,name,amount\n')
+
+    def fake_runner(**kwargs):
+        assert kwargs['dry_run'] is False
+        assert kwargs['confirm'] is True
+        return {
+            'appended': True,
+            'rows': [['manual_income_1', '2026-04-30', 'ACME Payroll', 2500.0, 'Income > Payroll', 'Manual Income', 'FALSE']],
+            'summary': {
+                'total_rows': 1,
+                'new_rows': 1,
+                'skipped_existing': 0,
+                'skipped_batch_duplicates': 0,
+                'dry_run': False,
+            },
+        }
+
+    result = run_manual_income_import_command(
+        root=tmp_path,
+        env={'GOOGLE_SPREADSHEET_ID': 'sheet_123'},
+        file_path='src/imports/income.csv',
+        dry_run=False,
+        confirm=True,
+        import_runner=fake_runner,
+    )
+
+    assert result['ok'] is True
+    assert result['appended'] is True
+    assert 'Refresh Dashboard & Visuals' in result['next_action']
+
+
+def test_next_actions_include_manual_income_refresh_after_append():
+    actions = build_next_actions(
+        doctor_payload={'checks': []},
+        accounts_payload={'items': []},
+        import_result={'appended': True, 'summary': {'new_rows': 1}},
+    )
+
+    assert any('Refresh Dashboard & Visuals' in action['detail'] for action in actions)
+
+
+def test_manual_income_import_routes_and_buttons_are_wired():
+    source = inspect.getsource(ControlCenterHandler.do_POST)
+    html = render_control_center_html()
+
+    assert '/api/import/manual-income/dry-run' in source
+    assert '/api/import/manual-income/confirm' in source
+    assert 'Dry Run Manual Income Import' in html
+    assert 'Confirm Manual Income Import' in html
