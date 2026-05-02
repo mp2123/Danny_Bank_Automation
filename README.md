@@ -16,7 +16,7 @@ This repository syncs transaction data from Plaid-linked institutions into Googl
   - fall back to deterministic local output when Gemini is unavailable or quota-limited
 
 ## Current State
-The repository is currently at the `v6.1` operational proof and productization cleanup stage.
+The repository is currently at the `v6.2-v6.5` local-app productization stage.
 
 Key capabilities now in place:
 - Shared analytics model across visuals and AI
@@ -28,6 +28,9 @@ Key capabilities now in place:
 - A local-only browser control center for setup readiness, linked accounts, confirmed sync, Apps Script deploy checks, browser-confirmed manual-income dry runs/imports, Sheet launch, warnings, and next-action guidance
 - A proven Apps Script API deployment path for the bound Sheet project
 - A dry-run-proven manual-income CSV path; the checked-in workflow still requires a real local CSV before confirming import
+- A read-only Demo Mode using committed synthetic fixtures under [sample_data](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/sample_data)
+- Draft privacy, terms, support, uninstall, known-limitations, release-build, and Lemon Squeezy distribution docs for paid beta preparation
+- A PyInstaller/DMG packaging scaffold for outside-App-Store Mac distribution
 
 ## Architecture
 ### 1. Python Sync Engine
@@ -75,6 +78,8 @@ Primary files:
 - [PACKAGING_PLAN.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/PACKAGING_PLAN.md): local app packaging and distribution plan
 - [RELEASE_CHECKLIST.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/RELEASE_CHECKLIST.md): local-first setup and acceptance checklist before selling/installing
 - [docs/beta_setup_offer.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/beta_setup_offer.md): customer-facing paid setup offer outline
+- [docs/release_build_runbook.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/release_build_runbook.md): Mac app and DMG build runbook
+- [docs/lemon_squeezy_distribution.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/lemon_squeezy_distribution.md): Lemon Squeezy beta distribution plan
 - [research/docs/setup_guide.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/research/docs/setup_guide.md): setup details
 
 ## Setup
@@ -171,12 +176,26 @@ It binds to `127.0.0.1:8790` by default and provides buttons for:
 - running a confirmed live sync
 - opening the configured Google Sheet
 - checking/deploying Apps Script when `GOOGLE_APPS_SCRIPT_ID` is configured
+- reviewing Demo Mode synthetic income/spend/net/savings-rate behavior without touching the live Sheet
 - running browser-confirmed manual-income dry runs and imports from repo-local CSV files
 - viewing bank-link / OAuth-blocked bank guidance
 - viewing the Quickstart repair command
 - copying the Apps Script redeploy checklist
 
 The sync and confirmed import buttons require explicit browser confirmation because they can append rows to Google Sheets. The control center also summarizes sync/import progress, stores last-run status for the current local session, and shows next actions such as refreshing the dashboard after new rows are appended. Secrets and Plaid access tokens are not displayed.
+
+### Demo Mode
+Demo Mode is read-only and uses committed synthetic fixture rows from [sample_data/demo_transactions.csv](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/sample_data/demo_transactions.csv). It is for screenshots, onboarding, and product demos. It is not connected to the live Google Sheet and cannot append rows.
+
+### Mac Packaging Scaffold
+The first outside-App-Store package path is a PyInstaller app plus DMG:
+
+```bash
+scripts/build_mac_app.sh --dev
+scripts/build_dmg.sh --dev
+```
+
+Release builds require Developer ID signing and notarization environment variables and fail closed if they are missing. See [docs/release_build_runbook.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/release_build_runbook.md).
 
 For a manual launcher:
 

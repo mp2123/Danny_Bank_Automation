@@ -1,6 +1,6 @@
 # Danny Bank Local-First Beta Setup Offer
 
-This is the first customer-facing service shape for Danny Bank before a packaged Mac app or hosted SaaS exists.
+This is the first customer-facing service shape for Danny Bank before the product is a fully autonomous marketplace app.
 
 ## Offer
 Set up a local-first personal finance control center on the customer's Mac using the customer's Plaid account, Google account, and Google Sheet.
@@ -13,6 +13,7 @@ The setup includes:
 - first sync validation
 - Apps Script API deploy validation
 - optional manual-income CSV import walkthrough
+- Demo Mode walkthrough using synthetic sample data
 - dashboard/sidebar acceptance check
 
 ## What Stays Local
@@ -24,6 +25,8 @@ The setup includes:
 - logs and local diagnostics
 
 Danny Bank does not host a customer financial database in this version.
+
+Demo Mode uses committed synthetic fixtures for screenshots and onboarding. It is not connected to the customer's live Google Sheet and cannot append rows.
 
 ## Customer Must Provide
 - Mac access during setup
@@ -40,6 +43,7 @@ The customer should enter bank credentials directly into Plaid Link. The setup o
 - remote transaction storage
 - automated billing
 - remote telemetry or diagnostics
+- self-serve marketplace onboarding without setup support
 - tax, legal, investment, or regulated financial advice
 - unsupported Plaid OAuth institutions before Plaid registration approval
 - bank credentials handled outside Plaid Link
@@ -48,6 +52,7 @@ The customer should enter bank credentials directly into Plaid Link. The setup o
 - Doctor has no failing checks.
 - Linked accounts list expected institutions and friendly labels.
 - Apps Script dry-run is clean or deploy succeeds.
+- Demo Mode renders visibly synthetic income/spend/net/savings-rate examples.
 - Dashboard refresh works in the Google Sheet.
 - Sidebar returns verified local facts for account/month questions.
 - Savings rate behavior is explained: it remains unavailable until real positive income is linked or imported.

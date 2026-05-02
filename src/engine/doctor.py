@@ -27,6 +27,9 @@ class CheckResult:
 
 
 def repo_root():
+    override = os.environ.get('DANNY_BANK_HOME')
+    if override:
+        return Path(override).expanduser().resolve()
     return Path(__file__).resolve().parents[2]
 
 

@@ -38,6 +38,12 @@ Recommended but not always blocking:
 - `GOOGLE_APPS_SCRIPT_ID`, which enables API deployment of `Code.gs` and `Sidebar.html`
 - linked non-credit income source, or manual income import
 
+## Demo Mode
+
+The control center includes `Demo Mode - synthetic data only`. It uses committed sample rows under `sample_data/` to show income, spend, net cashflow, savings rate, sample accounts, and sample categories.
+
+Demo Mode is for screenshots, onboarding, and product walkthroughs. It is not connected to the live Google Sheet and has no import/confirm button.
+
 ## Health Checks
 
 Use `Run Doctor` in the control center or:

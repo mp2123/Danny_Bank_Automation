@@ -23,6 +23,7 @@ from .csv_importer import (
     ManualIncomeImportError,
     run_manual_income_import,
 )
+from .demo_data import DemoDataError, summarize_demo_data
 from .doctor import (
     PLAID_OAUTH_STATUS_URL,
     QUICKSTART_PYTHON_DIR,
@@ -142,6 +143,22 @@ def build_manual_income_import_guidance():
         'Manual income rows must be positive. They append to Transactions!A:G and use the default category Income > Manual Income when category is blank.',
         'After confirming an import, reload the Google Sheet and run Bank Automation -> Refresh Dashboard & Visuals.',
     ])
+
+
+def build_demo_payload(root=None):
+    try:
+        return summarize_demo_data(Path(root or repo_root()) / 'sample_data' / 'demo_transactions.csv')
+    except DemoDataError as exc:
+        return {
+            'ok': False,
+            'synthetic': True,
+            'error': str(exc),
+            'warning': 'Demo Mode is unavailable until sample_data/demo_transactions.csv is valid.',
+            'summary': {},
+            'top_accounts': [],
+            'top_categories': [],
+            'rows': [],
+        }
 
 
 def record_runtime_event(state, event_type, payload):
@@ -494,6 +511,7 @@ def build_status_payload(root=None, env=None, runtime_state=None):
             sync_result=runtime_state.get('last_sync'),
             import_result=runtime_state.get('last_import'),
         ),
+        'demo': build_demo_payload(root),
         'appscript': {
             'deploy_helper_configured': bool(env.get('GOOGLE_APPS_SCRIPT_ID')),
             'manual_deploy_required': not bool(env.get('GOOGLE_APPS_SCRIPT_ID')),
@@ -870,14 +888,29 @@ def render_control_center_html():
     }}
     .readiness.ready {{ border-left-color: var(--green); }}
     .readiness-grid {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }}
+    .demo-banner {{
+      border: 1px solid #bfdbfe;
+      border-left: 5px solid var(--blue);
+      background: #eff6ff;
+    }}
+    .mini-grid {{ display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 10px 0; }}
+    .mini-card {{
+      border: 1px solid #dbeafe;
+      border-radius: 7px;
+      background: #fff;
+      padding: 10px;
+    }}
+    .mini-value {{ font-size: 18px; font-weight: 850; color: #0f172a; margin-top: 4px; }}
     @media (max-width: 900px) {{
       .layout {{ grid-template-columns: 1fr; }}
       .grid {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
       .form-grid {{ grid-template-columns: 1fr; }}
+      .mini-grid {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
       header {{ align-items: flex-start; flex-direction: column; }}
     }}
     @media (max-width: 560px) {{
       .grid {{ grid-template-columns: 1fr; }}
+      .mini-grid {{ grid-template-columns: 1fr; }}
       main {{ padding: 14px; }}
       .actions button {{ width: 100%; }}
     }}
@@ -894,6 +927,7 @@ def render_control_center_html():
   <main>
     <section id="readinessPanel"></section>
     <section class="grid" id="cards"></section>
+    <section class="panel demo-banner" id="demoModePanel"></section>
     <section class="actions">
       <button onclick="runDoctor()">Run Doctor</button>
       <button onclick="listAccounts()">List Linked Accounts</button>
@@ -981,6 +1015,11 @@ def render_control_center_html():
       return `<span class="pill ${{kind || ''}}">${{text}}</span>`;
     }}
 
+    function formatMoney(value) {{
+      const number = Number(value || 0);
+      return number.toLocaleString(undefined, {{ style: 'currency', currency: 'USD' }});
+    }}
+
     function renderCards(status) {{
       const cards = [
         ['Plaid', status.config.plaid_env, `${{status.config.token_count}} configured token(s)`],
@@ -995,6 +1034,58 @@ def render_control_center_html():
           <div class="muted">${{card[2]}}</div>
         </article>
       `).join('');
+    }}
+
+    function renderDemoMode(status) {{
+      const demo = status.demo || {{}};
+      const summary = demo.summary || {{}};
+      if (!demo.ok) {{
+        document.getElementById('demoModePanel').innerHTML = `
+          <h2>Demo Mode - synthetic data only</h2>
+          <div class="muted">${{demo.warning || 'Demo data is unavailable.'}}</div>
+        `;
+        return;
+      }}
+      const metricCards = [
+        ['Demo Income', formatMoney(summary.total_income)],
+        ['Demo Spend', formatMoney(summary.total_spend)],
+        ['Demo Net', formatMoney(summary.net_cashflow)],
+        ['Demo Savings Rate', `${{summary.savings_rate}}%`]
+      ];
+      const accountCards = (demo.top_accounts || []).slice(0, 3).map(item => `
+        <div class="row">
+          <div class="row-title">${{item.name}}</div>
+          <div class="row-detail">Demo spend: ${{formatMoney(item.total)}}</div>
+        </div>
+      `).join('');
+      const categoryCards = (demo.top_categories || []).slice(0, 3).map(item => `
+        <div class="row">
+          <div class="row-title">${{item.name}}</div>
+          <div class="row-detail">Demo spend: ${{formatMoney(item.total)}}</div>
+        </div>
+      `).join('');
+      document.getElementById('demoModePanel').innerHTML = `
+        <h2>Demo Mode - synthetic data only</h2>
+        <div class="muted">${{demo.warning}}</div>
+        <div class="mini-grid">
+          ${{metricCards.map(card => `
+            <div class="mini-card">
+              <div class="muted">${{card[0]}}</div>
+              <div class="mini-value">${{card[1]}}</div>
+            </div>
+          `).join('')}}
+        </div>
+        <div class="layout" style="grid-template-columns:1fr 1fr; gap:10px;">
+          <div>
+            <h3>Sample Accounts</h3>
+            <div class="list">${{accountCards || '<div class="empty">No demo accounts.</div>'}}</div>
+          </div>
+          <div>
+            <h3>Sample Categories</h3>
+            <div class="list">${{categoryCards || '<div class="empty">No demo categories.</div>'}}</div>
+          </div>
+        </div>
+      `;
     }}
 
     function renderReadiness(status) {{
@@ -1106,6 +1197,7 @@ def render_control_center_html():
       renderHeader(status);
       renderReadiness(status);
       renderCards(status);
+      renderDemoMode(status);
       renderWarnings(status);
       renderActions(status);
       renderAccounts(status);
@@ -1285,6 +1377,9 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
             return
         if path == '/api/status':
             self._send_json(build_status_payload(self.root, self._env()))
+            return
+        if path == '/api/demo/status':
+            self._send_json(build_demo_payload(self.root))
             return
         if path == '/api/linked-accounts':
             self._send_json(collect_linked_accounts(self._env()))

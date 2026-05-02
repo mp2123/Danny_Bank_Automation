@@ -9,7 +9,7 @@ This repository exists to run a local-first personal finance workflow:
 - support a Gemini sidebar that mixes verified local analytics with model-generated advice
 
 ## Current Status Snapshot
-Current working state: `v6.1`
+Current working state: `v6.5 local-app productization scaffold`
 What is working now:
 - Python sync engine for Plaid -> Google Sheets
 - Friendly account labels resolved during sync
@@ -22,11 +22,32 @@ What is working now:
 - Local packaging plan: [PACKAGING_PLAN.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/PACKAGING_PLAN.md)
 - Local release checklist: [RELEASE_CHECKLIST.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/RELEASE_CHECKLIST.md)
 - Beta setup offer outline: [docs/beta_setup_offer.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/beta_setup_offer.md)
+- Read-only synthetic Demo Mode fixtures: [sample_data](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/sample_data)
+- Draft privacy, terms, support, uninstall, known-limitations, release-build, and Lemon Squeezy distribution docs under [docs](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs)
+- PyInstaller/DMG packaging scaffold under [packaging](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/packaging) and [scripts](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts)
 - Rules-based analytics exclusion system (Analytics, Dashboard, AI)
 - Hidden `Analytics` data mart powering the visible sheets
 - `Dashboard` and `Insights` rendering from Apps Script
 - Gemini sidebar with logging, verified data, and fallback support
 - Fixed duplicate chart bars and improved dashboard exclusion transparency
+
+### Session 14 - 2026-05-02
+Objective:
+- move from internal/beta readiness toward outside-App-Store DMG distribution and Lemon Squeezy preparation
+
+Completed:
+- added committed synthetic demo fixtures under [sample_data](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/sample_data)
+- added [demo_data.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/demo_data.py) for read-only demo cashflow, account, category, and row summaries
+- added a `Demo Mode - synthetic data only` control-center panel and `GET /api/demo/status`
+- kept Demo Mode disconnected from the live Google Sheet with no write/confirm endpoint
+- added draft privacy, terms, support, uninstall/data-removal, and known-limitations docs
+- added a PyInstaller app spec, development DMG build script, and release signing/notarization script that fails closed without Developer ID credentials
+- added [docs/release_build_runbook.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/release_build_runbook.md) and [docs/lemon_squeezy_distribution.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/lemon_squeezy_distribution.md)
+
+Still intentionally not done:
+- did not confirm-import the ignored example income CSV
+- did not add Lemon Squeezy license enforcement, billing backend, customer auth, telemetry, hosted financial data, or remote diagnostics
+- did not create or commit generated `.app` or `.dmg` artifacts
 
 ### Session 13 - 2026-05-02
 Objective:
@@ -191,11 +212,13 @@ Completed:
 
 ## Next Session Priorities
 Highest-value next steps:
-1. Replace the ignored example `src/imports/income.csv` with real positive income when income data is available, run manual-income dry run, then confirm append only after review.
-2. Refresh Dashboard & Visuals after confirmed income import and verify savings-rate behavior.
-3. Use [RELEASE_CHECKLIST.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/RELEASE_CHECKLIST.md) to rehearse a first paid setup/beta install.
-4. Prepare signed/notarized Mac packaging after real manual income import is proven.
-5. Resume U.S. Bank and Capital One only after Plaid approves OAuth institution registration.
+1. Run browser validation for the read-only Demo Mode panel at `http://127.0.0.1:8790`.
+2. Build unsigned local artifacts with `scripts/build_mac_app.sh --dev` and `scripts/build_dmg.sh --dev` once PyInstaller is intentionally installed in `.venv`.
+3. Replace the ignored example `src/imports/income.csv` with real positive income when income data is available, run manual-income dry run, then confirm append only after review.
+4. Refresh Dashboard & Visuals after confirmed income import and verify savings-rate behavior.
+5. Use [RELEASE_CHECKLIST.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/RELEASE_CHECKLIST.md) to rehearse a first paid setup/beta install.
+6. Review privacy/terms/support docs before any Lemon Squeezy listing.
+7. Resume U.S. Bank and Capital One only after Plaid approves OAuth institution registration.
 
 ## Recommended Restart Checklist
 When resuming later:

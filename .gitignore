@@ -10,3 +10,9 @@ __pycache__/
 Screen Recording*.mov
 src/imports/*.csv
 .playwright-mcp/
+build/
+dist/
+*.app
+*.dmg
+*.pkg
+*.notarytool-log

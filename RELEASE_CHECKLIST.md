@@ -48,6 +48,13 @@ Use this checklist before a personal install, paid setup session, or packaged lo
 - Use `Run Sync Now` only after reviewing the browser confirmation.
 - After sync appends rows, reload the Sheet and run `🏦 Bank Automation -> 📈 Refresh Dashboard & Visuals`.
 
+## Demo Mode Verification
+- Start the control center.
+- Confirm `Demo Mode - synthetic data only` is visible.
+- Confirm demo income, spend, net cashflow, and savings rate render from synthetic data.
+- Confirm demo accounts and categories are visibly labeled as `Demo`, `DEMO`, or `SAMPLE ONLY`.
+- Confirm Demo Mode has no write/import/confirm action and is not connected to the live Sheet.
+
 ## Manual Income Import
 - Use only real positive external income, such as payroll or owner draws.
 - Keep CSV files under `src/imports/`; they are ignored by git.
@@ -81,6 +88,30 @@ Use this checklist before a personal install, paid setup session, or packaged lo
 - Do not call outputs regulated financial advice.
 - Explain that bank tokens, Google credentials, import CSVs, and transaction data remain on the user's machine and in the user's Google account.
 - Do not add hosted storage, remote diagnostics, telemetry, billing, or customer accounts in this release path.
+- Review the draft docs before any paid beta:
+  - `docs/privacy_policy_draft.md`
+  - `docs/terms_draft.md`
+  - `docs/support_runbook.md`
+  - `docs/uninstall_and_data_removal.md`
+  - `docs/known_limitations.md`
+
+## Uninstall And Data Removal Rehearsal
+- Rehearse `docs/uninstall_and_data_removal.md` on a non-production checkout or test account.
+- Confirm local config, tokens, logs, and import CSVs can be removed without touching committed files.
+- Confirm the user understands that deleting the Google Sheet or Apps Script project happens in their own Google account.
+
+## Packaging And Distribution
+- Build unsigned local artifacts for internal testing:
+  ```bash
+  scripts/build_mac_app.sh --dev
+  scripts/build_dmg.sh --dev
+  ```
+- Release builds require Developer ID signing and notarization variables:
+  ```bash
+  scripts/sign_and_notarize.sh --check-env
+  ```
+- Confirm generated `.app` and `.dmg` artifacts remain ignored by git.
+- Review `docs/lemon_squeezy_distribution.md` before listing any digital download.
 
 ## Known Blockers
 - U.S. Bank, Capital One, and other OAuth-gated institutions may remain blocked until Plaid Production/OAuth institution registration is approved.

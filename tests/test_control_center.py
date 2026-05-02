@@ -8,6 +8,7 @@ from src.engine.control_center import (
     build_account_guidance,
     build_appscript_redeploy_checklist,
     build_config_status,
+    build_demo_payload,
     build_manual_income_import_guidance,
     build_next_actions,
     build_readiness,
@@ -417,6 +418,23 @@ def test_status_payload_exposes_readiness_without_secrets(tmp_path):
     assert 'access-one' not in serialized
 
 
+def test_status_payload_includes_read_only_demo_mode(tmp_path):
+    payload = build_status_payload(root=tmp_path, env={}, runtime_state={})
+
+    assert 'demo' in payload
+    assert payload['demo']['synthetic'] is True
+    assert 'GOOGLE_SPREADSHEET_ID' not in json.dumps(payload['demo'])
+
+
+def test_demo_payload_returns_expected_kpis():
+    payload = build_demo_payload()
+
+    assert payload['ok'] is True
+    assert payload['synthetic'] is True
+    assert payload['summary']['total_income'] == 8400.0
+    assert payload['summary']['savings_rate'] == 71.8
+
+
 def test_manual_income_import_path_must_stay_under_imports(tmp_path):
     imports_dir = tmp_path / 'src' / 'imports'
     imports_dir.mkdir(parents=True)
@@ -543,3 +561,15 @@ def test_manual_income_import_routes_and_buttons_are_wired():
     assert '/api/import/manual-income/confirm' in source
     assert 'Dry Run Manual Income Import' in html
     assert 'Confirm Manual Income Import' in html
+
+
+def test_demo_status_route_and_panel_are_read_only():
+    get_source = inspect.getsource(ControlCenterHandler.do_GET)
+    post_source = inspect.getsource(ControlCenterHandler.do_POST)
+    html = render_control_center_html()
+
+    assert '/api/demo/status' in get_source
+    assert '/api/demo/status' not in post_source
+    assert 'Demo Mode - synthetic data only' in html
+    assert 'demo data is not connected' not in html.lower()
+    assert 'Confirm Demo' not in html

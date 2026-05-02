@@ -19,7 +19,18 @@ The first credible paid version should be a Mac-friendly local app wrapper or si
 - opens the Google Sheet
 - keeps `.env`, Google tokens, Plaid tokens, and import CSVs local
 
-The control center remains the primary user-facing cockpit until a native wrapper proves worth the packaging overhead.
+The control center remains the primary user-facing cockpit. The first packaging scaffold uses PyInstaller and a DMG because the current app is Python-first and already works as a local HTTP control center.
+
+## Current Packaging Scaffold
+
+Repo-managed packaging files:
+- [packaging/pyinstaller/danny_bank_control_center.spec](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/packaging/pyinstaller/danny_bank_control_center.spec)
+- [scripts/build_mac_app.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/build_mac_app.sh)
+- [scripts/build_dmg.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/build_dmg.sh)
+- [scripts/sign_and_notarize.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/sign_and_notarize.sh)
+- [docs/release_build_runbook.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/release_build_runbook.md)
+
+Development builds are unsigned. Release builds fail closed unless Developer ID and notarization environment variables are present.
 
 ## Distribution Requirements
 
@@ -33,11 +44,12 @@ Before distributing outside a personal setup/service engagement:
 
 ## Policy And Trust Requirements
 
-Before charging broad users, publish:
-- privacy policy that explains local-first storage and no hosted financial database
-- terms of service for the setup/app workflow
-- plain Plaid Link consent copy
-- support and incident response process
+Before charging broad users, publish and review:
+- [docs/privacy_policy_draft.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/privacy_policy_draft.md)
+- [docs/terms_draft.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/terms_draft.md)
+- [docs/support_runbook.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/support_runbook.md)
+- [docs/uninstall_and_data_removal.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/uninstall_and_data_removal.md)
+- [docs/known_limitations.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/known_limitations.md)
 - clear disclaimer that outputs are personal finance analytics, not regulated financial advice
 
 ## Deferred Work
@@ -52,8 +64,10 @@ Do not add these until demand is proven and compliance/security foundations are 
 ## Recommended Sequence
 
 1. Completed: prove Apps Script API deploy with `GOOGLE_APPS_SCRIPT_ID`.
-2. Next: prove real manual income import with a user-provided local CSV.
-3. Rehearse the release flow with [RELEASE_CHECKLIST.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/RELEASE_CHECKLIST.md).
-4. Run a small paid setup/service beta with local-first framing.
-5. Build a signed Mac launcher/app wrapper around the existing control center.
-6. Add billing, SaaS, or remote support tooling only after support burden and demand are clear.
+2. Completed: add read-only synthetic Demo Mode for screenshots and onboarding without polluting the live Sheet.
+3. Completed: add PyInstaller/DMG packaging scaffold and Lemon Squeezy distribution plan.
+4. Next: prove real manual income import with a user-provided local CSV.
+5. Rehearse the release flow with [RELEASE_CHECKLIST.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/RELEASE_CHECKLIST.md).
+6. Run a small paid setup/service beta with local-first framing.
+7. Build, sign, notarize, and test a release DMG on a clean Mac account.
+8. Add billing, SaaS, or remote support tooling only after support burden and demand are clear.

@@ -4,6 +4,7 @@ from src.engine.doctor import (
     check_required_env,
     format_result,
     quickstart_venv_findings,
+    repo_root,
 )
 
 
@@ -62,3 +63,9 @@ def test_format_result_is_stable():
     result = format_result(CheckResult('env', 'PASS', 'Required keys present.'))
 
     assert result == '[PASS] env: Required keys present.'
+
+
+def test_repo_root_can_use_packaged_app_data_override(tmp_path, monkeypatch):
+    monkeypatch.setenv('DANNY_BANK_HOME', str(tmp_path))
+
+    assert repo_root() == tmp_path.resolve()

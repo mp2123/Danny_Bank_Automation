@@ -11,17 +11,20 @@ Danny Bank Automation is currently a local-first finance intelligence system:
 - Apps Script API deployment has been proven against the live bound Sheet project.
 - Live Sheet refresh and sidebar verified-data account breakdown acceptance have been completed.
 - Browser-confirmed manual-income dry runs are available, but real income import still needs a user-reviewed real CSV before confirmation.
+- Demo Mode now shows synthetic income, spend, net cashflow, savings rate, accounts, and categories without touching the live Google Sheet.
+- Outside-App-Store packaging is the preferred distribution path: signed/notarized `.dmg`, likely sold through Lemon Squeezy or a similar merchant of record.
 
 This is not ready to be sold as hosted SaaS yet. It is much closer to a paid local setup package or packaged Mac app.
 
 ## First Sellable Offer
-The best first paid version is a local-first Mac control center:
+The best first paid version is a local-first Mac control center distributed as a guided setup beta first, then a signed/notarized `.dmg`:
 
 - user-owned Plaid account
 - user-owned Google Sheet
 - local sync process
 - local browser control center for Sync, Doctor, Accounts, Sheet launch, and setup guidance
 - no hosted financial database controlled by us
+- optional Lemon Squeezy checkout/download delivery once the release artifact and support process are ready
 
 That path reduces early security and compliance surface area while still creating a real product experience.
 
@@ -81,8 +84,12 @@ See [PACKAGING_PLAN.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Dan
 - v5.9: first-user setup readiness cockpit and local app setup guide.
 - v6.0: browser-confirmed manual-income import from repo-local CSV files.
 - v6.1: operational acceptance and sellable-product documentation cleanup.
-- v6.2: prove manual income import with a real local payroll/checking CSV and verify savings-rate analytics.
-- v6.3: rehearse a first paid setup beta using the release checklist, then decide whether to build the signed Mac wrapper.
+- v6.2: Demo Mode with committed synthetic fixtures and read-only control-center rendering.
+- v6.3: setup-service beta hardening with privacy, terms, support, uninstall, and known-limitations drafts.
+- v6.4: PyInstaller app and DMG packaging scaffold for outside-App-Store Mac distribution.
+- v6.5: Lemon Squeezy distribution plan for digital download and setup-service variants.
+- v6.6: prove manual income import with a real local payroll/checking CSV and verify savings-rate analytics.
+- v6.7: rehearse a first paid setup beta using the release checklist, then build and test a signed/notarized release artifact.
 
 ## Reference Links
 - Plaid OAuth guide: https://plaid.com/docs/link/oauth/
