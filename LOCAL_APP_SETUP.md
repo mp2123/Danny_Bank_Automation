@@ -63,12 +63,14 @@ Do not keep retrying U.S. Bank or Capital One while Plaid reports OAuth institut
 
 ## Deploy Apps Script
 
-Preferred:
+Preferred when `GOOGLE_APPS_SCRIPT_ID` is configured in `.env`:
 
 ```bash
 .venv/bin/python -m src.engine.appscript_deploy --dry-run
 .venv/bin/python -m src.engine.appscript_deploy --push
 ```
+
+The first API deploy may create `token_appscript.json` with the Apps Script `script.projects` OAuth scope. Keep it local and uncommitted. A clean dry run should show `Code` and `Sidebar` as unchanged when the live bound project already matches the repo.
 
 Fallback:
 1. Paste `src/appscript/Code.gs` into the bound Apps Script project.

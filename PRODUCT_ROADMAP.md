@@ -8,6 +8,8 @@ Danny Bank Automation is currently a local-first finance intelligence system:
 - Apps Script builds the dashboard, rules visibility, insights layer, and AI sidebar.
 - Gemini is used for narrative/advice, while verified transaction math comes from the local sheet model.
 - Bank of America, American Express, and Wells Fargo are the current working production dataset.
+- Apps Script API deployment has been proven against the live bound Sheet project.
+- Browser-confirmed manual-income dry runs are available, but real income import still needs a user-reviewed real CSV before confirmation.
 
 This is not ready to be sold as hosted SaaS yet. It is much closer to a paid local setup package or packaged Mac app.
 
@@ -77,6 +79,9 @@ See [PACKAGING_PLAN.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Dan
 - v5.8: safe manual-income CSV import path for verified savings-rate income.
 - v5.9: first-user setup readiness cockpit and local app setup guide.
 - v6.0: browser-confirmed manual-income import from repo-local CSV files.
+- v6.1: operational acceptance and sellable-product documentation cleanup.
+- v6.2: prove manual income import with a real local payroll/checking CSV and verify savings-rate analytics.
+- v6.3: rehearse a first paid setup beta using the release checklist, then decide whether to build the signed Mac wrapper.
 
 ## Reference Links
 - Plaid OAuth guide: https://plaid.com/docs/link/oauth/

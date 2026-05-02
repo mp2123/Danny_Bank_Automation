@@ -9,7 +9,7 @@ This repository exists to run a local-first personal finance workflow:
 - support a Gemini sidebar that mixes verified local analytics with model-generated advice
 
 ## Current Status Snapshot
-Current working state: `v6.0`
+Current working state: `v6.1`
 What is working now:
 - Python sync engine for Plaid -> Google Sheets
 - Friendly account labels resolved during sync
@@ -20,11 +20,31 @@ What is working now:
 - Manual income CSV importer: [csv_importer.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/csv_importer.py)
 - First-user local setup guide: [LOCAL_APP_SETUP.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/LOCAL_APP_SETUP.md)
 - Local packaging plan: [PACKAGING_PLAN.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/PACKAGING_PLAN.md)
+- Local release checklist: [RELEASE_CHECKLIST.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/RELEASE_CHECKLIST.md)
+- Beta setup offer outline: [docs/beta_setup_offer.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/beta_setup_offer.md)
 - Rules-based analytics exclusion system (Analytics, Dashboard, AI)
 - Hidden `Analytics` data mart powering the visible sheets
 - `Dashboard` and `Insights` rendering from Apps Script
 - Gemini sidebar with logging, verified data, and fallback support
 - Fixed duplicate chart bars and improved dashboard exclusion transparency
+
+### Session 13 - 2026-05-02
+Objective:
+- close the v6.0 operational proof loop and document the next sellable-app gates
+
+Completed:
+- added `GOOGLE_APPS_SCRIPT_ID` locally and completed deploy-only Apps Script OAuth, creating local ignored `token_appscript.json`
+- proved the Apps Script API dry-run and push path after enabling the Apps Script API in the Google Cloud project
+- confirmed the live bound Apps Script project matches repo `Code.gs` and `Sidebar.html`
+- fixed control-center deploy API output so structured JSON reports mask the Apps Script project ID
+- verified the control center still loads at `127.0.0.1:8790` with readiness, account cards, deploy controls, and manual-income import controls
+- dry-ran the ignored example `src/imports/income.csv`; it parsed correctly and appended nothing
+- added [RELEASE_CHECKLIST.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/RELEASE_CHECKLIST.md) and [docs/beta_setup_offer.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/beta_setup_offer.md)
+
+Still intentionally not done:
+- did not confirm-import manual income because the current CSV is example data labeled `EXAMPLE PAYROLL - DO NOT IMPORT`
+- did not add SaaS auth, billing, telemetry, hosted data storage, or remote diagnostics
+- did not retry U.S. Bank or Capital One while Plaid OAuth institution registration remains a blocker
 
 ### Session 12 - 2026-05-02
 Objective:
@@ -35,7 +55,7 @@ Completed:
 - added dry-run and confirmed-import API routes restricted to `src/imports/*.csv`
 - kept confirmed import behind explicit browser confirmation because it can append rows to Google Sheets
 - added import result rendering, row review output, last-import activity state, and dashboard-refresh next action after successful append
-- kept real live import blocked until a user-provided `src/imports/income.csv` exists
+- kept real live import blocked until a user-provided real-income `src/imports/income.csv` exists
 
 Packaging prep:
 - added [PACKAGING_PLAN.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/PACKAGING_PLAN.md) for the local app wrapper/signing/notarization path
@@ -169,16 +189,17 @@ Completed:
 
 ## Next Session Priorities
 Highest-value next steps:
-1. Add `GOOGLE_APPS_SCRIPT_ID` to `.env`, dry-run Apps Script deploy, then deploy after review.
-2. Add a real `src/imports/income.csv`, run manual-income dry run, then confirm append only after review.
-3. Add optional `clasp`, signing/notarization investigation, or release packaging.
-4. Resume U.S. Bank via `.venv/bin/python -m src.engine.connect_bank` once Plaid approves OAuth institution registration.
-5. Revisit Capital One and other OAuth institutions after U.S. Bank/Plaid registration is verified.
+1. Reload the Google Sheet, run `🏦 Bank Automation -> 📈 Refresh Dashboard & Visuals`, and ask the sidebar `Show my spending by account this month.`
+2. Replace the ignored example `src/imports/income.csv` with real positive income, run manual-income dry run, then confirm append only after review.
+3. Refresh Dashboard & Visuals after confirmed income import and verify savings-rate behavior.
+4. Use [RELEASE_CHECKLIST.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/RELEASE_CHECKLIST.md) to rehearse a first paid setup/beta install.
+5. Prepare signed/notarized Mac packaging after real manual income import is proven.
+6. Resume U.S. Bank and Capital One only after Plaid approves OAuth institution registration.
 
 ## Recommended Restart Checklist
 When resuming later:
 1. Pull `main`.
 2. Review [README.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/README.md), [sessions.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/sessions.md), and [AGENTS.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/AGENTS.md).
 3. Run `.venv/bin/python -m src.engine.doctor`.
-4. Open the live Google Sheet and confirm whether the bound Apps Script is at the same revision as the repo.
-5. If Apps Script changed locally, run `.venv/bin/python -m src.engine.appscript_deploy --dry-run`, deploy or use manual paste fallback, then run `🏦 Bank Automation -> 📈 Refresh Dashboard & Visuals`.
+4. Run `.venv/bin/python -m src.engine.appscript_deploy --dry-run` to confirm the bound Apps Script still matches the repo.
+5. If Apps Script changed locally, deploy with `.venv/bin/python -m src.engine.appscript_deploy --push`, then reload the Sheet and run `🏦 Bank Automation -> 📈 Refresh Dashboard & Visuals`.

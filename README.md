@@ -16,7 +16,7 @@ This repository syncs transaction data from Plaid-linked institutions into Googl
   - fall back to deterministic local output when Gemini is unavailable or quota-limited
 
 ## Current State
-The repository is currently at the `v5.9` first-user readiness cockpit stage.
+The repository is currently at the `v6.1` operational proof and productization cleanup stage.
 
 Key capabilities now in place:
 - Shared analytics model across visuals and AI
@@ -25,7 +25,9 @@ Key capabilities now in place:
 - Internal payment/transfer exclusion from spend and cashflow analytics while retaining those rows in the raw ledger
 - Multi-model Gemini fallback in the Apps Script layer
 - A desktop-friendly `run_sync.command` launcher for manual sync runs
-- A local-only browser control center for setup readiness, linked accounts, confirmed sync, Apps Script deploy checks, manual-income guidance, Sheet launch, warnings, and next-action guidance
+- A local-only browser control center for setup readiness, linked accounts, confirmed sync, Apps Script deploy checks, browser-confirmed manual-income dry runs/imports, Sheet launch, warnings, and next-action guidance
+- A proven Apps Script API deployment path for the bound Sheet project
+- A dry-run-proven manual-income CSV path; the checked-in workflow still requires a real local CSV before confirming import
 
 ## Architecture
 ### 1. Python Sync Engine
@@ -71,6 +73,8 @@ Primary files:
 - [PROJECT_TRANSITION_V5.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/PROJECT_TRANSITION_V5.md): archival transition memo from the earlier recovery phase
 - [LOCAL_APP_SETUP.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/LOCAL_APP_SETUP.md): customer-facing local app setup guide
 - [PACKAGING_PLAN.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/PACKAGING_PLAN.md): local app packaging and distribution plan
+- [RELEASE_CHECKLIST.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/RELEASE_CHECKLIST.md): local-first setup and acceptance checklist before selling/installing
+- [docs/beta_setup_offer.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/beta_setup_offer.md): customer-facing paid setup offer outline
 - [research/docs/setup_guide.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/research/docs/setup_guide.md): setup details
 
 ## Setup
@@ -92,6 +96,7 @@ Create or update `.env` with:
 - `PLAID_ENV=production`
 - `PLAID_ACCESS_TOKEN` as a comma-separated list
 - `GOOGLE_SPREADSHEET_ID`
+- `GOOGLE_APPS_SCRIPT_ID` for API-based Apps Script deploy checks/pushes
 - optional `GOOGLE_SHEET_NAME=Transactions`
 
 ### Manual Sync
@@ -297,6 +302,8 @@ The helper uses the Google Apps Script API and only manages:
 
 Set `GOOGLE_APPS_SCRIPT_ID` in `.env` to the bound Apps Script project ID. The first run may create `token_appscript.json` with the deploy-only `script.projects` OAuth scope; keep that file local and uncommitted. The helper preserves the remote `appsscript` manifest unless a repo-local manifest is added later, and it refuses unexpected remote files unless `--allow-unmanaged` is used explicitly.
 
+Current operational note: the Apps Script API deploy path has been proven against the live bound project. A clean dry run reports `Code` and `Sidebar` as unchanged when the live project matches this repo. After any successful deploy, reload the Google Sheet and run `🏦 Bank Automation -> 📈 Refresh Dashboard & Visuals`.
+
 Manual fallback:
 1. Open the bound Apps Script project from the sheet.
 2. Replace the live contents with `src/appscript/Code.gs` and `src/appscript/Sidebar.html`.
@@ -356,6 +363,8 @@ The control center exposes the same flow through the `Manual Income Import` pane
 
 The importer rejects negative income rows by default, deduplicates stable manual IDs against the existing Sheet and the current batch, and writes only to the existing `Transactions!A:G` schema.
 
+Do not confirm-import placeholder/example rows. The local `src/imports/income.csv` path is ignored by git and may contain private or example data; review every generated transaction ID, amount, category, and account before appending.
+
 ## Validation Commands
 Use these before pushing changes:
 
@@ -376,10 +385,11 @@ node --check --input-type=commonjs < src/appscript/Code.gs
 - The current repo intentionally keeps research/history material under `research/` and historical handoff context in `PROJECT_TRANSITION_V5.md`.
 
 ## Next Improvement Themes
-- Continue improving the Apps Script deployment helper and later add optional `clasp` power-user support
 - Prove manual income import with a real local `src/imports/income.csv`
+- Run the full release checklist against a first-user setup
 - Prepare signed/notarized Mac packaging after the local workflows are proven
 - Package/polish the local control center into the first sellable Mac-friendly surface
+- Later add optional `clasp` power-user support if the Python Apps Script API helper proves insufficient
 - Resume U.S. Bank connection after Plaid Production registration approval
 - Connect Capital One and other OAuth institutions
 - Expand Rules sheet with more automated pattern matching for transfers

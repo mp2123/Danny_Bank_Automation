@@ -51,8 +51,9 @@ Do not add these until demand is proven and compliance/security foundations are 
 
 ## Recommended Sequence
 
-1. Prove Apps Script API deploy with `GOOGLE_APPS_SCRIPT_ID`.
-2. Prove real manual income import with a user-provided local CSV.
-3. Run a small paid setup/service beta with local-first framing.
-4. Build a signed Mac launcher/app wrapper around the existing control center.
-5. Add billing, SaaS, or remote support tooling only after support burden and demand are clear.
+1. Completed: prove Apps Script API deploy with `GOOGLE_APPS_SCRIPT_ID`.
+2. Next: prove real manual income import with a user-provided local CSV.
+3. Rehearse the release flow with [RELEASE_CHECKLIST.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/RELEASE_CHECKLIST.md).
+4. Run a small paid setup/service beta with local-first framing.
+5. Build a signed Mac launcher/app wrapper around the existing control center.
+6. Add billing, SaaS, or remote support tooling only after support burden and demand are clear.
