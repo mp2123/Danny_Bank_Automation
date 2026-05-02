@@ -25,11 +25,27 @@ What is working now:
 - Read-only synthetic Demo Mode fixtures: [sample_data](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/sample_data)
 - Draft privacy, terms, support, uninstall, known-limitations, release-build, and Lemon Squeezy distribution docs under [docs](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs)
 - PyInstaller/DMG packaging scaffold under [packaging](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/packaging) and [scripts](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts)
+- Release-candidate smoke check: [scripts/release_smoke_check.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/release_smoke_check.sh)
 - Rules-based analytics exclusion system (Analytics, Dashboard, AI)
 - Hidden `Analytics` data mart powering the visible sheets
 - `Dashboard` and `Insights` rendering from Apps Script
 - Gemini sidebar with logging, verified data, and fallback support
 - Fixed duplicate chart bars and improved dashboard exclusion transparency
+
+### Session 16 - 2026-05-02
+Objective:
+- harden the existing PyInstaller/DMG path into a release-candidate beta workflow while deferring SwiftUI
+
+Completed:
+- removed obsolete untracked `src/engine/csv_importer 2.py`; the supported importer remains [csv_importer.py](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/src/engine/csv_importer.py)
+- added [scripts/release_smoke_check.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/release_smoke_check.sh) to run tests, Apps Script syntax, Doctor, Apps Script dry-run, demo-data validation, packaging preflights, signing fail-closed check, and output secret scanning
+- updated release checklist, packaging plan, and release build runbook to make the smoke check the first release-candidate gate
+- documented the product decision to continue with DMG beta packaging and defer SwiftUI unless beta feedback proves a thin native wrapper is necessary
+
+Still intentionally not done:
+- did not add a full SwiftUI app
+- did not add hosted SaaS auth, telemetry, billing backend, remote diagnostics, or hosted financial data
+- did not confirm-import manual income without real positive income data
 
 ### Session 15 - 2026-05-02
 Objective:

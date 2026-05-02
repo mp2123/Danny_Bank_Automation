@@ -5,6 +5,12 @@ This runbook covers the outside-App-Store `.dmg` path for a local-first beta.
 ## Development Build
 Use development builds for local packaging checks. They are unsigned by default.
 
+Run the release smoke check before building:
+
+```bash
+scripts/release_smoke_check.sh
+```
+
 ```bash
 scripts/build_mac_app.sh --dev
 scripts/build_dmg.sh --dev
@@ -56,11 +62,16 @@ User configuration belongs in a user-writable local app data path or guided setu
 On first launch it prepares sample data, Apps Script templates, `.env.example`, and `src/imports/` in that app-data directory. Real `.env`, Google tokens, Plaid tokens, Gemini keys, and import CSVs should be created there by setup, not committed and not bundled.
 
 ## Pre-Release Verification
-1. Run the full test suite.
+1. Run `scripts/release_smoke_check.sh`.
 2. Build the app.
 3. Build the DMG.
 4. Launch `Danny Bank.app`.
 5. Confirm the local browser opens the control center.
 6. Confirm Demo Mode is visibly synthetic.
 7. Confirm Setup Readiness works with no secrets visible.
-8. Verify Gatekeeper behavior on a clean Mac account before broad distribution.
+8. Confirm no private `.env`, Google tokens, Plaid tokens, Gemini keys, or import CSVs are bundled.
+9. Verify Gatekeeper behavior on a clean Mac account before broad distribution.
+
+## Native App Decision
+
+Do not rewrite Danny Bank as a full SwiftUI app before the paid beta. The current product value is the local finance engine, Apps Script deployment, Google Sheet analytics, and browser control center. If beta feedback shows the wrapper is too rough, build a thin SwiftUI launcher/settings shell later while keeping the Python engine and local browser control center as the source of truth.

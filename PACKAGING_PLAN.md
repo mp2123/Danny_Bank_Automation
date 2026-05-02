@@ -21,6 +21,8 @@ The first credible paid version should be a Mac-friendly local app wrapper or si
 
 The control center remains the primary user-facing cockpit. The first packaging scaffold uses PyInstaller and a DMG because the current app is Python-first and already works as a local HTTP control center.
 
+SwiftUI is intentionally deferred. A full native rewrite would slow beta validation and duplicate the working browser control center. If native polish becomes necessary after beta feedback, build a thin SwiftUI launcher/settings wrapper rather than replacing the Python engine or Google Sheet workflow.
+
 ## Current Packaging Scaffold
 
 Repo-managed packaging files:
@@ -28,6 +30,7 @@ Repo-managed packaging files:
 - [scripts/build_mac_app.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/build_mac_app.sh)
 - [scripts/build_dmg.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/build_dmg.sh)
 - [scripts/sign_and_notarize.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/sign_and_notarize.sh)
+- [scripts/release_smoke_check.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/release_smoke_check.sh)
 - [docs/release_build_runbook.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/release_build_runbook.md)
 
 Development builds are unsigned. Release builds fail closed unless Developer ID and notarization environment variables are present.

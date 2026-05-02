@@ -46,11 +46,17 @@ def test_release_build_check_fails_before_pyinstaller_without_signing_env():
 def test_packaging_scripts_reference_expected_artifacts():
     build_mac = (ROOT / 'scripts' / 'build_mac_app.sh').read_text()
     build_dmg = (ROOT / 'scripts' / 'build_dmg.sh').read_text()
+    smoke = (ROOT / 'scripts' / 'release_smoke_check.sh').read_text()
     spec = (ROOT / 'packaging' / 'pyinstaller' / 'danny_bank_control_center.spec').read_text()
     launcher = (ROOT / 'packaging' / 'pyinstaller' / 'danny_bank_control_center_launcher.py').read_text()
 
     assert 'Danny Bank.app' in build_mac
     assert 'Danny_Bank_${MODE}.dmg' in build_dmg
+    assert 'src.engine.appscript_deploy --dry-run' in smoke
+    assert 'src.engine.demo_data' in smoke
+    assert 'build_mac_app.sh" --dev --check' in smoke
+    assert 'build_dmg.sh" --dev --check' in smoke
+    assert 'scan_for_secret_leaks' in smoke
     assert 'sample_data' in spec
     assert 'src/appscript' in spec
     assert 'Application Support' in launcher
@@ -67,3 +73,10 @@ def test_generated_packaging_artifacts_are_ignored():
     assert 'build/' in ignore
     assert '*.dmg' in ignore
     assert '*.app' in ignore
+
+
+def test_release_smoke_script_rejects_obsolete_duplicate_importer():
+    smoke = (ROOT / 'scripts' / 'release_smoke_check.sh').read_text()
+
+    assert 'csv_importer 2.py' in smoke
+    assert 'Obsolete duplicate importer still exists' in smoke

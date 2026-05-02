@@ -8,6 +8,10 @@ Use this checklist before a personal install, paid setup session, or packaged lo
   git status -sb
   git pull --ff-only
   ```
+- Run the full release smoke check before any release-candidate build:
+  ```bash
+  scripts/release_smoke_check.sh
+  ```
 - Confirm Python dependencies:
   ```bash
   .venv/bin/python -m pytest -q
@@ -101,6 +105,10 @@ Use this checklist before a personal install, paid setup session, or packaged lo
 - Confirm the user understands that deleting the Google Sheet or Apps Script project happens in their own Google account.
 
 ## Packaging And Distribution
+- Run the release smoke check first:
+  ```bash
+  scripts/release_smoke_check.sh
+  ```
 - Build unsigned local artifacts for internal testing:
   ```bash
   scripts/build_mac_app.sh --dev
@@ -112,6 +120,7 @@ Use this checklist before a personal install, paid setup session, or packaged lo
   ```
 - Confirm generated `.app` and `.dmg` artifacts remain ignored by git.
 - Review `docs/lemon_squeezy_distribution.md` before listing any digital download.
+- Keep SwiftUI out of scope until a beta setup rehearsal proves the browser-control-center wrapper is a blocker. If native work is needed later, prefer a thin launcher/settings wrapper over a full app rewrite.
 
 ## Known Blockers
 - U.S. Bank, Capital One, and other OAuth-gated institutions may remain blocked until Plaid Production/OAuth institution registration is approved.
