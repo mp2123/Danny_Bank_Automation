@@ -1,20 +1,21 @@
-# Danny Bank Local-First Beta Setup Offer
+# Danny Bank Local-First Self-Serve Beta Offer
 
-This is the first customer-facing service shape for Danny Bank before the product is a fully autonomous marketplace app.
+This is the first customer-facing product shape for Danny Bank before the product is a fully polished marketplace app. It is designed around self-serve setup with walkthroughs, not hands-on operator setup.
 
 ## Offer
-Set up a local-first personal finance control center on the customer's Mac using the customer's Plaid account, Google account, and Google Sheet.
+Provide a local-first personal finance control center that the customer installs and configures on their own Mac using their own Plaid account, Google account, and Google Sheet.
 
-The setup includes:
-- local Python environment and launcher setup
-- Plaid transaction sync configuration
-- Google Sheet and Apps Script dashboard setup
-- local browser control center walkthrough
-- first sync validation
-- Apps Script API deploy validation
+The beta package should include:
+- local app/control-center download or repo-based trusted-tester install
+- written setup guide
+- short walkthrough videos
+- Plaid transaction sync configuration steps
+- Google Sheet and Apps Script dashboard setup steps
+- first sync validation checklist
+- Apps Script API deploy validation checklist
 - optional manual-income CSV import walkthrough
 - Demo Mode walkthrough using synthetic sample data
-- dashboard/sidebar acceptance check
+- dashboard/sidebar acceptance checklist
 
 ## What Stays Local
 - Plaid access tokens
@@ -43,7 +44,8 @@ The customer should enter bank credentials directly into Plaid Link. The setup o
 - remote transaction storage
 - automated billing
 - remote telemetry or diagnostics
-- self-serve marketplace onboarding without setup support
+- hands-on setup by the developer/operator
+- guaranteed self-serve success for every bank, Google account, or Mac configuration
 - tax, legal, investment, or regulated financial advice
 - unsupported Plaid OAuth institutions before Plaid registration approval
 - bank credentials handled outside Plaid Link
@@ -59,10 +61,11 @@ The customer should enter bank credentials directly into Plaid Link. The setup o
 - No secrets are visible in terminal output, control-center output, docs, screenshots, or committed files.
 
 ## Pricing Direction
-Start as a paid setup/service beta before packaging:
-- charge for guided setup and validation
+Start as a trusted-tester self-serve beta before broad paid download:
+- share with people you know or a very small waitlist
 - limit users to known-compatible institutions
-- document support issues manually
-- use findings to decide whether a signed Mac wrapper is worth building next
+- collect setup friction and support questions manually
+- use findings to decide when Apple Developer ID signing/notarization is worth buying
+- do not promise hands-on setup
 
 Do not add SaaS billing or hosted auth until demand and support burden are proven.

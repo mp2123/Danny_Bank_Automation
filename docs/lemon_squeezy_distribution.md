@@ -6,13 +6,13 @@ Target: outside-App-Store distribution through Lemon Squeezy or a similar mercha
 Use a digital download for the signed and notarized `Danny Bank.dmg`.
 
 ## Initial Offer Variants
-- `Setup Service`: guided local setup, validation, and walkthrough.
+- `Trusted Tester Beta`: limited distribution to people comfortable following setup docs and walkthrough videos.
 - `Local App Beta`: downloadable local app for users comfortable following the setup guide.
 
-The setup-service variant should come first if support risk is still high.
+Hands-on setup service is intentionally not the preferred offer. If support risk is still high, keep distribution limited to trusted testers instead of selling broad self-serve downloads.
 
 ## Pricing Direction
-Start with a one-time paid beta or setup-service purchase. Avoid subscriptions until onboarding, support burden, and bank coverage are proven.
+Start with a limited one-time local app beta only after onboarding docs, walkthroughs, and support boundaries are clear. Avoid subscriptions until onboarding, support burden, and bank coverage are proven.
 
 ## License Keys
 License keys can remain optional in the first controlled beta. Before broad distribution, consider Lemon Squeezy generated license keys.
@@ -36,7 +36,7 @@ scripts/build_dmg.sh --release
 scripts/verify_release_artifact.sh --release
 ```
 
-Guided setup beta can be sold before a full self-serve marketplace launch only when it is clearly positioned as guided setup. A self-serve downloadable beta should wait until the release DMG passes signing, notarization, Gatekeeper, privacy/terms, support, and uninstall checks.
+A self-serve downloadable beta should wait until the release DMG passes signing, notarization, Gatekeeper, privacy/terms, support, and uninstall checks. Before Apple Developer ID enrollment, keep distribution to local testing and trusted users who understand the app is not a polished signed Mac download.
 
 ## Product Page Disclosures
 The page should clearly state:

@@ -28,6 +28,7 @@ What is working now:
 - Release-candidate smoke check: [scripts/release_smoke_check.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/release_smoke_check.sh)
 - macOS signing readiness check: [scripts/check_macos_signing_ready.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/check_macos_signing_ready.sh)
 - release artifact verification: [scripts/verify_release_artifact.sh](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/scripts/verify_release_artifact.sh)
+- trusted-tester/self-serve walkthrough plan: [docs/walkthrough_video_plan.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/walkthrough_video_plan.md)
 - Rules-based analytics exclusion system (Analytics, Dashboard, AI)
 - Hidden `Analytics` data mart powering the visible sheets
 - `Dashboard` and `Insights` rendering from Apps Script
@@ -51,6 +52,22 @@ Still intentionally not done:
 - did not create Apple Developer Program certificates or notarization credentials
 - did not produce a distributable release DMG because no local Developer ID identity is installed yet
 - did not add SwiftUI, SaaS auth, telemetry, billing backend, hosted transaction storage, or remote diagnostics
+
+### Session 18 - 2026-05-02
+Objective:
+- pivot near-term productization away from hands-on guided setup and toward self-serve/trusted-tester beta readiness
+
+Completed:
+- reframed the roadmap around trusted testers, walkthrough videos, and self-serve onboarding instead of operator-led setup
+- moved Apple Developer ID signing/notarization from immediate blocker to later broad-download gate
+- added [docs/walkthrough_video_plan.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/walkthrough_video_plan.md)
+- updated Lemon Squeezy distribution notes to avoid selling broad self-serve downloads before signed/notarized release verification
+- clarified that local testing and trusted-user sharing can continue before Apple Developer Program enrollment
+
+Still intentionally not done:
+- did not enroll in Apple Developer Program
+- did not create a signed/notarized release DMG
+- did not offer hands-on setup as the next commercial path
 
 ### Session 16 - 2026-05-02
 Objective:
@@ -269,14 +286,13 @@ Completed:
 
 ## Next Session Priorities
 Highest-value next steps:
-1. Install/configure an Apple Developer ID Application certificate and private key.
-2. Follow [docs/apple_signing_setup.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/apple_signing_setup.md) to configure notarization auth, preferably with `xcrun notarytool store-credentials danny-bank-notary` and `NOTARYTOOL_PROFILE=danny-bank-notary`.
-3. Run `scripts/check_macos_signing_ready.sh` and resolve any missing signing/notarization prerequisites.
-4. Build and verify a signed release candidate with `scripts/build_mac_app.sh --release`, `scripts/build_dmg.sh --release`, and `scripts/verify_release_artifact.sh --release`.
-5. Rehearse a clean macOS install using [RELEASE_CHECKLIST.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/RELEASE_CHECKLIST.md) and record results in [docs/beta_rehearsal_report_template.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/beta_rehearsal_report_template.md).
-6. Review privacy/terms/support/known-limitations docs before any Lemon Squeezy listing.
-7. Replace the ignored example `src/imports/income.csv` with real positive income when income data is available, run manual-income dry run, then confirm append only after review.
-8. Resume U.S. Bank and Capital One only after Plaid approves OAuth institution registration.
+1. Create self-serve walkthrough material using [docs/walkthrough_video_plan.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/walkthrough_video_plan.md).
+2. Run a trusted-tester rehearsal with someone comfortable using a local beta and document friction in [docs/beta_rehearsal_report_template.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/beta_rehearsal_report_template.md).
+3. Replace the ignored example `src/imports/income.csv` with real positive income when income data is available, run manual-income dry run, then confirm append only after review.
+4. Review privacy/terms/support/known-limitations docs before any Lemon Squeezy or Gumroad listing.
+5. Decide later whether Apple Developer Program enrollment is worth it for a broad signed DMG download.
+6. If enrolling, follow [docs/apple_signing_setup.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/apple_signing_setup.md), then run `scripts/check_macos_signing_ready.sh`.
+7. Resume U.S. Bank and Capital One only after Plaid approves OAuth institution registration.
 
 ## Recommended Restart Checklist
 When resuming later:

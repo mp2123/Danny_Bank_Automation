@@ -1,6 +1,6 @@
 # Danny Bank Local-First Release Checklist
 
-Use this checklist before a personal install, paid setup session, or packaged local beta. The goal is to prove the local workflow end to end without introducing hosted storage, billing, telemetry, or remote diagnostics.
+Use this checklist before a personal install, trusted-tester install, or packaged local beta. The goal is to prove the local workflow end to end without introducing hosted storage, billing, telemetry, or remote diagnostics.
 
 ## Local Setup
 - Confirm the repo is clean and current:
@@ -143,6 +143,7 @@ Use this checklist before a personal install, paid setup session, or packaged lo
 - Confirm generated `.app` and `.dmg` artifacts remain ignored by git.
 - Review `docs/lemon_squeezy_distribution.md` before listing any digital download.
 - Complete `docs/beta_rehearsal_report_template.md` for each guided setup beta or release-candidate build.
+- Review `docs/walkthrough_video_plan.md` before recording self-serve onboarding material.
 - Optional quality gate: run CodeRabbit review after CLI/auth setup. Do not install or authenticate CodeRabbit inside a customer setup session.
 - Keep SwiftUI out of scope until a beta setup rehearsal proves the browser-control-center wrapper is a blocker. If native work is needed later, prefer a thin launcher/settings wrapper over a full app rewrite.
 

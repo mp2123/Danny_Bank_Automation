@@ -14,19 +14,20 @@ Danny Bank Automation is currently a local-first finance intelligence system:
 - Demo Mode now shows synthetic income, spend, net cashflow, savings rate, accounts, and categories without touching the live Google Sheet.
 - Outside-App-Store packaging is the preferred distribution path: signed/notarized `.dmg`, likely sold through Lemon Squeezy or a similar merchant of record.
 
-This is not ready to be sold as hosted SaaS yet. It is much closer to a paid local setup package or packaged Mac app.
+This is not ready to be sold as hosted SaaS yet. The current direction is a self-serve local beta for trusted testers, then a packaged Mac app when signing/notarization and onboarding are ready.
 
 ## First Sellable Offer
-The best first paid version is a local-first Mac control center distributed as a guided setup beta first, then a signed/notarized `.dmg`:
+The preferred first sellable version is a self-serve local-first Mac control center with walkthrough material, not a hands-on setup service:
 
 - user-owned Plaid account
 - user-owned Google Sheet
 - local sync process
 - local browser control center for Sync, Doctor, Accounts, Sheet launch, and setup guidance
+- video walkthroughs and written setup docs instead of operator-led setup
 - no hosted financial database controlled by us
-- optional Lemon Squeezy checkout/download delivery once the release artifact and support process are ready
+- optional Lemon Squeezy/Gumroad-style checkout and download delivery once the release artifact and support process are ready
 
-That path reduces early security and compliance surface area while still creating a real product experience.
+Signed/notarized `.dmg` distribution remains the cleanest self-serve Mac path, but Apple Developer Program enrollment can stay on the back burner while local testing, trusted-user feedback, walkthroughs, and onboarding docs improve.
 
 ## Not SaaS Yet
 Do not position the current product as broad hosted SaaS until these are solved:
@@ -71,10 +72,12 @@ See [PACKAGING_PLAN.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Dan
 
 ## Monetization Sequence
 1. Harden the personal/internal product.
-2. Offer a paid setup/service version to a small number of users.
-3. Package a local-first beta with the control center.
-4. Add automated deployment and onboarding.
-5. Consider SaaS only after demand, support burden, and compliance needs are clear.
+2. Share a trusted-tester local beta with people you know.
+3. Build walkthrough videos, screenshots, setup docs, and a support FAQ.
+4. Package a local-first beta with the control center.
+5. Add Apple Developer ID signing/notarization when the self-serve download is close enough to justify the annual cost.
+6. Consider paid digital download only after onboarding, support boundaries, and trust docs are clear.
+7. Consider SaaS only after demand, support burden, and compliance needs are clear.
 
 ## Near-Term Product Milestones
 - v5.5: local control center.
@@ -85,11 +88,13 @@ See [PACKAGING_PLAN.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Dan
 - v6.0: browser-confirmed manual-income import from repo-local CSV files.
 - v6.1: operational acceptance and sellable-product documentation cleanup.
 - v6.2: Demo Mode with committed synthetic fixtures and read-only control-center rendering.
-- v6.3: setup-service beta hardening with privacy, terms, support, uninstall, and known-limitations drafts.
+- v6.3: beta hardening with privacy, terms, support, uninstall, and known-limitations drafts.
 - v6.4: PyInstaller app and DMG packaging scaffold for outside-App-Store Mac distribution.
-- v6.5: Lemon Squeezy distribution plan for digital download and setup-service variants.
-- v6.6: prove manual income import with a real local payroll/checking CSV and verify savings-rate analytics.
-- v6.7: rehearse a first paid setup beta using the release checklist, then build and test a signed/notarized release artifact.
+- v6.5: Lemon Squeezy distribution plan for digital download variants.
+- v6.6: signed-DMG readiness checks and Apple setup documentation.
+- v6.7: trusted-tester self-serve beta docs, walkthrough plan, and onboarding friction reduction.
+- v6.8: prove manual income import with a real local payroll/checking CSV and verify savings-rate analytics.
+- v6.9: revisit Apple Developer Program enrollment and signed/notarized release artifact when self-serve onboarding is ready.
 
 ## Reference Links
 - Plaid OAuth guide: https://plaid.com/docs/link/oauth/
