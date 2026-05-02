@@ -378,6 +378,8 @@ def test_readiness_with_working_config_allows_sync_with_income_warning(tmp_path)
     (tmp_path / '.env').write_text('configured')
     (tmp_path / 'credentials.json').write_text('{}')
     (tmp_path / 'token.json').write_text('{}')
+    (tmp_path / '.venv' / 'bin').mkdir(parents=True)
+    (tmp_path / '.venv' / 'bin' / 'python').write_text('')
     env = {
         'PLAID_CLIENT_ID': 'client',
         'PLAID_SECRET': 'plaid_secret_value_123',
@@ -392,7 +394,9 @@ def test_readiness_with_working_config_allows_sync_with_income_warning(tmp_path)
     serialized = json.dumps(readiness)
 
     assert readiness['can_sync'] is True
+    assert readiness['recommended_next_step']['title'] == 'Savings rate needs income'
     assert 'Savings rate needs income' in serialized
+    assert not any(step['title'] == 'Reach Google Sheet' and step['status'] == 'warning' for step in readiness['steps'])
     assert 'plaid_access_value_123' not in serialized
     assert 'plaid_secret_value_123' not in serialized
     assert 'script_id_value_123' not in serialized

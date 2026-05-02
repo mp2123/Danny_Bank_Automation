@@ -265,8 +265,8 @@ def build_readiness(root=None, env=None, doctor_payload=None, accounts_payload=N
         sheet_reachable_detail = google_sheet_check.get('detail') or 'Google Sheet check completed.'
         sheet_reachable_blocking = google_sheet_check.get('status') == 'FAIL'
     elif sheet['configured']:
-        sheet_reachable_status = 'warning'
-        sheet_reachable_detail = 'Sheet ID is configured; live reachability has not been checked in this control-center snapshot.'
+        sheet_reachable_status = 'ready'
+        sheet_reachable_detail = 'Sheet ID is configured. Run Doctor when you need a live reachability check.'
         sheet_reachable_blocking = False
     else:
         sheet_reachable_status = 'missing'
