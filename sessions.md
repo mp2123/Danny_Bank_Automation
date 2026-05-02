@@ -36,6 +36,8 @@ Completed:
 - added `GOOGLE_APPS_SCRIPT_ID` locally and completed deploy-only Apps Script OAuth, creating local ignored `token_appscript.json`
 - proved the Apps Script API dry-run and push path after enabling the Apps Script API in the Google Cloud project
 - confirmed the live bound Apps Script project matches repo `Code.gs` and `Sidebar.html`
+- refreshed the live Google Sheet dashboard/visuals and validated the sidebar with `Show my spending by account this month`
+- confirmed the sidebar returned `Verified Data Only` with May 2026 account/category totals and friendly `American Express - Blue Cash Preferred ending 2005` account labeling
 - fixed control-center deploy API output so structured JSON reports mask the Apps Script project ID
 - verified the control center still loads at `127.0.0.1:8790` with readiness, account cards, deploy controls, and manual-income import controls
 - dry-ran the ignored example `src/imports/income.csv`; it parsed correctly and appended nothing
@@ -189,12 +191,11 @@ Completed:
 
 ## Next Session Priorities
 Highest-value next steps:
-1. Reload the Google Sheet, run `🏦 Bank Automation -> 📈 Refresh Dashboard & Visuals`, and ask the sidebar `Show my spending by account this month.`
-2. Replace the ignored example `src/imports/income.csv` with real positive income, run manual-income dry run, then confirm append only after review.
-3. Refresh Dashboard & Visuals after confirmed income import and verify savings-rate behavior.
-4. Use [RELEASE_CHECKLIST.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/RELEASE_CHECKLIST.md) to rehearse a first paid setup/beta install.
-5. Prepare signed/notarized Mac packaging after real manual income import is proven.
-6. Resume U.S. Bank and Capital One only after Plaid approves OAuth institution registration.
+1. Replace the ignored example `src/imports/income.csv` with real positive income when income data is available, run manual-income dry run, then confirm append only after review.
+2. Refresh Dashboard & Visuals after confirmed income import and verify savings-rate behavior.
+3. Use [RELEASE_CHECKLIST.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/RELEASE_CHECKLIST.md) to rehearse a first paid setup/beta install.
+4. Prepare signed/notarized Mac packaging after real manual income import is proven.
+5. Resume U.S. Bank and Capital One only after Plaid approves OAuth institution registration.
 
 ## Recommended Restart Checklist
 When resuming later:

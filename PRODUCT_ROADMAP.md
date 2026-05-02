@@ -9,6 +9,7 @@ Danny Bank Automation is currently a local-first finance intelligence system:
 - Gemini is used for narrative/advice, while verified transaction math comes from the local sheet model.
 - Bank of America, American Express, and Wells Fargo are the current working production dataset.
 - Apps Script API deployment has been proven against the live bound Sheet project.
+- Live Sheet refresh and sidebar verified-data account breakdown acceptance have been completed.
 - Browser-confirmed manual-income dry runs are available, but real income import still needs a user-reviewed real CSV before confirmation.
 
 This is not ready to be sold as hosted SaaS yet. It is much closer to a paid local setup package or packaged Mac app.

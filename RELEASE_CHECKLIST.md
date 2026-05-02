@@ -63,6 +63,7 @@ Use this checklist before a personal install, paid setup session, or packaged lo
 - Refresh Dashboard & Visuals after any confirmed import.
 
 ## Dashboard And Sidebar Acceptance
+- Current personal Sheet acceptance has been completed for a May 2026 account breakdown. Repeat these checks for each new install or paid setup user.
 - Confirm `Dashboard` shows `RULE / EXCLUSION IMPACT`.
 - Confirm savings rate is `N/A - no verified income` unless real positive income exists.
 - Ask the sidebar:
