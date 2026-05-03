@@ -301,10 +301,22 @@ Completed:
 - refreshed [GEMINI.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/GEMINI.md) to reflect the current architecture
 - updated ignore rules for local screen recordings and similar noise
 
+### Session 6 - 2026-05-03
+Objective:
+- make the trusted-tester path more self-serve without requiring Apple signing, hosted SaaS, or hands-on setup services
+
+Completed:
+- added a clearer Start Here/onboarding flow in the local control center
+- added trusted-tester checklist, copyable setup commands, and redacted diagnostics support
+- documented the trusted-tester install path and setup expectations
+- added synthetic Demo Mode for screenshots and savings-rate demonstrations without polluting the live Sheet
+- created walkthrough scripts, capture checklists, and a storyboard for the first self-serve tester videos
+- validated that the release smoke check still passes with only known non-blocking warnings for Apple signing and Plaid OAuth-gated institutions
+
 ## Next Session Priorities
 Highest-value next steps:
-1. Run a trusted-tester rehearsal using [docs/trusted_tester_install.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/trusted_tester_install.md) and document friction in [docs/beta_rehearsal_report_template.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/beta_rehearsal_report_template.md).
-2. Create self-serve walkthrough material using [docs/walkthrough_video_plan.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/walkthrough_video_plan.md).
+1. Record the first self-serve walkthrough using [docs/walkthrough_video_plan.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/walkthrough_video_plan.md) and [docs/walkthrough_storyboard.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/walkthrough_storyboard.md).
+2. Run a trusted-tester rehearsal using [docs/trusted_tester_install.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/trusted_tester_install.md) and document friction in [docs/beta_rehearsal_report_template.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/beta_rehearsal_report_template.md).
 3. Replace the ignored example `src/imports/income.csv` with real positive income when income data is available, run manual-income dry run, then confirm append only after review.
 4. Review privacy/terms/support/known-limitations docs before any Lemon Squeezy or Gumroad listing.
 5. Decide later whether Apple Developer Program enrollment is worth it for a broad signed DMG download.

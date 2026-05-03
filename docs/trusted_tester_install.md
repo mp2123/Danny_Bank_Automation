@@ -41,6 +41,15 @@ http://127.0.0.1:8790
 4. Review `Setup Readiness`.
 5. Use `Copy Redacted Diagnostics` if you need help. Do not share raw `.env`, tokens, keys, CSVs, or credentials.
 
+## Control Center Buttons For Testers
+
+- `Trusted Tester Checklist`: sets expectations before any live action.
+- `Copy Setup Commands`: copies the small set of commands needed for local validation.
+- `Copy Redacted Diagnostics`: copies a support-safe JSON snapshot with local paths and known secrets removed.
+- `Run Doctor`: checks local environment health.
+- `Check Apps Script Deploy Status`: compares repo Apps Script files with the bound Google project without deploying.
+- `Dry Run Manual Income Import`: previews CSV rows without appending to Google Sheets.
+
 ## Expected Trusted-Beta Flow
 
 1. Confirm Setup Readiness has no blocking sync items.
