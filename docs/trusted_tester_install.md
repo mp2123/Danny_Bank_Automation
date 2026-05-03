@@ -41,6 +41,12 @@ http://127.0.0.1:8790
 4. Review `Setup Readiness`.
 5. Use `Copy Redacted Diagnostics` if you need help. Do not share raw `.env`, tokens, keys, CSVs, or credentials.
 
+If the browser clipboard is unavailable, generate the same style of support packet from Terminal:
+
+```bash
+.venv/bin/python -m src.engine.diagnostics
+```
+
 ## How To Read The Control Center
 
 - Start with the `Recommended Next Step` banner. It is the single action the app thinks matters most right now.

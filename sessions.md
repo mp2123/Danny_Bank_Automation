@@ -321,6 +321,7 @@ Completed:
 - expanded the beta rehearsal report with tester-result fields and explicit go/no-go rules
 - added walkthrough shot-list and recording-checklist docs for safe self-serve video production
 - improved the control center with a prominent `Recommended Next Step` banner, `Safe To Click` markers, `Writes To Google Sheet` markers, and an `Advanced Tools` section
+- added a terminal redacted diagnostics command for support-safe tester reports
 - updated trusted-tester docs to explain read-only versus write actions and exactly what testers should report back
 - tightened support, Lemon Squeezy, packaging, terms, and release-checklist language around local beta boundaries and broad paid-download gates
 

@@ -13,11 +13,20 @@ Status: beta support draft. Use this runbook for controlled beta support and pai
 ## Safe Commands
 ```bash
 .venv/bin/python -m src.engine.doctor --skip-network
+.venv/bin/python -m src.engine.diagnostics
 .venv/bin/python -m src.engine.list_linked_accounts
 .venv/bin/python -m src.engine.appscript_deploy --dry-run
 .venv/bin/python -m pytest -q
 node --check --input-type=commonjs < src/appscript/Code.gs
 ```
+
+To save a support packet locally:
+
+```bash
+.venv/bin/python -m src.engine.diagnostics --output redacted-diagnostics.json
+```
+
+Review the file before sharing it. It should contain readiness, doctor, and account counts with local paths and secret-like values removed.
 
 ## Never Request
 - bank usernames
@@ -32,6 +41,7 @@ node --check --input-type=commonjs < src/appscript/Code.gs
 
 ## Safe User-Provided Context
 - redacted diagnostics copied from the control center
+- redacted diagnostics generated with `.venv/bin/python -m src.engine.diagnostics`
 - exact button label that failed
 - exact command output after secrets are removed
 - macOS version

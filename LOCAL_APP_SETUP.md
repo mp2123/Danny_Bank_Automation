@@ -25,6 +25,12 @@ http://127.0.0.1:8790
 
 For trusted-user testing, use [docs/trusted_tester_install.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/trusted_tester_install.md). The control center has a `Start Here` panel with a trusted-tester checklist, copyable setup commands, and a redacted diagnostics export.
 
+Terminal fallback for support-safe diagnostics:
+
+```bash
+.venv/bin/python -m src.engine.diagnostics
+```
+
 The control center also labels actions by risk:
 - `Safe To Click`: read-only checks or redacted copy actions.
 - `Writes To Google Sheet`: actions that can append rows and require browser confirmation.

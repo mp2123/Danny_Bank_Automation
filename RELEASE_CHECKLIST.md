@@ -65,6 +65,10 @@ Use this checklist before a personal install, trusted-tester install, or package
 - Confirm primary read-only actions are marked `Safe To Click`.
 - Confirm write actions are marked `Writes To Google Sheet` and still require browser confirmation.
 - Confirm fallback, OAuth blocker, repair, and deploy actions are grouped under `Advanced Tools`.
+- Confirm terminal redacted diagnostics work:
+  ```bash
+  .venv/bin/python -m src.engine.diagnostics
+  ```
 - Fill one copy of `docs/beta_rehearsal_report_template.md`.
 - Mark no-go if the tester must share secrets, edit source code, or cannot identify the next action.
 

@@ -131,6 +131,7 @@ cd "$ROOT"
 run_step "Python tests" "$PYTHON" -m pytest -q
 run_shell_step "Apps Script syntax" "cd '$ROOT' && node --check --input-type=commonjs < src/appscript/Code.gs"
 run_step "Doctor skip-network" "$PYTHON" -m src.engine.doctor --skip-network
+run_step "Redacted diagnostics" "$PYTHON" -m src.engine.diagnostics
 run_step "Apps Script deploy dry-run" "$PYTHON" -m src.engine.appscript_deploy --dry-run
 run_shell_step "Demo data summary" "cd '$ROOT' && '$PYTHON' - <<'PY'
 from src.engine.demo_data import summarize_demo_data

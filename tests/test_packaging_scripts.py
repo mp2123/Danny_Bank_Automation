@@ -103,6 +103,7 @@ def test_packaging_scripts_reference_expected_artifacts():
     assert 'check_macos_signing_ready.sh' in build_mac
     assert 'check_macos_signing_ready.sh' in build_dmg
     assert 'src.engine.appscript_deploy --dry-run' in smoke
+    assert 'src.engine.diagnostics' in smoke
     assert 'src.engine.demo_data' in smoke
     assert 'build_mac_app.sh" --dev --check' in smoke
     assert 'build_dmg.sh" --dev --check' in smoke
