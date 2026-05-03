@@ -25,6 +25,12 @@ http://127.0.0.1:8790
 
 For trusted-user testing, use [docs/trusted_tester_install.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/trusted_tester_install.md). The control center has a `Start Here` panel with a trusted-tester checklist, copyable setup commands, and a redacted diagnostics export.
 
+The control center also labels actions by risk:
+- `Safe To Click`: read-only checks or redacted copy actions.
+- `Writes To Google Sheet`: actions that can append rows and require browser confirmation.
+
+Fallback deployment, Plaid OAuth blocker guidance, and repair commands live under `Advanced Tools` so most testers can follow the recommended next step first.
+
 ## Setup Readiness
 
 The first panel is `Setup Readiness`. It shows exactly one recommended next step and blocks sync until required local setup exists.

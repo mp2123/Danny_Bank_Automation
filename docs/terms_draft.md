@@ -6,7 +6,7 @@ Status: beta-review draft for guided setup and signed-DMG beta preparation. This
 Danny Bank is local-first personal finance analytics software for syncing transaction data into a user-owned Google Sheet and reviewing that data through a local control center and Apps Script dashboard.
 
 ## Beta Limitations
-The beta may require guided setup. It is not guaranteed to support every bank, Google account configuration, Plaid product, operating system version, or Apps Script deployment state.
+The beta may require local setup comfort and careful use of the written walkthroughs. It is not guaranteed to support every bank, Google account configuration, Plaid product, operating system version, or Apps Script deployment state.
 
 ## User Responsibilities
 The user is responsible for:

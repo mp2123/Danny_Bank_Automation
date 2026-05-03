@@ -881,11 +881,49 @@ def render_control_center_html():
     .pill.pass {{ color: var(--green); border-color: #bbf7d0; background: #f0fdf4; }}
     .pill.warn {{ color: var(--amber); border-color: #fde68a; background: #fffbeb; }}
     .pill.fail {{ color: var(--red); border-color: #fecaca; background: #fef2f2; }}
+    .safety-tag {{
+      display: inline-block;
+      margin-left: 7px;
+      border-radius: 999px;
+      padding: 2px 6px;
+      font-size: 10px;
+      font-weight: 850;
+      line-height: 1.2;
+      vertical-align: middle;
+      border: 1px solid rgba(255,255,255,0.65);
+      background: rgba(255,255,255,0.16);
+      color: inherit;
+    }}
+    button.secondary .safety-tag {{
+      border-color: #bfdbfe;
+      background: #eff6ff;
+      color: var(--blue);
+    }}
+    button.warning .safety-tag {{
+      border-color: #fed7aa;
+      background: #fff7ed;
+      color: var(--amber);
+    }}
     .layout {{ display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; align-items: start; }}
     .start-here {{
       border: 1px solid #bae6fd;
       border-left: 5px solid var(--cyan);
       background: #f0f9ff;
+    }}
+    .next-step-banner {{
+      border: 1px solid #bbf7d0;
+      border-left: 5px solid var(--green);
+      background: #f0fdf4;
+    }}
+    .next-step-banner.blocked {{
+      border-color: #fecaca;
+      border-left-color: var(--red);
+      background: #fef2f2;
+    }}
+    .next-step-banner.warning {{
+      border-color: #fde68a;
+      border-left-color: var(--amber);
+      background: #fffbeb;
     }}
     .grid {{ display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }}
     .card {{
@@ -907,6 +945,20 @@ def render_control_center_html():
     .metric {{ font-size: 23px; font-weight: 850; margin: 5px 0; color: #0f172a; }}
     .muted {{ color: var(--muted); font-size: 12px; line-height: 1.45; }}
     .actions {{ display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0; }}
+    .action-group {{
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 14px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }}
+    details.action-group summary {{
+      cursor: pointer;
+      font-weight: 850;
+      color: #0f172a;
+      margin-bottom: 8px;
+    }}
     button {{
       border: 1px solid var(--blue);
       background: var(--blue);
@@ -1034,26 +1086,37 @@ def render_control_center_html():
       <h2>Start Here</h2>
       <div class="muted">Use this local beta as a self-serve control center. Follow readiness, run dry checks before write actions, and share only redacted diagnostics when asking for help.</div>
       <div class="actions" style="margin:12px 0 0;">
-        <button class="secondary" onclick="showText(`{escaped_tester_checklist}`)">Trusted Tester Checklist</button>
-        <button class="secondary" onclick="copySetupCommands()">Copy Setup Commands</button>
-        <button class="secondary" onclick="copyRedactedDiagnostics()">Copy Redacted Diagnostics</button>
+        <button class="secondary" onclick="showText(`{escaped_tester_checklist}`)">Trusted Tester Checklist <span class="safety-tag">Safe To Click</span></button>
+        <button class="secondary" onclick="copySetupCommands()">Copy Setup Commands <span class="safety-tag">Safe To Click</span></button>
+        <button class="secondary" onclick="copyRedactedDiagnostics()">Copy Redacted Diagnostics <span class="safety-tag">Safe To Click</span></button>
       </div>
     </section>
+    <section id="recommendedNextStepPanel"></section>
     <section id="readinessPanel"></section>
     <section class="grid" id="cards"></section>
     <section class="panel demo-banner" id="demoModePanel"></section>
-    <section class="actions">
-      <button onclick="runDoctor()">Run Doctor</button>
-      <button onclick="listAccounts()">List Linked Accounts</button>
-      <button id="runSyncButton" class="warning" onclick="runSync()">Run Sync Now</button>
-      <button class="secondary" onclick="openSheet()">Open Google Sheet</button>
-      <button class="secondary" onclick="checkAppsScriptDeploy()">Check Apps Script Deploy Status</button>
-      <button class="secondary" onclick="deployAppsScript()">Deploy Apps Script</button>
-      <button class="secondary" onclick="showText(`{escaped_income_import}`)">Manual Income Import Guide</button>
-      <button class="secondary" onclick="showText(`{escaped_guidance}`)">Connect a Bank / OAuth Help</button>
-      <button class="secondary" onclick="showText(`{escaped_quickstart}`)">Quickstart Repair Command</button>
-      <button class="secondary" onclick="copyChecklist()">Copy Apps Script Redeploy Checklist</button>
+    <section class="action-group">
+      <h2>Primary Actions</h2>
+      <div class="muted">Start with read-only checks. Buttons marked as write actions require confirmation before changing Google Sheets.</div>
+      <div class="actions">
+        <button onclick="runDoctor()">Run Doctor <span class="safety-tag">Safe To Click</span></button>
+        <button onclick="listAccounts()">List Linked Accounts <span class="safety-tag">Safe To Click</span></button>
+        <button class="secondary" onclick="checkAppsScriptDeploy()">Check Apps Script Deploy Status <span class="safety-tag">Safe To Click</span></button>
+        <button class="secondary" onclick="openSheet()">Open Google Sheet <span class="safety-tag">Safe To Click</span></button>
+        <button id="runSyncButton" class="warning" onclick="runSync()">Run Sync Now <span class="safety-tag">Writes To Google Sheet</span></button>
+        <button class="secondary" onclick="showText(`{escaped_income_import}`)">Manual Income Import Guide <span class="safety-tag">Safe To Click</span></button>
+      </div>
     </section>
+    <details class="action-group">
+      <summary>Advanced Tools</summary>
+      <div class="muted">Use these when a dry run, fallback deploy, Plaid OAuth blocker, or setup repair step is specifically needed.</div>
+      <div class="actions">
+        <button class="secondary" onclick="deployAppsScript()">Deploy Apps Script</button>
+        <button class="secondary" onclick="showText(`{escaped_guidance}`)">Connect a Bank / OAuth Help</button>
+        <button class="secondary" onclick="showText(`{escaped_quickstart}`)">Quickstart Repair Command</button>
+        <button class="secondary" onclick="copyChecklist()">Copy Apps Script Redeploy Checklist</button>
+      </div>
+    </details>
     <section class="panel">
       <h2>Manual Income Import</h2>
       <div class="form-grid">
@@ -1067,8 +1130,8 @@ def render_control_center_html():
         </div>
       </div>
       <div class="actions" style="margin:12px 0 0;">
-        <button class="secondary" onclick="dryRunManualIncomeImport()">Dry Run Manual Income Import</button>
-        <button class="warning" onclick="confirmManualIncomeImport()">Confirm Manual Income Import</button>
+        <button class="secondary" onclick="dryRunManualIncomeImport()">Dry Run Manual Income Import <span class="safety-tag">Safe To Click</span></button>
+        <button class="warning" onclick="confirmManualIncomeImport()">Confirm Manual Income Import <span class="safety-tag">Writes To Google Sheet</span></button>
       </div>
       <div class="muted">Imports are restricted to repo-local CSV files under src/imports/. Dry run first; confirmed import can append rows to Google Sheets.</div>
     </section>
@@ -1156,7 +1219,7 @@ def render_control_center_html():
       const summary = demo.summary || {{}};
       if (!demo.ok) {{
         document.getElementById('demoModePanel').innerHTML = `
-          <h2>Demo Mode - synthetic data only</h2>
+          <h2>Demo Mode - synthetic data only <span class="safety-tag">Safe To Click</span></h2>
           <div class="muted">${{demo.warning || 'Demo data is unavailable.'}}</div>
         `;
         return;
@@ -1180,7 +1243,7 @@ def render_control_center_html():
         </div>
       `).join('');
       document.getElementById('demoModePanel').innerHTML = `
-        <h2>Demo Mode - synthetic data only</h2>
+        <h2>Demo Mode - synthetic data only <span class="safety-tag">Safe To Click</span></h2>
         <div class="muted">${{demo.warning}}</div>
         <div class="mini-grid">
           ${{metricCards.map(card => `
@@ -1228,6 +1291,28 @@ def render_control_center_html():
         syncButton.disabled = !readiness.can_sync;
         syncButton.title = readiness.can_sync ? '' : 'Complete setup readiness items before syncing.';
       }}
+    }}
+
+    function renderRecommendedNextStep(status) {{
+      const readiness = status.readiness || {{}};
+      const recommended = readiness.recommended_next_step;
+      const classes = ['panel', 'next-step-banner'];
+      if (readiness.has_blocking_items) {{
+        classes.push('blocked');
+      }} else if (recommended && recommended.status !== 'ready') {{
+        classes.push('warning');
+      }}
+      const title = recommended ? recommended.title : 'No immediate action';
+      const detail = recommended ? recommended.detail : 'System checks are clean and no local follow-up is required.';
+      const actionLabel = recommended && recommended.action_label ? recommended.action_label : 'Continue testing';
+      document.getElementById('recommendedNextStepPanel').innerHTML = `
+        <section class="${{classes.join(' ')}}">
+          <h2>Recommended Next Step</h2>
+          <div class="row-title">${{title}}</div>
+          <div class="row-detail">${{detail}}</div>
+          <div class="muted" style="margin-top:8px;">Suggested action: ${{actionLabel}}</div>
+        </section>
+      `;
     }}
 
     function renderHeader(status) {{
@@ -1310,6 +1395,7 @@ def render_control_center_html():
     function renderAll(status) {{
       latestStatus = status;
       renderHeader(status);
+      renderRecommendedNextStep(status);
       renderReadiness(status);
       renderCards(status);
       renderDemoMode(status);
@@ -1360,7 +1446,7 @@ def render_control_center_html():
       if (!confirm('Run a live sync now? This can append new rows to Google Sheets.')) {{
         return;
       }}
-      const syncButton = Array.from(document.querySelectorAll('button')).find(button => button.textContent === 'Run Sync Now');
+      const syncButton = document.getElementById('runSyncButton');
       syncButton.disabled = true;
       setOutput('Running sync...\\n\\nThis may take a few seconds while Plaid and Google Sheets respond.');
       const result = await api('/api/sync', {{
@@ -1368,7 +1454,7 @@ def render_control_center_html():
         headers: {{ 'Content-Type': 'application/json' }},
         body: JSON.stringify({{ confirm: true }})
       }});
-      syncButton.disabled = false;
+      syncButton.disabled = latestStatus && latestStatus.readiness ? !latestStatus.readiness.can_sync : false;
       const summaryLines = [
         result.ok ? 'Sync completed.' : 'Sync failed.',
         `Status: ${{result.summary.status}}`,

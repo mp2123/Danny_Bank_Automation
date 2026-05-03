@@ -313,9 +313,25 @@ Completed:
 - created walkthrough scripts, capture checklists, and a storyboard for the first self-serve tester videos
 - validated that the release smoke check still passes with only known non-blocking warnings for Apple signing and Plaid OAuth-gated institutions
 
+### Session 7 - 2026-05-03
+Objective:
+- implement the deep-state audit roadmap items that do not require real income data, Apple credentials, or hosted infrastructure
+
+Completed:
+- expanded the beta rehearsal report with tester-result fields and explicit go/no-go rules
+- added walkthrough shot-list and recording-checklist docs for safe self-serve video production
+- improved the control center with a prominent `Recommended Next Step` banner, `Safe To Click` markers, `Writes To Google Sheet` markers, and an `Advanced Tools` section
+- updated trusted-tester docs to explain read-only versus write actions and exactly what testers should report back
+- tightened support, Lemon Squeezy, packaging, terms, and release-checklist language around local beta boundaries and broad paid-download gates
+
+Still intentionally not done:
+- did not confirm-import income because no real positive income CSV is available
+- did not create Apple Developer ID certificates or notarization credentials
+- did not add hosted SaaS, billing backend, customer auth, telemetry, remote diagnostics, or a SwiftUI rewrite
+
 ## Next Session Priorities
 Highest-value next steps:
-1. Record the first self-serve walkthrough using [docs/walkthrough_video_plan.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/walkthrough_video_plan.md) and [docs/walkthrough_storyboard.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/walkthrough_storyboard.md).
+1. Record the first self-serve walkthrough using [docs/walkthrough_video_plan.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/walkthrough_video_plan.md), [docs/walkthrough_storyboard.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/walkthrough_storyboard.md), [docs/walkthrough_shot_list.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/walkthrough_shot_list.md), and [docs/walkthrough_recording_checklist.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/walkthrough_recording_checklist.md).
 2. Run a trusted-tester rehearsal using [docs/trusted_tester_install.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/trusted_tester_install.md) and document friction in [docs/beta_rehearsal_report_template.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/docs/beta_rehearsal_report_template.md).
 3. Replace the ignored example `src/imports/income.csv` with real positive income when income data is available, run manual-income dry run, then confirm append only after review.
 4. Review privacy/terms/support/known-limitations docs before any Lemon Squeezy or Gumroad listing.

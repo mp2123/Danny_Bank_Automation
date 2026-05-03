@@ -59,6 +59,15 @@ Use this checklist before a personal install, trusted-tester install, or package
 - Confirm demo accounts and categories are visibly labeled as `Demo`, `DEMO`, or `SAMPLE ONLY`.
 - Confirm Demo Mode has no write/import/confirm action and is not connected to the live Sheet.
 
+## Trusted Tester Rehearsal
+- Open `docs/trusted_tester_install.md`.
+- Confirm the control center shows a `Recommended Next Step` banner.
+- Confirm primary read-only actions are marked `Safe To Click`.
+- Confirm write actions are marked `Writes To Google Sheet` and still require browser confirmation.
+- Confirm fallback, OAuth blocker, repair, and deploy actions are grouped under `Advanced Tools`.
+- Fill one copy of `docs/beta_rehearsal_report_template.md`.
+- Mark no-go if the tester must share secrets, edit source code, or cannot identify the next action.
+
 ## Manual Income Import
 - Use only real positive external income, such as payroll or owner draws.
 - Keep CSV files under `src/imports/`; they are ignored by git.
@@ -144,6 +153,7 @@ Use this checklist before a personal install, trusted-tester install, or package
 - Review `docs/lemon_squeezy_distribution.md` before listing any digital download.
 - Complete `docs/beta_rehearsal_report_template.md` for each guided setup beta or release-candidate build.
 - Review `docs/walkthrough_video_plan.md` before recording self-serve onboarding material.
+- Review `docs/walkthrough_shot_list.md` and `docs/walkthrough_recording_checklist.md` before recording walkthroughs or product screenshots.
 - Optional quality gate: run CodeRabbit review after CLI/auth setup. Do not install or authenticate CodeRabbit inside a customer setup session.
 - Keep SwiftUI out of scope until a beta setup rehearsal proves the browser-control-center wrapper is a blocker. If native work is needed later, prefer a thin launcher/settings wrapper over a full app rewrite.
 

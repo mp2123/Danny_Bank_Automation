@@ -4,6 +4,11 @@ Use walkthrough videos to reduce setup friction without offering hands-on setup.
 
 Status: planning doc for trusted-tester and future self-serve beta.
 
+Companion docs:
+- `docs/walkthrough_storyboard.md`
+- `docs/walkthrough_shot_list.md`
+- `docs/walkthrough_recording_checklist.md`
+
 ## Goal
 
 Help a user install and validate Danny Bank without the developer/operator taking over their machine or handling credentials.

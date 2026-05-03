@@ -5,6 +5,8 @@ Target: outside-App-Store distribution through Lemon Squeezy or a similar mercha
 ## Product Type
 Use a digital download for the signed and notarized `Danny Bank.dmg`.
 
+Do not create a broad public listing while the only artifact is an unsigned or ad-hoc signed development DMG. If Apple signing stays deferred, distribution should stay limited to trusted testers who understand this is local beta software.
+
 ## Initial Offer Variants
 - `Trusted Tester Beta`: limited distribution to people comfortable following setup docs and walkthrough videos.
 - `Local App Beta`: downloadable local app for users comfortable following the setup guide.
@@ -37,6 +39,15 @@ scripts/verify_release_artifact.sh --release
 ```
 
 A self-serve downloadable beta should wait until the release DMG passes signing, notarization, Gatekeeper, privacy/terms, support, and uninstall checks. Before Apple Developer ID enrollment, keep distribution to local testing and trusted users who understand the app is not a polished signed Mac download.
+
+## Listing Readiness Gate
+Before publishing a paid listing, confirm:
+- walkthrough videos or screenshots use Demo Mode or redacted data only
+- privacy, terms, support, uninstall, and known-limitations docs are reviewed
+- support boundaries explain what users can safely share
+- Plaid OAuth-gated institutions are disclosed as availability limitations
+- the product page says personal finance analytics, not financial advice
+- the artifact is either signed/notarized or the listing is explicitly limited to trusted local beta testing
 
 ## Product Page Disclosures
 The page should clearly state:

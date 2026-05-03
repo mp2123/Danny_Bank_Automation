@@ -634,6 +634,8 @@ def test_manual_income_import_routes_and_buttons_are_wired():
     assert '/api/import/manual-income/confirm' in source
     assert 'Dry Run Manual Income Import' in html
     assert 'Confirm Manual Income Import' in html
+    assert 'Safe To Click' in html
+    assert 'Writes To Google Sheet' in html
 
 
 def test_self_serve_onboarding_routes_and_panel_are_wired():
@@ -643,9 +645,12 @@ def test_self_serve_onboarding_routes_and_panel_are_wired():
     assert '/api/trusted-tester/checklist' in get_source
     assert '/api/diagnostics/redacted' in get_source
     assert 'Start Here' in html
+    assert 'Recommended Next Step' in html
     assert 'Trusted Tester Checklist' in html
     assert 'Copy Redacted Diagnostics' in html
     assert 'Copy Setup Commands' in html
+    assert 'Advanced Tools' in html
+    assert 'renderRecommendedNextStep' in html
     assert 'hands-on setup' not in html.lower()
     assert 'const setupCommands = [{' in html
     assert 'JSON.parse(`[{&quot;' not in html

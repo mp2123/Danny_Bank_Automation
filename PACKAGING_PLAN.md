@@ -74,9 +74,10 @@ Do not add these until demand is proven and compliance/security foundations are 
 3. Completed: add PyInstaller/DMG packaging scaffold and Lemon Squeezy distribution plan.
 4. Completed: add signing-readiness and release-artifact verification scripts for the DMG beta path.
 5. Next: improve trusted-tester self-serve setup docs, walkthrough planning, and onboarding friction.
-6. Prove real manual income import with a user-provided local CSV.
-7. Rehearse the release flow with [RELEASE_CHECKLIST.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/RELEASE_CHECKLIST.md).
-8. Share a limited local beta with trusted users who understand the unsigned/local-testing state.
-9. Configure Apple Developer ID signing and notarization auth when a broad self-serve paid download is worth the annual cost.
-10. Build, sign, notarize, and test a release DMG on a clean Mac account.
-11. Add billing, SaaS, or remote support tooling only after support burden and demand are clear.
+6. Record or rehearse walkthrough material from the shot list and recording checklist.
+7. Prove real manual income import with a user-provided local CSV.
+8. Rehearse the release flow with [RELEASE_CHECKLIST.md](/Users/michaelpanico/Desktop/DevBase/active_projects/Danny_Bank_Automation/RELEASE_CHECKLIST.md).
+9. Share a limited local beta with trusted users who understand the unsigned/local-testing state.
+10. Configure Apple Developer ID signing and notarization auth when a broad self-serve paid download is worth the annual cost.
+11. Build, sign, notarize, and test a release DMG on a clean Mac account.
+12. Add billing, SaaS, or remote support tooling only after support burden and demand are clear.

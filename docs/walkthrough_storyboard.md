@@ -2,6 +2,11 @@
 
 Use this storyboard when recording the first self-serve trusted-tester walkthrough. Keep recordings synthetic or redacted.
 
+Use this with:
+- `docs/walkthrough_video_plan.md`
+- `docs/walkthrough_shot_list.md`
+- `docs/walkthrough_recording_checklist.md`
+
 ## Video 1 - Product Overview
 
 Length target: 2-3 minutes.
